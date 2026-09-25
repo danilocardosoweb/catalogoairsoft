@@ -294,7 +294,7 @@ function missionDeck() {
 function resumeStrip() {
   const items = state.recentProducts.map(findProduct).filter(Boolean);
   if (!items.length) return "";
-  return `<section class="resume-strip"><div><span class="eyebrow">CONTINUE SUA OPERAÇÃO</span><strong>Você viu estes itens recentemente.</strong></div><div class="resume-items">${items.map((product) => `<button class="resume-item" data-product="${product.id}"><img src="${product.image}" alt="" /><span><strong>${product.name}</strong><small>${money(product.price)}</small></span></button>`).join("")}</div></section>`;
+  return `<section class="resume-strip"><div><span class="eyebrow">CONTINUE SUA OPERAÇÃO</span><strong>Você viu estes itens recentemente.</strong><button class="resume-clear" data-action="clear-recent">Limpar histórico</button></div><div class="resume-items">${items.map((product) => `<button class="resume-item" data-product="${product.id}"><img src="${product.image}" alt="" /><span><strong>${product.name}</strong><small>${money(product.price)}</small></span></button>`).join("")}</div></section>`;
 }
 
 function homePage() {
@@ -372,8 +372,55 @@ function adminNav(active) {
   return `<aside class="admin-sidebar"><div class="admin-side-brand"><span class="eyebrow">FIELD OPS / OPS</span><strong>Command<br>center.</strong></div><nav class="admin-menu">${items.map(([route, label]) => `<a href="#${route}" data-route="${route}" class="${active === route ? "active" : ""}"><span class="admin-menu-index">${String(items.indexOf(items.find((item) => item[0] === route)) + 1).padStart(2, "0")}</span>${label}</a>`).join("")}</nav><div class="admin-side-foot"><span class="status-dot"></span><span>OPERATIONAL MODE</span><small>v0.1 / PREVIEW</small></div></aside>`;
 }
 
+function downloadLocalFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function csvCell(value) {
+  return `"${String(value ?? "").replace(/"/g, '""')}"`;
+}
+
+function csvDocument(rows) {
+  if (!rows.length) return "";
+  const headers = Object.keys(rows[0]);
+  return [headers, ...rows.map((row) => headers.map((header) => row[header]))].map((row) => row.map(csvCell).join(";")).join("\r\n");
+}
+
+function exportDataModal() {
+  openModal(`<span class="eyebrow">DATA / EXPORT</span><h2>Leve sua<br>operação.</h2><p>Exporte os dados salvos neste dispositivo para backup, análise ou migração.</p><div class="form-grid"><button class="modal-submit" data-action="export-backup">Backup completo · JSON</button><button class="outline-cta" data-action="export-products">Produtos e estoque · CSV</button><button class="outline-cta" data-action="export-quotes">Orçamentos e clientes · CSV</button></div>`);
+}
+
+function exportBackup() {
+  closeModal();
+  const payload = { exportedAt: new Date().toISOString(), source: "FIELD OPS", products, quotes: state.quotes, orders: state.orders, favorites: state.favorites, loadout: state.loadout, settings: state.settings, profile: state.profile };
+  downloadLocalFile(`field-ops-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
+  showToast("Backup completo exportado.");
+}
+
+function exportProducts() {
+  closeModal();
+  const rows = activeProducts().map((product) => ({ sku: `FO-${String(products.indexOf(product) + 231).padStart(5, "0")}`, marca: product.brand, nome: product.name, categoria: product.category, sistema: product.system, preco: product.price, estoque: product.stockCount, status: stockLabel(product) }));
+  downloadLocalFile(`field-ops-produtos-${new Date().toISOString().slice(0, 10)}.csv`, csvDocument(rows), "text/csv;charset=utf-8");
+  showToast("Produtos e estoque exportados.");
+}
+
+function exportQuotes() {
+  closeModal();
+  const rows = state.quotes.map((quote) => ({ orcamento: quote.id, cliente: quote.customer, whatsapp: quote.phone || "", cidade: quote.city || "", status: quote.status, itens: (quote.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0), total: quote.total, criado_em: quote.createdAt }));
+  downloadLocalFile(`field-ops-orcamentos-${new Date().toISOString().slice(0, 10)}.csv`, csvDocument(rows), "text/csv;charset=utf-8");
+  showToast("Orçamentos e clientes exportados.");
+}
+
 function adminShell(active, kicker, title, body) {
-  return `<section class="page admin-page"><div class="admin-layout">${adminNav(active)}<div class="admin-main"><div class="admin-topbar"><div><span class="eyebrow">${kicker}</span><h1>${title}</h1></div><div class="admin-top-actions"><button class="outline-cta" data-route="catalog">Ver catálogo</button><button class="icon-button" data-action="account" aria-label="Abrir conta"><span class="icon icon-user"></span></button></div></div>${body}</div></div></section>`;
+  return `<section class="page admin-page"><div class="admin-layout">${adminNav(active)}<div class="admin-main"><div class="admin-topbar"><div><span class="eyebrow">${kicker}</span><h1>${title}</h1></div><div class="admin-top-actions"><button class="outline-cta" data-action="export-data">Exportar dados</button><button class="outline-cta" data-route="catalog">Ver catálogo</button><button class="icon-button" data-action="account" aria-label="Abrir conta"><span class="icon icon-user"></span></button></div></div>${body}</div></div></section>`;
 }
 
 function adminDashboardPage() {
@@ -1180,12 +1227,22 @@ function bindSearch() {
   input.addEventListener("input", update);
   input.addEventListener("keydown", (event) => { if (event.key === "Enter") { rememberSearch(input.value); state.search = input.value; go("catalog"); } });
   input.addEventListener("focus", () => { if (input.value) update(); });
+  results.addEventListener("click", (event) => {
+    const productEl = event.target.closest("[data-product]");
+    if (productEl) {
+      const product = findProduct(productEl.dataset.product);
+      if (product) go("product", product);
+      return;
+    }
+    const routeEl = event.target.closest("[data-route]");
+    if (routeEl) { event.preventDefault(); go(routeEl.dataset.route); }
+  });
 }
 
 function bindViewEvents() {
   bindHeroVideo();
   bindSearch();
-  document.querySelectorAll("[data-product]").forEach((el) => el.addEventListener("click", (event) => { if (event.target.closest("button")) return; const product = findProduct(el.dataset.product); if (product) go("product", product); }));
+  document.querySelectorAll("[data-product]").forEach((el) => el.addEventListener("click", (event) => { if (!el.matches("button") && event.target.closest("button")) return; const product = findProduct(el.dataset.product); if (product) go("product", product); }));
   document.querySelectorAll("[data-add]").forEach((el) => el.addEventListener("click", () => addToCart(el.dataset.add)));
   document.querySelectorAll("[data-add-detail]").forEach((el) => el.addEventListener("click", () => addToCart(el.dataset.addDetail, state.quantity)));
   document.querySelectorAll("[data-favorite]").forEach((el) => el.addEventListener("click", (event) => { event.stopPropagation(); toggleFavorite(el.dataset.favorite); }));
@@ -1230,6 +1287,11 @@ document.addEventListener("click", (event) => {
   if (action === "toggle-theme") toggleTheme(event);
   if (action === "open-search") searchPalette();
   if (action === "profile-setup") profileSetupModal();
+  if (action === "clear-recent") { state.recentProducts = []; persist(); render(); showToast("Histórico de produtos limpo."); }
+  if (action === "export-data") exportDataModal();
+  if (action === "export-backup") exportBackup();
+  if (action === "export-products") exportProducts();
+  if (action === "export-quotes") exportQuotes();
   if (action === "cart") { renderDrawer(); openDrawer(); }
   if (action === "close-drawer") closeDrawer();
   if (action === "close-modal") closeModal();

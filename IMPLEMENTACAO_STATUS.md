@@ -61,6 +61,8 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Configurações da operação: nome da loja, cidade, WhatsApp e limite de estoque baixo.
 - Restauração dos dados demo salvos no dispositivo.
 - Persistência local de produtos, carrinho, favoritos, comparação, loadout, perfil, briefing, buscas recentes, produtos recentes, orçamentos e configurações.
+- Cards de recomendação e itens recentes com abertura direta do produto, além de limpeza do histórico local.
+- Exportação local de backup completo em JSON e relatórios de produtos/estoque e orçamentos/clientes em CSV.
 
 ### Qualidade e publicação
 
@@ -92,7 +94,6 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 
 - Criar módulo de fornecedores, conforme previsto no escopo inicial.
 - Melhorar a importação em lote com mapeamento persistente de colunas, atualização por SKU, relatório de erros e rollback.
-- Permitir exportação de produtos, estoque, clientes e orçamentos.
 - Criar catálogos personalizados por link, com seleção de produtos, preço e validade.
 - Adicionar compartilhamento de loadout e orçamento por link.
 - Integrar o pipeline de orçamento a um atendimento real, com webhook ou CRM/WhatsApp Business quando disponível; as ações atuais ainda operam localmente.
