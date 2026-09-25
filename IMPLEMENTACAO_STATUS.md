@@ -64,7 +64,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Verificação de diferenças sem erros de whitespace.
 - Fluxos de estoque, preço e busca testados no navegador local.
 - Preview local validado sem erros de console.
-- Versão atual preparada para envio ao repositório de origem e publicação em produção.
+- Versão atual publicada em produção com o fluxo comercial de Orçamentos e a Central inicial de Pedidos.
 - Acesso privado preservado conforme a configuração atual do projeto.
 
 ## Pendências de desenvolvimento
