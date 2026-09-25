@@ -128,6 +128,8 @@ const state = {
   recentSearches: JSON.parse(localStorage.getItem("fieldops-recent-searches") || "[]"),
   recentProducts: JSON.parse(localStorage.getItem("fieldops-recent-products") || "[]"),
   settings: { ...defaultSettings, ...(storedSettings || {}) },
+  quoteSearch: "",
+  quoteStatusFilter: "all",
   quantity: 1
 };
 
@@ -376,6 +378,91 @@ function adminImportPage() {
   return adminShell("admin-import", "05 / DATA INTAKE", "Importar.", `<div class="import-steps"><div class="import-step ${preview ? "done" : "active"}"><span>01</span><strong>Upload</strong><small>Enviar arquivo</small></div><div class="import-step ${preview ? "active" : ""}"><span>02</span><strong>Analisar</strong><small>Detectar colunas</small></div><div class="import-step"><span>03</span><strong>Validar</strong><small>Revisar erros</small></div><div class="import-step"><span>04</span><strong>Importar</strong><small>Publicar registros</small></div></div><section class="admin-panel import-panel"><div class="admin-panel-head"><div><span class="eyebrow">EXCEL / CSV</span><h2>${preview ? "Revise sua carga." : "Traga seu inventário."}</h2></div><span class="admin-sync">Mapeamento salvo: Produtos Field Ops</span></div>${preview ? `<div class="import-file-banner"><span class="dropzone-mark">✓</span><div><strong>${preview.fileName}</strong><small>${preview.validCount} registros válidos · ${preview.errorCount} erros de linha</small></div><button class="outline-cta" data-action="import-reset">Escolher outro</button></div><div class="import-preview"><div><span>Encontrados</span><strong>${preview.rows.length}</strong></div><div><span>Novos</span><strong>${preview.validCount}</strong></div><div><span>Atualizações</span><strong>0</strong></div><div><span>Erros</span><strong class="import-error-count">${preview.errorCount}</strong></div></div><div class="admin-table-wrap import-table"><table class="admin-table"><thead><tr>${preview.headers.slice(0, 5).map((header) => `<th>${header}</th>`).join("")}</tr></thead><tbody>${preview.rows.slice(0, 5).map((row) => `<tr>${preview.headers.slice(0, 5).map((header) => `<td>${row[header.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_")] || "—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div><div class="import-actions"><button class="outline-cta" data-action="import-reset">Cancelar</button><button class="hero-cta" data-action="commit-import" ${preview.validCount ? "" : "disabled"}>Importar ${preview.validCount} produtos</button></div>` : `<label class="dropzone"><input id="import-file" type="file" accept=".csv,.xlsx,.xls" /><span class="dropzone-mark">↑</span><strong>Solte sua planilha aqui</strong><small>CSV ou Excel até 10 MB</small><span class="outline-cta">Escolher arquivo</span></label><div class="import-preview"><div><span>Última análise</span><strong>—</strong></div><div><span>Novos</span><strong>—</strong></div><div><span>Atualizações</span><strong>—</strong></div><div><span>Erros</span><strong>—</strong></div></div><p class="import-help">O arquivo precisa conter pelo menos uma coluna <strong>Nome Produto</strong> ou <strong>product_name</strong>. Outras colunas aceitas: marca, categoria, preço, estoque, sistema, sku, fps.</p>`}</section>`);
 }
 
+function quoteDemoData() {
+  return [{ id: "ORC-000128", customer: "Lucas Mendes", total: 2328, status: "Novo", createdAt: new Date().toISOString(), items: [{ id: "neptune-10", quantity: 1 }, { id: "red-dot-rd1", quantity: 1 }] }, { id: "ORC-000127", customer: "Bruno Azevedo", total: 999, status: "Em análise", createdAt: new Date(Date.now() - 3600000).toISOString(), items: [{ id: "hi-capa-5-1", quantity: 1 }] }];
+}
+
+function quoteCollection() {
+  return [...state.quotes, ...quoteDemoData()];
+}
+
+function quoteStatusClass(status) {
+  return status === "Novo" ? "status-new" : status === "Respondido" ? "status-done" : "status-progress";
+}
+
+function quoteItems(quote) {
+  return (quote.items || []).map((item) => ({ ...item, product: findProduct(item.id) })).filter((item) => item.product || item.name);
+}
+
+function quoteSummary(quote) {
+  const items = quoteItems(quote).map((item) => `${item.quantity}x ${item.product?.name || item.name || item.id}`).join("\n");
+  return [`Orçamento ${quote.id}`, `Cliente: ${quote.customer}`, `WhatsApp: ${quote.phone || "Não informado"}`, `Cidade: ${quote.city || "Não informada"}`, "", "Itens:", items || "Nenhum item detalhado", "", `Total estimado: ${money(quote.total)}`, `Status: ${quote.status}`, quote.note && quote.note !== "—" ? `Observação: ${quote.note}` : ""].filter(Boolean).join("\n");
+}
+
+function nextQuoteId() {
+  const last = state.quotes.reduce((highest, quote) => Math.max(highest, Number(String(quote.id).match(/(\d+)$/)?.[1] || 0)), 128);
+  return `ORC-${String(last + 1).padStart(6, "0")}`;
+}
+
+function adminQuotesWorkspace() {
+  const allQuotes = quoteCollection();
+  const query = state.quoteSearch.trim().toLowerCase();
+  const list = allQuotes.filter((quote) => {
+    const matchesQuery = !query || `${quote.id} ${quote.customer} ${quote.phone || ""}`.toLowerCase().includes(query);
+    const matchesStatus = state.quoteStatusFilter === "all" || quote.status === state.quoteStatusFilter;
+    return matchesQuery && matchesStatus;
+  });
+  return adminShell("admin-quotes", "04 / COMMERCIAL", "Orçamentos.", `<div class="admin-toolbar quote-toolbar"><div class="admin-search"><span class="icon icon-search"></span><input id="quote-search" value="${state.quoteSearch}" placeholder="Buscar por número, cliente ou WhatsApp" /></div><select class="quote-status-filter" id="quote-status-filter" aria-label="Filtrar orçamentos por status"><option value="all" ${state.quoteStatusFilter === "all" ? "selected" : ""}>Todos os status</option><option value="Novo" ${state.quoteStatusFilter === "Novo" ? "selected" : ""}>Novos</option><option value="Em análise" ${state.quoteStatusFilter === "Em análise" ? "selected" : ""}>Em análise</option><option value="Respondido" ${state.quoteStatusFilter === "Respondido" ? "selected" : ""}>Respondidos</option></select><button class="hero-cta" data-action="quote-new">Novo orçamento</button></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">QUOTE PIPELINE</span><h2>${list.length} conversas na visão atual</h2></div><span class="admin-sync"><i class="status-dot"></i> ${state.quotes.length} salvos neste dispositivo</span></div><div class="admin-quote-cards"><div><span>NOVOS</span><strong>${allQuotes.filter((quote) => quote.status === "Novo").length}</strong><small>aguardando primeiro contato</small></div><div><span>EM ANÁLISE</span><strong>${allQuotes.filter((quote) => quote.status === "Em análise").length}</strong><small>time comercial em atendimento</small></div><div><span>RESPONDIDOS</span><strong>${allQuotes.filter((quote) => quote.status === "Respondido").length}</strong><small>últimas conversas concluídas</small></div></div><div class="admin-table-wrap"><table class="admin-table quotes-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Total estimado</th><th>Itens</th><th>Status</th><th>Ações</th></tr></thead><tbody>${list.length ? list.map((quote) => { const saved = state.quotes.some((item) => item.id === quote.id); return `<tr><td><strong>#${quote.id}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td><strong>${quote.customer}</strong><small>${quote.phone || "WhatsApp não informado"}</small></td><td><strong>${money(quote.total)}</strong></td><td>${(quote.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)} itens</td><td><span class="admin-status ${quoteStatusClass(quote.status)}">${quote.status}</span></td><td><div class="admin-row-actions quote-row-actions"><button data-action="quote-view" data-quote-id="${quote.id}">Ver</button>${saved ? `<button data-action="quote-advance" data-quote-id="${quote.id}">Avançar</button>` : `<span class="admin-table-muted">Demo</span>`}</div></td></tr>`; }).join("") : `<tr><td colspan="6"><div class="admin-inline-empty">Nenhum orçamento corresponde aos filtros atuais.</div></td></tr>`}</tbody></table></div></section>`);
+}
+
+function quoteDetailModal(id) {
+  const quote = quoteCollection().find((item) => item.id === id);
+  if (!quote) return;
+  const saved = state.quotes.some((item) => item.id === quote.id);
+  const items = quoteItems(quote);
+  openModal(`<span class="eyebrow">QUOTE / ${quote.id}</span><h2>Detalhes do<br>orçamento.</h2><div class="quote-detail-head"><div><strong>${quote.customer}</strong><small>${quote.phone || "WhatsApp não informado"} · ${quote.city || "Cidade não informada"}</small></div><span class="admin-status ${quoteStatusClass(quote.status)}">${quote.status}</span></div><div class="quote-detail-items">${items.length ? items.map((item) => `<div class="quote-detail-item"><div><strong>${item.product?.name || item.name || item.id}</strong><small>${item.product?.brand || "Produto registrado"} · ${item.quantity} unidade(s)</small></div><b>${item.product ? money(item.product.price * item.quantity) : "—"}</b></div>`).join("") : `<p class="admin-inline-empty">Este orçamento não possui itens detalhados.</p>`}</div><div class="summary-row total"><span>Total estimado</span><strong>${money(quote.total)}</strong></div>${quote.note && quote.note !== "—" ? `<div class="quote-note"><span>OBSERVAÇÃO</span><p>${quote.note}</p></div>` : ""}<div class="quote-detail-actions"><button class="hero-cta" data-action="quote-advance" data-quote-id="${quote.id}" ${saved ? "" : "disabled"}>${saved ? "Avançar status" : "Demonstração"}</button><button class="outline-cta" data-action="quote-copy" data-quote-id="${quote.id}">Copiar resumo</button>${quote.phone ? `<button class="outline-cta" data-action="quote-whatsapp" data-quote-id="${quote.id}">WhatsApp cliente ↗</button>` : ""}${saved ? `<button class="danger-cta" data-action="quote-delete" data-quote-id="${quote.id}">Excluir orçamento</button>` : ""}</div>`);
+}
+
+function quoteCreateModal() {
+  openModal(`<span class="eyebrow">QUOTE / NEW REQUEST</span><h2>Novo<br>orçamento.</h2><p>Registre uma solicitação recebida por telefone, balcão ou atendimento direto.</p><form class="form-grid" id="admin-quote-form"><div class="form-row"><label class="form-label">Nome do cliente<input name="name" required placeholder="Nome completo" /></label><label class="form-label">WhatsApp<input name="phone" required placeholder="(11) 99999-9999" /></label></div><div class="form-row"><label class="form-label">Cidade<input name="city" placeholder="São Paulo" /></label><label class="form-label">Produto principal<select name="productId" required>${activeProducts().map((product) => `<option value="${product.id}">${product.name} · ${money(product.price)}</option>`).join("")}</select></label></div><label class="form-label">Quantidade<input name="quantity" type="number" min="1" step="1" value="1" required /></label><label class="form-label">Observação<textarea name="note" placeholder="Preferências, prazo ou contexto do atendimento"></textarea></label><button class="modal-submit" type="submit">Criar orçamento</button></form>`);
+  document.querySelector("#admin-quote-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const product = findProduct(form.get("productId"));
+    if (!product) return;
+    const quantity = Math.max(1, Number(form.get("quantity")) || 1);
+    state.quotes.unshift({ id: nextQuoteId(), customer: form.get("name").toString().trim(), phone: form.get("phone").toString().trim(), city: form.get("city")?.toString().trim() || "—", note: form.get("note")?.toString().trim() || "—", total: product.price * quantity, status: "Novo", createdAt: new Date().toISOString(), items: [{ id: product.id, quantity }] });
+    persist();
+    closeModal();
+    render();
+    showToast("Orçamento criado.");
+  });
+}
+
+function copyQuoteSummary(id) {
+  const quote = quoteCollection().find((item) => item.id === id);
+  if (!quote) return;
+  if (!navigator.clipboard?.writeText) { showToast("Não foi possível copiar neste navegador."); return; }
+  navigator.clipboard.writeText(quoteSummary(quote)).then(() => showToast("Resumo copiado."), () => showToast("Não foi possível copiar neste navegador."));
+}
+
+function openQuoteWhatsApp(id) {
+  const quote = state.quotes.find((item) => item.id === id) || quoteDemoData().find((item) => item.id === id);
+  const phone = String(quote?.phone || "").replace(/\D/g, "");
+  if (!quote || phone.length < 10) { showToast("Este orçamento não tem um WhatsApp válido."); return; }
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(quoteSummary(quote))}`, "_blank", "noopener,noreferrer");
+}
+
+function deleteQuote(id) {
+  const quote = state.quotes.find((item) => item.id === id);
+  if (!quote || !window.confirm(`Excluir o orçamento ${quote.id}?`)) return;
+  state.quotes = state.quotes.filter((item) => item.id !== id);
+  persist();
+  closeModal();
+  render();
+  showToast("Orçamento excluído.");
+}
+
 function profileSetupModal() {
   const profile = state.profile || {};
   openModal(`<div class="profile-setup"><span class="eyebrow">FIELD BRIEFING / 02 MIN</span><h2>Seu jeito<br>de jogar.</h2><p>Duas escolhas. Um catálogo muito mais útil para você.</p><form class="form-grid" id="profile-form"><fieldset class="choice-fieldset"><legend>Como você joga?</legend><label class="choice-card"><input type="radio" name="style" value="assalto" ${profile.style === "assalto" || !profile.style ? "checked" : ""}><span><strong>Assalto</strong><small>Ritmo, mobilidade e versatilidade.</small></span><b>01</b></label><label class="choice-card"><input type="radio" name="style" value="precisao" ${profile.style === "precisao" ? "checked" : ""}><span><strong>Precisão</strong><small>Controle, alcance e consistência.</small></span><b>02</b></label><label class="choice-card"><input type="radio" name="style" value="proximidade" ${profile.style === "proximidade" ? "checked" : ""}><span><strong>Proximidade</strong><small>Resposta rápida para curta distância.</small></span><b>03</b></label></fieldset><label class="form-label">Faixa de investimento<select name="budget"><option value="1000" ${Number(profile.budget) === 1000 ? "selected" : ""}>Até R$ 1.000</option><option value="2000" ${Number(profile.budget) === 2000 ? "selected" : ""}>Até R$ 2.000</option><option value="5000" ${Number(profile.budget) === 5000 || !profile.budget ? "selected" : ""}>Sem limite definido</option></select></label><button class="modal-submit" type="submit">Atualizar meu briefing</button></form></div>`);
@@ -487,6 +574,7 @@ function advanceQuoteStatus(id) {
   const statuses = ["Novo", "Em análise", "Respondido"];
   quote.status = statuses[(statuses.indexOf(quote.status) + 1) % statuses.length];
   persist();
+  closeModal();
   render();
   showToast(`Orçamento ${quote.id}: ${quote.status}.`);
 }
@@ -500,7 +588,7 @@ function loadoutModal(label) {
 
 function quoteRecord(form) {
   const total = state.cart.reduce((sum, item) => sum + findProduct(item.id).price * item.quantity, 0);
-  const record = { id: `ORC-${String(129 + state.quotes.length).padStart(6, "0")}`, customer: form.get("name").toString(), phone: form.get("phone").toString(), city: form.get("city")?.toString() || "—", note: form.get("note")?.toString() || "—", total, status: "Novo", createdAt: new Date().toISOString(), items: state.cart.map((item) => ({ id: item.id, quantity: item.quantity })) };
+  const record = { id: nextQuoteId(), customer: form.get("name").toString(), phone: form.get("phone").toString(), city: form.get("city")?.toString() || "—", note: form.get("note")?.toString() || "—", total, status: "Novo", createdAt: new Date().toISOString(), items: state.cart.map((item) => ({ id: item.id, quantity: item.quantity })) };
   state.quotes.unshift(record);
   persist();
   return record;
@@ -567,7 +655,7 @@ function render() {
   if (state.route === "admin-products") view = adminProductsPage();
   if (state.route === "admin-stock") view = adminStockPage();
   if (state.route === "admin-prices") view = adminPricesPage();
-  if (state.route === "admin-quotes") view = adminQuotesPage();
+  if (state.route === "admin-quotes") view = adminQuotesWorkspace();
   if (state.route === "admin-customers") view = adminCustomersPage();
   if (state.route === "admin-import") view = adminImportPage();
   if (state.route === "admin-settings") view = adminSettingsPage();
@@ -761,6 +849,10 @@ function bindViewEvents() {
   document.querySelectorAll("[data-delete-product]").forEach((el) => el.addEventListener("click", () => { const product = findProduct(el.dataset.deleteProduct); if (product && window.confirm(`Excluir ${product.name}?`)) { product.active = false; persist(); render(); showToast("Produto desativado."); } }));
   const adminSearch = document.querySelector("#admin-product-search");
   if (adminSearch) adminSearch.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.adminProductSearch = adminSearch.value; render(); } });
+  const quoteSearch = document.querySelector("#quote-search");
+  if (quoteSearch) quoteSearch.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.quoteSearch = quoteSearch.value; render(); } });
+  const quoteStatusFilter = document.querySelector("#quote-status-filter");
+  if (quoteStatusFilter) quoteStatusFilter.addEventListener("change", () => { state.quoteStatusFilter = quoteStatusFilter.value; render(); });
   const importFile = document.querySelector("#import-file");
   if (importFile) importFile.addEventListener("change", () => analyzeImportFile(importFile.files[0]));
   const settingsForm = document.querySelector("#settings-form");
@@ -803,6 +895,13 @@ document.addEventListener("click", (event) => {
   if (event.target.closest("[data-clear-filters]")) { state.category = ""; state.search = ""; state.filters = { systems: [], availability: "all", maxPrice: catalogPriceMax() }; render(); }
   const quoteStatusId = event.target.closest("[data-quote-status]")?.dataset.quoteStatus;
   if (quoteStatusId) advanceQuoteStatus(quoteStatusId);
+  if (action === "quote-new") quoteCreateModal();
+  const quoteId = event.target.closest("[data-quote-id]")?.dataset.quoteId;
+  if (action === "quote-view" && quoteId) quoteDetailModal(quoteId);
+  if (action === "quote-advance" && quoteId) advanceQuoteStatus(quoteId);
+  if (action === "quote-copy" && quoteId) copyQuoteSummary(quoteId);
+  if (action === "quote-whatsapp" && quoteId) openQuoteWhatsApp(quoteId);
+  if (action === "quote-delete" && quoteId) deleteQuote(quoteId);
   const stockEditId = event.target.closest("[data-stock-edit]")?.dataset.stockEdit;
   if (stockEditId) stockModal(findProduct(stockEditId));
   const priceEditId = event.target.closest("[data-edit-price]")?.dataset.editPrice;

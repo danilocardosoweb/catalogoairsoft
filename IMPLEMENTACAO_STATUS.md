@@ -39,6 +39,12 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Ajuste individual de estoque com atualização imediata dos indicadores.
 - Ajuste individual de preço com atualização no catálogo, loadout e orçamentos.
 - Pipeline de orçamentos com contagem por status e avanço de status para registros salvos.
+- Busca por número, cliente ou WhatsApp e filtro por status.
+- Visualização detalhada do cliente, itens, observação, status e total estimado.
+- Criação manual de orçamento pelo painel para atendimentos recebidos fora do catálogo.
+- Cópia do resumo do orçamento para colar em outros canais.
+- Abertura do WhatsApp do cliente quando existe um número válido.
+- Exclusão protegida por confirmação para orçamentos salvos localmente.
 - Lista de clientes derivada dos orçamentos locais.
 - Importação de CSV e XLSX com análise, pré-visualização, validação básica e confirmação da carga.
 - Configurações da operação: nome da loja, cidade, WhatsApp e limite de estoque baixo.
@@ -74,7 +80,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Permitir exportação de produtos, estoque, clientes e orçamentos.
 - Criar catálogos personalizados por link, com seleção de produtos, preço e validade.
 - Adicionar compartilhamento de loadout e orçamento por link.
-- Integrar o pipeline de orçamento a um atendimento real, com webhook ou CRM/WhatsApp Business quando disponível.
+- Integrar o pipeline de orçamento a um atendimento real, com webhook ou CRM/WhatsApp Business quando disponível; as ações atuais ainda operam localmente.
 - Permitir regras de preço por grupo: varejo, lojista e distribuidor, em vez de percentuais fixos.
 - Adicionar variações de produto, SKUs, códigos de barras, marcas e campos técnicos completos.
 - Implementar upload/armazenamento otimizado de imagens e fallback para imagens indisponíveis.
@@ -108,4 +114,3 @@ Conforme o prompt mestre, não são prioridades desta fase: pagamento online, em
 3. Migrar produtos e orçamentos do `localStorage` para a API/banco.
 4. Conectar estoque, preços e WhatsApp ao backend.
 5. Revalidar os fluxos mobile e publicar uma versão de operação real.
-

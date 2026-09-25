@@ -334,6 +334,28 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .admin-quote-cards span, .import-preview span { display: block; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .11em; }
 .admin-quote-cards strong { display: block; margin: 10px 0 5px; font: 600 31px var(--display); }
 .admin-quote-cards small { color: var(--muted); font-size: 9px; }
+.quote-toolbar { align-items: stretch; }
+.quote-toolbar .admin-search { min-width: 220px; }
+.quote-status-filter { min-height: 45px; padding: 0 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); font: 700 10px var(--body); letter-spacing: .06em; }
+.quote-toolbar .hero-cta { white-space: nowrap; }
+.quote-row-actions { align-items: center; flex-wrap: wrap; }
+.quote-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.quote-detail-head strong, .quote-detail-head small { display: block; }
+.quote-detail-head strong { font-size: 14px; }
+.quote-detail-head small { margin-top: 5px; color: var(--muted); font-size: 10px; }
+.quote-detail-items { display: grid; gap: 0; margin: 14px 0; }
+.quote-detail-item { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.quote-detail-item strong, .quote-detail-item small { display: block; }
+.quote-detail-item strong { font-size: 11px; }
+.quote-detail-item small { margin-top: 4px; color: var(--muted); font-size: 10px; }
+.quote-detail-item b { color: var(--ink); font-size: 11px; white-space: nowrap; }
+.quote-note { margin: 15px 0; padding: 12px; border-left: 2px solid var(--sand); background: var(--bg-elevated); }
+.quote-note span { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .12em; }
+.quote-note p { margin: 6px 0 0; color: var(--ink-soft); font-size: 11px; line-height: 1.5; }
+.quote-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 17px; }
+.quote-detail-actions .hero-cta, .quote-detail-actions .outline-cta, .quote-detail-actions .danger-cta { min-height: 42px; flex: 1 1 150px; }
+.danger-cta { border: 1px solid rgba(255, 122, 103, .35); background: transparent; color: #ff9d8d; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.danger-cta:hover { border-color: #ff7a67; background: rgba(255, 122, 103, .08); }
 .inventory-list { display: grid; }
 .inventory-row { display: grid; grid-template-columns: 42px 1fr 100px 85px auto; align-items: center; gap: 13px; padding: 13px 0; border-bottom: 1px solid var(--line); }
 .inventory-row:last-child { border-bottom: 0; }
@@ -714,6 +736,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .quick-action-grid button { min-height: 92px; }
   .admin-toolbar { display: block; }
   .admin-toolbar .hero-cta { width: 100%; margin-top: 8px; }
+  .quote-status-filter { width: 100%; margin-top: 8px; }
   .admin-quote-cards { grid-template-columns: 1fr; }
   .inventory-row { grid-template-columns: 42px 1fr auto; gap: 9px; }
   .inventory-row .admin-status { grid-column: 2 / -1; justify-self: start; }
