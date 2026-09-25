@@ -130,6 +130,7 @@ const state = {
   recentSearches: JSON.parse(localStorage.getItem("fieldops-recent-searches") || "[]"),
   recentProducts: JSON.parse(localStorage.getItem("fieldops-recent-products") || "[]"),
   settings: { ...defaultSettings, ...(storedSettings || {}) },
+  theme: localStorage.getItem("fieldops-theme") === "light" ? "light" : "dark",
   quoteSearch: "",
   quoteStatusFilter: "all",
   orderSearch: "",
@@ -173,6 +174,41 @@ state.cart = state.cart.filter((item) => findProduct(item.id));
 state.favorites = state.favorites.filter((id) => findProduct(id));
 state.compare = state.compare.filter((id) => findProduct(id));
 
+function updateThemeControls() {
+  const isLight = state.theme === "light";
+  document.querySelectorAll("[data-action=toggle-theme]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(isLight));
+    button.setAttribute("aria-label", isLight ? "Ativar modo noturno" : "Ativar modo claro");
+    button.setAttribute("title", isLight ? "Ativar visão noturna" : "Ativar visão diurna");
+    const label = button.querySelector("[data-theme-label]");
+    if (label) label.textContent = isLight ? "DAY OPS / LIGHT" : "NVG / NIGHT";
+  });
+}
+
+function applyTheme(theme, animate = false, origin = null) {
+  const nextTheme = theme === "light" ? "light" : "dark";
+  state.theme = nextTheme;
+  document.documentElement.dataset.theme = nextTheme;
+  localStorage.setItem("fieldops-theme", nextTheme);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", nextTheme === "light" ? "#f5f7f2" : "#0b0e0c");
+  if (animate) {
+    const root = document.documentElement;
+    root.style.setProperty("--theme-x", `${origin?.clientX ?? window.innerWidth - 54}px`);
+    root.style.setProperty("--theme-y", `${origin?.clientY ?? 38}px`);
+    root.classList.remove("theme-switching");
+    void root.offsetWidth;
+    root.classList.add("theme-switching");
+    window.setTimeout(() => root.classList.remove("theme-switching"), 720);
+  }
+  updateThemeControls();
+}
+
+function toggleTheme(event) {
+  const nextTheme = state.theme === "light" ? "dark" : "light";
+  applyTheme(nextTheme, true, event);
+  showToast(nextTheme === "light" ? "Visão diurna ativada." : "Visão noturna ativada.");
+}
+
 function persist() {
   localStorage.setItem("fieldops-cart", JSON.stringify(state.cart));
   localStorage.setItem("fieldops-favorites", JSON.stringify(state.favorites));
@@ -185,6 +221,7 @@ function persist() {
   localStorage.setItem("fieldops-recent-searches", JSON.stringify(state.recentSearches));
   localStorage.setItem("fieldops-recent-products", JSON.stringify(state.recentProducts));
   localStorage.setItem("fieldops-settings", JSON.stringify(state.settings));
+  localStorage.setItem("fieldops-theme", state.theme);
 }
 
 function filteredProducts() {
@@ -864,6 +901,7 @@ function updateNav() {
   document.querySelectorAll("[data-favorite-count]").forEach((el) => { el.textContent = state.favorites.length; });
   document.querySelectorAll("[data-catalog-count]").forEach((el) => { el.textContent = activeProducts().length; });
   document.querySelectorAll("[data-route]").forEach((el) => el.classList.toggle("active", el.dataset.route === state.route || (state.route === "product" && el.dataset.route === "catalog")));
+  updateThemeControls();
 }
 
 function go(route, product = null) {
@@ -1165,6 +1203,7 @@ function bindViewEvents() {
 
 document.addEventListener("click", (event) => {
   const action = event.target.closest("[data-action]")?.dataset.action;
+  if (action === "toggle-theme") toggleTheme(event);
   if (action === "open-search") searchPalette();
   if (action === "profile-setup") profileSetupModal();
   if (action === "cart") { renderDrawer(); openDrawer(); }
@@ -1180,7 +1219,7 @@ document.addEventListener("click", (event) => {
   if (action === "simulate-import") { const button = event.target.closest(".import-submit"); if (button) { button.textContent = "Arquivo analisado ✓"; button.disabled = true; showToast("Análise concluída: 15 registros precisam de revisão."); } }
   if (action === "commit-import") commitImport();
   if (action === "import-reset") { state.importData = null; render(); }
-  if (action === "reset-local-data" && window.confirm("Restaurar os dados demo e apagar os dados salvos neste dispositivo?")) { ["fieldops-products", "fieldops-cart", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-settings", "fieldops-account"].forEach((key) => localStorage.removeItem(key)); location.hash = "#admin"; location.reload(); }
+  if (action === "reset-local-data" && window.confirm("Restaurar os dados demo e apagar os dados salvos neste dispositivo?")) { ["fieldops-products", "fieldops-cart", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-settings", "fieldops-account", "fieldops-theme"].forEach((key) => localStorage.removeItem(key)); location.hash = "#admin"; location.reload(); }
   if (action === "menu") openModal(`<span class="eyebrow">FIELD OPS / MENU</span><h2>Navegue<br>pelo arsenal.</h2><div class="form-grid"><button class="outline-cta" data-route="catalog">Catálogo</button><button class="outline-cta" data-route="loadout">Monte seu loadout</button><button class="outline-cta" data-route="favorites">Favoritos</button><button class="outline-cta" data-route="admin">Painel operacional</button></div>`);
   if (action === "apply-filter-modal") { closeModal(); render(); }
   const loadoutId = event.target.closest("[data-loadout-select]")?.dataset.loadoutSelect;
@@ -1247,5 +1286,6 @@ const initialQuoteMatch = initialRoute.match(/^quote\/(.+)$/);
 state.route = initialProductMatch ? "product" : initialQuoteMatch ? "quote" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-customers", "admin-import", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
 state.selectedProduct = initialProductMatch ? findProduct(initialProductMatch[1]) : null;
 state.selectedQuoteId = initialQuoteMatch ? initialQuoteMatch[1] : null;
+applyTheme(state.theme);
 render();
 renderDrawer();

@@ -17,6 +17,8 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 
 - Home com hero tático, busca, categorias, marcas, destaques, briefing personalizado e itens recentemente visualizados.
 - Hero com vídeo pausado de operador Airsoft controlado horizontalmente pelo mouse, interpolação via `requestAnimationFrame`, retorno suave ao frame central, fallback visual e suporte a movimento reduzido/mobile.
+- Sistema visual com modo noturno `NVG / NIGHT` e modo claro `DAY OPS / LIGHT`, preferência persistida no dispositivo e transição radial inspirada em troca de visor/HUD.
+- Contraste revisado em textos de filtro, metadados, descrições, cabeçalho e superfícies claras para melhorar leitura em telas menores.
 - Catálogo com busca por produto, marca ou categoria.
 - Filtros por categoria, sistema, disponibilidade e preço máximo.
 - Ordenação por relevância, menor preço, maior preço e novidades.
@@ -66,6 +68,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Fluxos de estoque, preço e busca testados no navegador local.
 - Preview local validado sem erros de console.
 - Vídeo do hero validado em MP4 local, com metadata carregada, frame inicial central e reprodução mantida pausada.
+- Alternância entre temas validada no catálogo, com retorno aos dois modos e persistência após recarregar a página.
 - Versão atual publicada em produção com o hero interativo, o fluxo comercial de Orçamentos e a Central inicial de Pedidos.
 - Acesso privado preservado conforme a configuração atual do projeto.
 
