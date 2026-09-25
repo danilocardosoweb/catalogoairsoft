@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 25/09/2026  
-Última versão publicada: fluxo comercial de Orçamentos + Central de Pedidos  
+Última versão publicada: hero interativo + fluxo comercial de Orçamentos + Central de Pedidos
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: privado, com login do ChatGPT.
 
@@ -16,6 +16,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 ### Experiência do cliente
 
 - Home com hero tático, busca, categorias, marcas, destaques, briefing personalizado e itens recentemente visualizados.
+- Hero com vídeo pausado de operador Airsoft controlado horizontalmente pelo mouse, interpolação via `requestAnimationFrame`, retorno suave ao frame central, fallback visual e suporte a movimento reduzido/mobile.
 - Catálogo com busca por produto, marca ou categoria.
 - Filtros por categoria, sistema, disponibilidade e preço máximo.
 - Ordenação por relevância, menor preço, maior preço e novidades.
@@ -64,7 +65,8 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Verificação de diferenças sem erros de whitespace.
 - Fluxos de estoque, preço e busca testados no navegador local.
 - Preview local validado sem erros de console.
-- Versão atual publicada em produção com o fluxo comercial de Orçamentos e a Central inicial de Pedidos.
+- Vídeo do hero validado em MP4 local, com metadata carregada, frame inicial central e reprodução mantida pausada.
+- Versão atual publicada em produção com o hero interativo, o fluxo comercial de Orçamentos e a Central inicial de Pedidos.
 - Acesso privado preservado conforme a configuração atual do projeto.
 
 ## Pendências de desenvolvimento

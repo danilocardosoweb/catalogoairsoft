@@ -161,6 +161,7 @@ const drawer = document.querySelector(".cart-drawer");
 const drawerBackdrop = document.querySelector(".drawer-backdrop");
 const modalLayer = document.querySelector("[data-modal-layer]");
 const modalContent = document.querySelector("[data-modal-content]");
+let heroInteractionCleanup = null;
 
 const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 const findProduct = (id) => products.find((product) => product.id === id);
@@ -262,8 +263,10 @@ function resumeStrip() {
 function homePage() {
   const feature = recommendedProducts().slice(0, 4);
   return `<section class="page home-page">
-    <section class="home-hero">
-      <div class="hero-content"><span class="hero-kicker">AIRSOFT EQUIPMENT / 01</span><h1 class="hero-title">EQUIP<br><em>YOUR</em><br>GAME.</h1><p class="hero-subtitle">Performance, precisão e estratégia para quem leva cada operação a sério.</p><button class="hero-cta" data-route="catalog">Explorar catálogo</button></div>
+    <section class="home-hero" data-hero-interactive aria-label="Banner interativo Field Ops">
+      <video class="hero-video" data-hero-video src="videos/operator-airsoft.mp4" muted playsinline preload="auto" tabindex="-1" aria-hidden="true"></video>
+      <div class="hero-video-shade" aria-hidden="true"></div>
+      <div class="hero-content"><span class="hero-kicker">AIRSOFT EQUIPMENT / 01</span><h1 class="hero-title">DOMINE<br><em>O JOGO</em></h1><p class="hero-subtitle">Equipamentos, precisão e adrenalina para quem vive Airsoft.</p><button class="hero-cta" data-route="catalog">Explorar catálogo</button></div>
       <div class="hero-coordinates"><span>System // Online</span><span>Stock // Updated</span><span>Field // Ready</span></div><div class="hero-index"><strong>01</strong> / 04</div>
     </section>
     ${searchBar()}
@@ -832,6 +835,8 @@ function commitImport() {
 }
 
 function render() {
+  heroInteractionCleanup?.();
+  heroInteractionCleanup = null;
   let view = homePage();
   if (state.route === "catalog") view = catalogPage();
   if (state.route === "product" && state.selectedProduct) view = productPage(state.selectedProduct);
@@ -993,6 +998,111 @@ function bindFilterControls(root, immediateRender = true) {
   });
 }
 
+function bindHeroVideo() {
+  heroInteractionCleanup?.();
+  heroInteractionCleanup = null;
+  const hero = document.querySelector("[data-hero-interactive]");
+  const video = hero?.querySelector("[data-hero-video]");
+  if (!hero || !video) return;
+
+  const reducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+  const tabletQuery = window.matchMedia?.("(max-width: 1100px)");
+  let frameId = 0;
+  let metadataReady = false;
+  let hasPointer = false;
+  let targetProgress = 0.5;
+  let currentProgress = 0.5;
+  let lastFrameTime = 0;
+
+  const clampProgress = (value) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0.5));
+  const reducedMotion = () => Boolean(reducedMotionQuery?.matches);
+  const setCenterFrame = () => {
+    if (!metadataReady || !Number.isFinite(video.duration) || video.duration <= 0) return;
+    const centerTime = Math.max(0, Math.min(video.duration - 0.001, video.duration * 0.5));
+    video.pause();
+    video.currentTime = Number.isFinite(centerTime) ? centerTime : 0;
+    currentProgress = 0.5;
+    targetProgress = 0.5;
+  };
+  const stopFrameLoop = () => {
+    if (frameId) cancelAnimationFrame(frameId);
+    frameId = 0;
+    lastFrameTime = 0;
+  };
+  const frameLoop = (timestamp) => {
+    frameId = 0;
+    if (!metadataReady || reducedMotion() || !Number.isFinite(video.duration) || video.duration <= 0) return;
+    const elapsed = lastFrameTime ? Math.min(64, timestamp - lastFrameTime) : 16;
+    lastFrameTime = timestamp;
+    const smoothing = 1 - Math.exp(-elapsed / 115);
+    currentProgress += (targetProgress - currentProgress) * smoothing;
+    if (Math.abs(targetProgress - currentProgress) < 0.001) currentProgress = targetProgress;
+    const desiredTime = clampProgress(currentProgress) * video.duration;
+    const safeTime = Math.max(0, Math.min(video.duration - 0.001, desiredTime));
+    if (Number.isFinite(safeTime) && Math.abs(video.currentTime - safeTime) > 0.004) video.currentTime = safeTime;
+    if (Math.abs(targetProgress - currentProgress) > 0.001) frameId = requestAnimationFrame(frameLoop);
+    else lastFrameTime = 0;
+  };
+  const startFrameLoop = () => {
+    if (!frameId && !reducedMotion() && metadataReady) frameId = requestAnimationFrame(frameLoop);
+  };
+  const onPointerMove = (event) => {
+    if (reducedMotion() || event.pointerType === "touch") return;
+    const bounds = hero.getBoundingClientRect();
+    if (!bounds.width) return;
+    hasPointer = true;
+    const pointerProgress = clampProgress((event.clientX - bounds.left) / bounds.width);
+    const tabletScale = tabletQuery?.matches ? 0.72 : 1;
+    targetProgress = clampProgress(0.5 + (pointerProgress - 0.5) * tabletScale);
+    startFrameLoop();
+  };
+  const onPointerLeave = () => {
+    hasPointer = false;
+    targetProgress = 0.5;
+    startFrameLoop();
+  };
+  const onMetadata = () => {
+    metadataReady = Number.isFinite(video.duration) && video.duration > 0;
+    if (!metadataReady) return;
+    video.pause();
+    if (reducedMotion() || !hasPointer) setCenterFrame();
+    else startFrameLoop();
+  };
+  const onVideoError = () => {
+    stopFrameLoop();
+    hero.classList.add("is-video-fallback");
+    video.hidden = true;
+  };
+  const onMotionPreferenceChange = () => {
+    if (reducedMotion()) {
+      stopFrameLoop();
+      setCenterFrame();
+    } else if (metadataReady) {
+      startFrameLoop();
+    }
+  };
+
+  video.pause();
+  video.addEventListener("loadedmetadata", onMetadata);
+  video.addEventListener("error", onVideoError);
+  hero.addEventListener("pointermove", onPointerMove, { passive: true });
+  hero.addEventListener("pointerleave", onPointerLeave, { passive: true });
+  reducedMotionQuery?.addEventListener?.("change", onMotionPreferenceChange);
+  if (reducedMotionQuery && !reducedMotionQuery.addEventListener) reducedMotionQuery.addListener(onMotionPreferenceChange);
+  if (video.readyState >= 1) onMetadata();
+
+  heroInteractionCleanup = () => {
+    stopFrameLoop();
+    video.pause();
+    video.removeEventListener("loadedmetadata", onMetadata);
+    video.removeEventListener("error", onVideoError);
+    hero.removeEventListener("pointermove", onPointerMove);
+    hero.removeEventListener("pointerleave", onPointerLeave);
+    reducedMotionQuery?.removeEventListener?.("change", onMotionPreferenceChange);
+    if (reducedMotionQuery && !reducedMotionQuery.removeEventListener) reducedMotionQuery.removeListener(onMotionPreferenceChange);
+  };
+}
+
 function bindSearch() {
   const input = document.querySelector("#global-search");
   const results = document.querySelector("[data-search-results]");
@@ -1011,6 +1121,7 @@ function bindSearch() {
 }
 
 function bindViewEvents() {
+  bindHeroVideo();
   bindSearch();
   document.querySelectorAll("[data-product]").forEach((el) => el.addEventListener("click", (event) => { if (event.target.closest("button")) return; const product = findProduct(el.dataset.product); if (product) go("product", product); }));
   document.querySelectorAll("[data-add]").forEach((el) => el.addEventListener("click", () => addToCart(el.dataset.add)));
