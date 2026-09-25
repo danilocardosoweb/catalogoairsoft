@@ -335,7 +335,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .admin-quote-cards strong { display: block; margin: 10px 0 5px; font: 600 31px var(--display); }
 .admin-quote-cards small { color: var(--muted); font-size: 9px; }
 .inventory-list { display: grid; }
-.inventory-row { display: grid; grid-template-columns: 42px 1fr 100px 85px; align-items: center; gap: 13px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.inventory-row { display: grid; grid-template-columns: 42px 1fr 100px 85px auto; align-items: center; gap: 13px; padding: 13px 0; border-bottom: 1px solid var(--line); }
 .inventory-row:last-child { border-bottom: 0; }
 .inventory-row strong, .inventory-row small { display: block; }
 .inventory-row strong { font-size: 11px; }
@@ -343,6 +343,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .inventory-value { text-align: right; }
 .inventory-value strong { font: 600 23px var(--display); }
 .inventory-value small { text-transform: uppercase; }
+.inventory-row .status-action { justify-self: end; }
+.settings-panel { max-width: 860px; }
+.settings-intro { max-width: 560px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.settings-form { display: grid; gap: 18px; margin-top: 23px; }
+.settings-preview { padding: 15px; background: var(--bg-elevated); border: 1px solid var(--line); }
+.settings-preview strong, .settings-preview small { display: block; }
+.settings-preview strong { margin-top: 8px; font-size: 12px; }
+.settings-preview small { margin-top: 5px; color: var(--muted); font-size: 10px; }
+.settings-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.settings-actions .hero-cta, .settings-actions .outline-cta { min-height: 44px; }
 .import-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin-bottom: 16px; background: var(--line); }
 .import-step { padding: 16px; background: var(--surface); color: var(--muted); }
 .import-step.active { background: var(--surface-3); color: var(--ink); }
@@ -707,6 +717,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .admin-quote-cards { grid-template-columns: 1fr; }
   .inventory-row { grid-template-columns: 42px 1fr auto; gap: 9px; }
   .inventory-row .admin-status { grid-column: 2 / -1; justify-self: start; }
+  .inventory-row .status-action { grid-column: 2 / -1; justify-self: start; }
   .inventory-value { grid-column: 3; grid-row: 1; }
   .import-steps { overflow-x: auto; grid-template-columns: repeat(4, minmax(112px, 1fr)); }
   .import-step { padding: 12px; }

@@ -106,6 +106,9 @@ const categories = [
   { name: "Proteção", count: "27 itens", image: "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=900&q=82" }
 ];
 
+const defaultSettings = { whatsapp: "5511999999999", storeName: "Field Ops", city: "São Paulo", lowStock: 10 };
+const storedSettings = JSON.parse(localStorage.getItem("fieldops-settings") || "null");
+
 const state = {
   route: "home",
   selectedProduct: null,
@@ -124,6 +127,7 @@ const state = {
   profile: JSON.parse(localStorage.getItem("fieldops-profile") || "null"),
   recentSearches: JSON.parse(localStorage.getItem("fieldops-recent-searches") || "[]"),
   recentProducts: JSON.parse(localStorage.getItem("fieldops-recent-products") || "[]"),
+  settings: { ...defaultSettings, ...(storedSettings || {}) },
   quantity: 1
 };
 
@@ -135,7 +139,7 @@ const modalContent = document.querySelector("[data-modal-content]");
 
 const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 const findProduct = (id) => products.find((product) => product.id === id);
-const stockLabel = (product) => product.stockCount <= 0 ? "Indisponível" : product.stockCount <= 10 ? "Poucas unidades" : "Em estoque";
+const stockLabel = (product) => product.stockCount <= 0 ? "Indisponível" : product.stockCount <= state.settings.lowStock ? "Poucas unidades" : "Em estoque";
 const catalogPriceMax = () => Math.max(2500, Math.ceil(Math.max(...activeProducts().map((product) => product.price), 2500) / 500) * 500);
 const productFps = (product) => Number(String(product.specs?.FPS || "").match(/\d+(?:[.,]\d+)?/)?.[0]?.replace(",", ".") || 0);
 const activeProducts = () => products.filter((product) => product.active !== false);
@@ -153,6 +157,7 @@ function persist() {
   localStorage.setItem("fieldops-profile", JSON.stringify(state.profile));
   localStorage.setItem("fieldops-recent-searches", JSON.stringify(state.recentSearches));
   localStorage.setItem("fieldops-recent-products", JSON.stringify(state.recentProducts));
+  localStorage.setItem("fieldops-settings", JSON.stringify(state.settings));
 }
 
 function filteredProducts() {
@@ -160,7 +165,7 @@ function filteredProducts() {
   let result = activeProducts().filter((product) => {
     const haystack = `${product.name} ${product.brand} ${product.category} ${product.system}`.toLowerCase();
     const matchesSystem = !state.filters.systems.length || state.filters.systems.some((system) => product.system.toUpperCase().includes(system));
-    const matchesAvailability = state.filters.availability === "all" || (state.filters.availability === "available" && product.stockCount > 10) || (state.filters.availability === "low" && product.stockCount > 0 && product.stockCount <= 10) || (state.filters.availability === "out" && product.stockCount <= 0);
+    const matchesAvailability = state.filters.availability === "all" || (state.filters.availability === "available" && product.stockCount > state.settings.lowStock) || (state.filters.availability === "low" && product.stockCount > 0 && product.stockCount <= state.settings.lowStock) || (state.filters.availability === "out" && product.stockCount <= 0);
     const matchesPrice = product.price <= Number(state.filters.maxPrice || catalogPriceMax());
     return (!query || haystack.includes(query)) && (!state.category || product.category === state.category) && matchesSystem && matchesAvailability && matchesPrice;
   });
@@ -326,28 +331,32 @@ function adminImportPage() {
 }
 
 function adminNav(active) {
-  const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-customers", "Clientes"], ["admin-import", "Importações"]];
+  const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-settings", "Configurações"]];
   return `<aside class="admin-sidebar"><div class="admin-side-brand"><span class="eyebrow">FIELD OPS / OPS</span><strong>Command<br>center.</strong></div><nav class="admin-menu">${items.map(([route, label], index) => `<a href="#${route}" data-route="${route}" class="${active === route ? "active" : ""}"><span class="admin-menu-index">${String(index + 1).padStart(2, "0")}</span>${label}</a>`).join("")}</nav><div class="admin-side-foot"><span class="status-dot"></span><span>OPERATIONAL MODE</span><small>v0.1 / LOCAL-FIRST</small></div></aside>`;
 }
 
 function adminDashboardPage() {
-  const lowStock = activeProducts().filter((product) => product.stockCount <= 10).length;
+  const lowStock = activeProducts().filter((product) => product.stockCount <= state.settings.lowStock).length;
   const quoteCount = state.quotes.length + 2;
-  return adminShell("admin", "01 / OVERVIEW", "Operational overview.", `<div class="admin-kpi-grid"><div class="admin-kpi"><span>Produtos ativos</span><strong>${activeProducts().length}</strong><small class="trend-up">Catálogo local</small></div><div class="admin-kpi"><span>Orçamentos novos</span><strong>${quoteCount}</strong><small class="trend-up">salvos neste dispositivo</small></div><div class="admin-kpi"><span>Estoque baixo</span><strong>${String(lowStock).padStart(2, "0")}</strong><small class="trend-warn">Revisar agora</small></div><div class="admin-kpi"><span>Sem estoque</span><strong>${activeProducts().filter((product) => product.stockCount <= 0).length}</strong><small>Disponibilidade atual</small></div></div><div class="admin-content-grid"><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">QUOTE INBOX</span><h2>Orçamentos recentes</h2></div><a href="#admin-quotes" data-route="admin-quotes" class="text-link">Ver todos</a></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Itens</th><th>Status</th></tr></thead><tbody>${(state.quotes.length ? state.quotes : [{ id: "ORC-000128", customer: "Exemplo de cliente", items: [{ quantity: 2 }], status: "Novo", total: 2328, createdAt: new Date().toISOString() }]).slice(0, 3).map((quote) => `<tr><td><strong>#${quote.id}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td>${quote.customer}</td><td>${quote.items.reduce((sum, item) => sum + item.quantity, 0)} itens</td><td><span class="admin-status status-new">${quote.status}</span></td></tr>`).join("")}</tbody></table></div></section><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">STOCK WATCH</span><h2>Atenção no estoque</h2></div><a href="#admin-stock" data-route="admin-stock" class="text-link">Abrir estoque</a></div><div class="stock-watch">${activeProducts().filter((product) => product.stockCount <= 12).slice(0, 3).map((product) => `<div><span class="stock-watch-bar" style="--bar:${Math.max(10, Math.min(100, product.stockCount * 7))}%"></span><strong>${product.name}</strong><small>${product.stockCount} unidades disponíveis</small><b>Baixo</b></div>`).join("") || `<p class="import-help">Nenhum item em nível crítico.</p>`}</div></section></div><section class="admin-panel quick-actions"><div class="admin-panel-head"><div><span class="eyebrow">FAST ACTIONS</span><h2>Próximo movimento</h2></div></div><div class="quick-action-grid"><button data-route="admin-products"><span>01</span><strong>Revisar produtos</strong><small>Editar dados, preço e status.</small></button><button data-route="admin-import"><span>02</span><strong>Importar planilha</strong><small>Mapear e validar novos itens.</small></button><button data-route="admin-prices"><span>03</span><strong>Atualizar preços</strong><small>Revisar varejo e grupos.</small></button></div></section>`);
+  return adminShell("admin", "01 / OVERVIEW", "Operational overview.", `<div class="admin-kpi-grid"><div class="admin-kpi"><span>Produtos ativos</span><strong>${activeProducts().length}</strong><small class="trend-up">Catálogo local</small></div><div class="admin-kpi"><span>Orçamentos novos</span><strong>${quoteCount}</strong><small class="trend-up">salvos neste dispositivo</small></div><div class="admin-kpi"><span>Estoque baixo</span><strong>${String(lowStock).padStart(2, "0")}</strong><small class="trend-warn">Revisar agora</small></div><div class="admin-kpi"><span>Sem estoque</span><strong>${activeProducts().filter((product) => product.stockCount <= 0).length}</strong><small>Disponibilidade atual</small></div></div><div class="admin-content-grid"><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">QUOTE INBOX</span><h2>Orçamentos recentes</h2></div><a href="#admin-quotes" data-route="admin-quotes" class="text-link">Ver todos</a></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Itens</th><th>Status</th></tr></thead><tbody>${(state.quotes.length ? state.quotes : [{ id: "ORC-000128", customer: "Exemplo de cliente", items: [{ quantity: 2 }], status: "Novo", total: 2328, createdAt: new Date().toISOString() }]).slice(0, 3).map((quote) => `<tr><td><strong>#${quote.id}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td>${quote.customer}</td><td>${quote.items.reduce((sum, item) => sum + item.quantity, 0)} itens</td><td><span class="admin-status ${quote.status === "Novo" ? "status-new" : quote.status === "Respondido" ? "status-done" : "status-progress"}">${quote.status}</span></td></tr>`).join("")}</tbody></table></div></section><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">STOCK WATCH</span><h2>Atenção no estoque</h2></div><a href="#admin-stock" data-route="admin-stock" class="text-link">Abrir estoque</a></div><div class="stock-watch">${activeProducts().filter((product) => product.stockCount <= state.settings.lowStock).slice(0, 3).map((product) => `<div><span class="stock-watch-bar" style="--bar:${Math.max(10, Math.min(100, product.stockCount * 7))}%"></span><strong>${product.name}</strong><small>${product.stockCount} unidades disponíveis</small><b>Baixo</b></div>`).join("") || `<p class="import-help">Nenhum item em nível crítico.</p>`}</div></section></div><section class="admin-panel quick-actions"><div class="admin-panel-head"><div><span class="eyebrow">FAST ACTIONS</span><h2>Próximo movimento</h2></div></div><div class="quick-action-grid"><button data-route="admin-products"><span>01</span><strong>Revisar produtos</strong><small>Editar dados, preço e status.</small></button><button data-route="admin-import"><span>02</span><strong>Importar planilha</strong><small>Mapear e validar novos itens.</small></button><button data-route="admin-prices"><span>03</span><strong>Atualizar preços</strong><small>Revisar varejo e grupos.</small></button></div></section>`);
 }
 
 function adminStockPage() {
   const physical = activeProducts().reduce((sum, product) => sum + product.stockCount, 0);
-  return adminShell("admin-stock", "03 / INVENTORY", "Estoque.", `<div class="admin-kpi-grid"><div class="admin-kpi"><span>Estoque físico</span><strong>${physical}</strong><small>unidades catalogadas</small></div><div class="admin-kpi"><span>Reservado</span><strong>${state.quotes.length}</strong><small>em orçamentos ativos</small></div><div class="admin-kpi"><span>Disponível</span><strong>${Math.max(0, physical - state.quotes.length)}</strong><small class="trend-up">cálculo local</small></div></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">INVENTORY CONTROL</span><h2>Itens para revisão</h2></div><button class="outline-cta" data-route="admin-import">Atualizar por planilha</button></div><div class="inventory-list">${activeProducts().map((product, index) => `<div class="inventory-row"><img src="${product.image}" alt="" /><div><strong>${product.name}</strong><small>${product.brand} · SKU FO-${String(index + 231).padStart(5, "0")}</small></div><div class="inventory-value"><strong>${product.stockCount}</strong><small>disponíveis</small></div><span class="admin-status ${product.stockCount <= 12 ? "status-low" : "status-live"}">${product.stockCount <= 12 ? "Revisar" : "Estável"}</span></div>`).join("")}</div></section>`);
+  return adminShell("admin-stock", "03 / INVENTORY", "Estoque.", `<div class="admin-kpi-grid"><div class="admin-kpi"><span>Estoque físico</span><strong>${physical}</strong><small>unidades catalogadas</small></div><div class="admin-kpi"><span>Reservado</span><strong>${state.quotes.length}</strong><small>em orçamentos ativos</small></div><div class="admin-kpi"><span>Disponível</span><strong>${Math.max(0, physical - state.quotes.length)}</strong><small class="trend-up">cálculo local</small></div></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">INVENTORY CONTROL</span><h2>Itens para revisão</h2></div><button class="outline-cta" data-route="admin-import">Atualizar por planilha</button></div><div class="inventory-list">${activeProducts().map((product, index) => `<div class="inventory-row"><img src="${product.image}" alt="" /><div><strong>${product.name}</strong><small>${product.brand} · SKU FO-${String(index + 231).padStart(5, "0")}</small></div><div class="inventory-value"><strong>${product.stockCount}</strong><small>disponíveis</small></div><span class="admin-status ${product.stockCount <= state.settings.lowStock ? "status-low" : "status-live"}">${product.stockCount <= state.settings.lowStock ? "Revisar" : "Estável"}</span><button class="status-action" data-stock-edit="${product.id}">Ajustar</button></div>`).join("")}</div></section>`);
 }
 
 function adminPricesPage() {
-  return adminShell("admin-prices", "04 / PRICING", "Preços.", `<section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">PRICE TABLES</span><h2>Varejo e grupos.</h2></div><span class="admin-sync"><i class="status-dot"></i> Tabela base ativa</span></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Produto</th><th>Varejo</th><th>Lojista</th><th>Distribuidor</th><th>Atualizado</th></tr></thead><tbody>${activeProducts().map((product) => `<tr><td><strong>${product.name}</strong><small>${product.brand} · ${product.category}</small></td><td><strong>${money(product.price)}</strong></td><td>${money(product.price * .9)}</td><td>${money(product.price * .82)}</td><td>Agora</td></tr>`).join("")}</tbody></table></div></section>`);
+  return adminShell("admin-prices", "04 / PRICING", "Preços.", `<section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">PRICE TABLES</span><h2>Varejo e grupos.</h2></div><span class="admin-sync"><i class="status-dot"></i> Tabela base ativa</span></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Produto</th><th>Varejo</th><th>Lojista</th><th>Distribuidor</th><th>Atualizado</th><th>Ação</th></tr></thead><tbody>${activeProducts().map((product) => `<tr><td><strong>${product.name}</strong><small>${product.brand} · ${product.category}</small></td><td><strong>${money(product.price)}</strong></td><td>${money(product.price * .9)}</td><td>${money(product.price * .82)}</td><td>Agora</td><td><button class="status-action" data-edit-price="${product.id}">Editar</button></td></tr>`).join("")}</tbody></table></div></section>`);
 }
 
 function adminCustomersPage() {
   const customers = state.quotes.map((quote) => ({ name: quote.customer, phone: quote.phone || "Não informado", type: "Consumidor", quotes: 1 }));
   return adminShell("admin-customers", "06 / RELATIONSHIP", "Clientes.", `<section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">CUSTOMER REGISTER</span><h2>${customers.length || 1} clientes identificados</h2></div><span class="admin-sync">Dados locais do MVP</span></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Cliente</th><th>WhatsApp</th><th>Tipo</th><th>Orçamentos</th></tr></thead><tbody>${customers.length ? customers.map((customer) => `<tr><td><strong>${customer.name}</strong><small>Perfil Field Ops</small></td><td>${customer.phone}</td><td>${customer.type}</td><td>${customer.quotes}</td></tr>`).join("") : `<tr><td colspan="4"><div class="admin-inline-empty">Os clientes aparecerão aqui após o primeiro orçamento.</div></td></tr>`}</tbody></table></div></section>`);
+}
+
+function adminSettingsPage() {
+  return adminShell("admin-settings", "07 / SYSTEM", "Configurações.", `<section class="admin-panel settings-panel"><div class="admin-panel-head"><div><span class="eyebrow">STORE CONTROL</span><h2>Dados da operação.</h2></div><span class="admin-sync"><i class="status-dot"></i> Salvo neste dispositivo</span></div><p class="settings-intro">Ajuste os dados que aparecem no atendimento e defina quando o estoque deve pedir revisão.</p><form class="settings-form" id="settings-form"><div class="form-row"><label class="form-label">Nome da operação<input name="storeName" required value="${state.settings.storeName}" /></label><label class="form-label">Cidade<input name="city" required value="${state.settings.city}" /></label></div><div class="form-row"><label class="form-label">WhatsApp do atendimento<input name="whatsapp" required inputmode="tel" value="${state.settings.whatsapp}" placeholder="5511999999999" /></label><label class="form-label">Alerta de estoque baixo<input name="lowStock" required type="number" min="0" step="1" value="${state.settings.lowStock}" /></label></div><div class="settings-preview"><span class="eyebrow">ATENDIMENTO</span><strong>${state.settings.storeName} · ${state.settings.city}</strong><small>Orçamentos serão direcionados para ${state.settings.whatsapp}.</small></div><div class="settings-actions"><button class="hero-cta" type="submit">Salvar configurações</button><button class="outline-cta" type="button" data-action="reset-local-data">Restaurar dados demo</button></div></form></section>`);
 }
 
 function adminProductsPage() {
@@ -431,6 +440,34 @@ function productModal(product = null) {
     if (editing) Object.assign(product, data);
     else products.unshift({ id: `${data.brand.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`, ...data });
     persist(); closeModal(); render(); showToast(editing ? "Produto atualizado." : "Produto cadastrado.");
+  });
+}
+
+function stockModal(product) {
+  if (!product) return;
+  openModal(`<span class="eyebrow">INVENTORY / ${product.brand}</span><h2>Ajustar<br>estoque.</h2><p>Atualize a quantidade disponível de ${product.name} para manter o catálogo alinhado ao campo.</p><form class="form-grid" id="stock-form"><label class="form-label">Unidades disponíveis<input name="stockCount" type="number" min="0" step="1" required value="${product.stockCount}" /></label><button class="modal-submit" type="submit">Salvar estoque</button></form>`);
+  document.querySelector("#stock-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const value = Math.max(0, Number(new FormData(event.currentTarget).get("stockCount")) || 0);
+    product.stockCount = value;
+    product.stock = stockLabel(product);
+    persist();
+    closeModal();
+    render();
+    showToast("Estoque atualizado.");
+  });
+}
+
+function priceModal(product) {
+  if (!product) return;
+  openModal(`<span class="eyebrow">PRICING / ${product.brand}</span><h2>Atualizar<br>preço.</h2><p>O novo valor será usado no catálogo, no loadout e nos orçamentos futuros.</p><form class="form-grid" id="price-form"><label class="form-label">Preço de varejo<input name="price" type="number" min="0" step="1" required value="${product.price}" /></label><button class="modal-submit" type="submit">Salvar preço</button></form>`);
+  document.querySelector("#price-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    product.price = Math.max(0, Number(new FormData(event.currentTarget).get("price")) || 0);
+    persist();
+    closeModal();
+    render();
+    showToast("Preço atualizado.");
   });
 }
 
@@ -533,6 +570,7 @@ function render() {
   if (state.route === "admin-quotes") view = adminQuotesPage();
   if (state.route === "admin-customers") view = adminCustomersPage();
   if (state.route === "admin-import") view = adminImportPage();
+  if (state.route === "admin-settings") view = adminSettingsPage();
   app.innerHTML = view + compareBar();
   updateNav();
   bindViewEvents();
@@ -631,14 +669,14 @@ function closeModal() { modalLayer.classList.remove("is-open", "is-command"); mo
 
 function quoteModal() {
   const total = state.cart.reduce((sum, item) => sum + findProduct(item.id).price * item.quantity, 0);
-  openModal(`<span class="eyebrow">QUOTE / REQUEST</span><h2>Solicite seu<br>orçamento.</h2><p>Deixe seus dados e a equipe Field Ops continua a conversa pelo WhatsApp.</p><form class="form-grid" id="quote-form"><div class="form-row"><label class="form-label">Nome<input name="name" required placeholder="Seu nome" /></label><label class="form-label">WhatsApp<input name="phone" required placeholder="(11) 99999-9999" /></label></div><div class="form-row"><label class="form-label">CEP<input name="zip" placeholder="00000-000" /></label><label class="form-label">Cidade<input name="city" placeholder="São Paulo" /></label></div><label class="form-label">Observação<textarea name="note" placeholder="Algum detalhe sobre seu loadout?"></textarea></label><div class="summary-row total"><span>Total estimado</span><strong>${money(total)}</strong></div><button class="modal-submit" type="submit">Criar orçamento e abrir WhatsApp</button></form>`);
+  openModal(`<span class="eyebrow">QUOTE / REQUEST</span><h2>Solicite seu<br>orçamento.</h2><p>Deixe seus dados e a equipe ${state.settings.storeName} continua a conversa pelo WhatsApp.</p><form class="form-grid" id="quote-form"><div class="form-row"><label class="form-label">Nome<input name="name" required placeholder="Seu nome" /></label><label class="form-label">WhatsApp<input name="phone" required placeholder="(11) 99999-9999" /></label></div><div class="form-row"><label class="form-label">CEP<input name="zip" placeholder="00000-000" /></label><label class="form-label">Cidade<input name="city" placeholder="São Paulo" /></label></div><label class="form-label">Observação<textarea name="note" placeholder="Algum detalhe sobre seu loadout?"></textarea></label><div class="summary-row total"><span>Total estimado</span><strong>${money(total)}</strong></div><button class="modal-submit" type="submit">Criar orçamento e abrir WhatsApp</button></form>`);
   document.querySelector("#quote-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const quote = quoteRecord(form);
     const lines = state.cart.map((item) => { const product = findProduct(item.id); return `${item.quantity}x ${product.brand} ${product.name}`; }).join("\n");
-    const message = `Olá, gostaria de solicitar orçamento.\n\nOrçamento ${quote.id}\n\nItens:\n${lines}\n\nNome: ${form.get("name")}\nWhatsApp: ${form.get("phone")}\nCEP: ${form.get("zip") || "Não informado"}\nCidade: ${form.get("city") || "Não informado"}\nObservação: ${form.get("note") || "—"}`;
-    const link = `https://wa.me/5511999999999?text=${encodeURIComponent(message)}`;
+    const message = `Olá, gostaria de solicitar orçamento da ${state.settings.storeName}.\n\nOrçamento ${quote.id}\n\nItens:\n${lines}\n\nNome: ${form.get("name")}\nWhatsApp: ${form.get("phone")}\nCEP: ${form.get("zip") || "Não informado"}\nCidade: ${form.get("city") || "Não informado"}\nObservação: ${form.get("note") || "—"}`;
+    const link = `https://wa.me/${String(state.settings.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(message)}`;
     state.cart = [];
     persist();
     updateNav();
@@ -687,7 +725,7 @@ function bindSearch() {
     const query = input.value.trim().toLowerCase();
     if (!query) { results.classList.remove("open"); results.innerHTML = ""; return; }
     const matches = activeProducts().filter((product) => `${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(query)).slice(0, 5);
-    results.innerHTML = matches.length ? `<div class="search-result-group">Produtos</div>${matches.map((product) => `<div class="search-result" data-product="${product.id}"><img src="${product.image}" alt="" /><div><strong>${product.brand} ${product.name}</strong><small>${product.category} · ${money(product.price)}</small></div></div>`).join("")}<div class="search-result-group">Categorias</div><div class="search-result" data-category="${query}"><div><strong>Ver resultados para “${query}”</strong><small>Buscar no catálogo</small></div></div>` : `<div class="search-result-group">Sem correspondência</div><div class="search-result" data-route="catalog"><div><strong>Nenhum equipamento encontrado.</strong><small>Ver catálogo completo</small></div></div>`;
+    results.innerHTML = matches.length ? `<div class="search-result-group">Produtos</div>${matches.map((product) => `<div class="search-result" data-product="${product.id}"><img src="${product.image}" alt="" /><div><strong>${product.brand} ${product.name}</strong><small>${product.category} · ${money(product.price)}</small></div></div>`).join("")}<div class="search-result-group">Catálogo</div><div class="search-result" data-search-query="${query}"><div><strong>Ver resultados para “${query}”</strong><small>Buscar no catálogo</small></div></div>` : `<div class="search-result-group">Sem correspondência</div><div class="search-result" data-route="catalog"><div><strong>Nenhum equipamento encontrado.</strong><small>Ver catálogo completo</small></div></div>`;
     results.classList.add("open");
   };
   input.addEventListener("input", update);
@@ -725,6 +763,8 @@ function bindViewEvents() {
   if (adminSearch) adminSearch.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.adminProductSearch = adminSearch.value; render(); } });
   const importFile = document.querySelector("#import-file");
   if (importFile) importFile.addEventListener("change", () => analyzeImportFile(importFile.files[0]));
+  const settingsForm = document.querySelector("#settings-form");
+  if (settingsForm) settingsForm.addEventListener("submit", (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); state.settings = { storeName: form.get("storeName").toString().trim(), city: form.get("city").toString().trim(), whatsapp: form.get("whatsapp").toString().replace(/\D/g, ""), lowStock: Number(form.get("lowStock")) || 0 }; persist(); render(); showToast("Configurações salvas."); });
 }
 
 document.addEventListener("click", (event) => {
@@ -744,6 +784,7 @@ document.addEventListener("click", (event) => {
   if (action === "simulate-import") { const button = event.target.closest(".import-submit"); if (button) { button.textContent = "Arquivo analisado ✓"; button.disabled = true; showToast("Análise concluída: 15 registros precisam de revisão."); } }
   if (action === "commit-import") commitImport();
   if (action === "import-reset") { state.importData = null; render(); }
+  if (action === "reset-local-data" && window.confirm("Restaurar os dados demo e apagar os dados salvos neste dispositivo?")) { ["fieldops-products", "fieldops-cart", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-settings", "fieldops-account"].forEach((key) => localStorage.removeItem(key)); location.hash = "#admin"; location.reload(); }
   if (action === "menu") openModal(`<span class="eyebrow">FIELD OPS / MENU</span><h2>Navegue<br>pelo arsenal.</h2><div class="form-grid"><button class="outline-cta" data-route="catalog">Catálogo</button><button class="outline-cta" data-route="loadout">Monte seu loadout</button><button class="outline-cta" data-route="favorites">Favoritos</button><button class="outline-cta" data-route="admin">Painel operacional</button></div>`);
   if (action === "apply-filter-modal") { closeModal(); render(); }
   const loadoutId = event.target.closest("[data-loadout-select]")?.dataset.loadoutSelect;
@@ -762,10 +803,16 @@ document.addEventListener("click", (event) => {
   if (event.target.closest("[data-clear-filters]")) { state.category = ""; state.search = ""; state.filters = { systems: [], availability: "all", maxPrice: catalogPriceMax() }; render(); }
   const quoteStatusId = event.target.closest("[data-quote-status]")?.dataset.quoteStatus;
   if (quoteStatusId) advanceQuoteStatus(quoteStatusId);
+  const stockEditId = event.target.closest("[data-stock-edit]")?.dataset.stockEdit;
+  if (stockEditId) stockModal(findProduct(stockEditId));
+  const priceEditId = event.target.closest("[data-edit-price]")?.dataset.editPrice;
+  if (priceEditId) priceModal(findProduct(priceEditId));
   const paletteProduct = event.target.closest("[data-palette-product]")?.dataset.paletteProduct;
   if (paletteProduct) { const product = findProduct(paletteProduct); if (product) { closeModal(); go("product", product); } }
   const paletteSearch = event.target.closest("[data-palette-search]")?.dataset.paletteSearch;
   if (paletteSearch) { rememberSearch(paletteSearch); closeModal(); state.search = paletteSearch; state.category = ""; go("catalog"); }
+  const searchQuery = event.target.closest("[data-search-query]")?.dataset.searchQuery;
+  if (searchQuery) { rememberSearch(searchQuery); state.search = searchQuery; state.category = ""; go("catalog"); }
 });
 
 document.addEventListener("click", (event) => {
@@ -780,11 +827,11 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) { event.preventDefault(); searchPalette(); }
   if (event.key === "Escape" && modalLayer.classList.contains("is-open")) closeModal();
 });
-window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); state.route = productMatch ? "product" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-customers", "admin-import"].includes(route) ? route : "home"; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; render(); });
+window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); state.route = productMatch ? "product" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-customers", "admin-import", "admin-settings"].includes(route) ? route : "home"; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; render(); });
 
 const initialRoute = location.hash.replace("#", "") || "home";
 const initialProductMatch = initialRoute.match(/^product\/(.+)$/);
-state.route = initialProductMatch ? "product" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-customers", "admin-import"].includes(initialRoute) ? initialRoute : "home";
+state.route = initialProductMatch ? "product" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-customers", "admin-import", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
 state.selectedProduct = initialProductMatch ? findProduct(initialProductMatch[1]) : null;
 render();
 renderDrawer();
