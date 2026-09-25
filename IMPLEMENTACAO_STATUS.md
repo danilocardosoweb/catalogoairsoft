@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 25/09/2026  
-Último commit publicado: `5c01e3c0bdef45da313ca53416e50d1ae324cbe8`  
+Último commit publicado: `ae08d6e28750645f4363d6d9997e0df7d1594ec7`  
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: privado, com login do ChatGPT.
 
