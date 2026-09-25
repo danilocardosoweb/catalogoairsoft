@@ -143,6 +143,15 @@ const categories = [
 const defaultSettings = { whatsapp: "5511999999999", storeName: "Field Ops", city: "São Paulo", lowStock: 10 };
 const storedSettings = JSON.parse(localStorage.getItem("fieldops-settings") || "null");
 
+const seedRadarContent = [
+  { id: "radar-event-arena-sp", type: "event", title: "OPERAÇÃO LINHA VERDE", summary: "Partida aberta para equipes de todos os níveis, com briefing, cronograma e divisão por missões.", description: "Uma operação de sábado com missões curtas, área urbana controlada e espaço para testar seu loadout completo.", image: "https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=1200&q=82", city: "São Paulo", state: "SP", country: "Brasil", date: "2026-10-03", time: "08:00", organizer: "Arena Tático SP", field: "Arena Tático Leste", category: "Partida", tags: ["AEG", "iniciante", "CQB"], productIds: ["cm16-raider", "bb-bio-025"], status: "published", popularity: 96, distanceKm: 18, source: "Field Ops editorial" },
+  { id: "radar-field-campinas", type: "field", title: "ARENA VALE OPERACIONAL", summary: "Campo com mata, estruturas de CQB e agenda de jogos aos domingos na região de Campinas.", description: "Estrutura modular para partidas de assalto e precisão, com locação de equipamentos sob consulta.", image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=82", city: "Campinas", state: "SP", country: "Brasil", date: "2026-10-11", time: "07:30", organizer: "Arena Vale", field: "Arena Vale Operacional", category: "Campo", tags: ["mata", "CQB", "locação"], productIds: ["plate-carrier-mk2", "red-dot-rd1"], status: "published", popularity: 82, distanceKm: 94, source: "Field Ops editorial" },
+  { id: "radar-store-moema", type: "store", title: "PONTO DE APOIO / MOEMA", summary: "Loja parceira com retirada, manutenção rápida e curadoria de gear para o próximo jogo.", description: "Atendimento presencial com peças de reposição, BBs, baterias e revisão básica de plataformas.", image: "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1200&q=82", city: "São Paulo", state: "SP", country: "Brasil", date: "2026-09-28", time: "09:00", organizer: "Field Supply", field: "Moema / São Paulo", category: "Loja", tags: ["manutenção", "retirada", "gear"], productIds: ["hi-capa-5-1", "bb-bio-025"], status: "published", popularity: 74, distanceKm: 11, source: "Field Ops editorial" },
+  { id: "radar-news-hopup", type: "news", title: "GUIA DE CAMPO: 0.25G OU 0.28G?", summary: "Como escolher a gramatura da BB para equilibrar alcance, consistência e desempenho da sua plataforma.", description: "Um briefing rápido para cruzar FPS, hop-up, vento e distância antes de comprar a próxima carga.", image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=82", city: "São Paulo", state: "SP", country: "Brasil", date: "2026-09-26", time: "12:00", organizer: "Field Ops editorial", field: "Radar editorial", category: "Guia", tags: ["BB", "precisão", "iniciante"], productIds: ["bb-bio-025", "neptune-10"], status: "published", popularity: 88, distanceKm: 0, source: "Field Ops editorial" },
+  { id: "radar-release-rd1", type: "release", title: "RD-1 / NOVO DROP EM CAMPO", summary: "A nova óptica compacta chegou ao catálogo para quem quer aquisição rápida sem pesar o loadout.", description: "Uma leitura de produto conectada ao catálogo: veja especificações, disponibilidade e monte uma configuração em torno do RD-1.", image: "https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=1200&q=82", city: "São Paulo", state: "SP", country: "Brasil", date: "2026-09-30", time: "10:00", organizer: "Field Ops", field: "Catálogo Field Ops", category: "Lançamento", tags: ["óptica", "upgrade", "vector"], productIds: ["red-dot-rd1", "neptune-10"], status: "published", popularity: 91, distanceKm: 0, source: "Field Ops editorial" },
+  { id: "radar-event-lisboa", type: "event", title: "FIELD INTEL / LISBOA", summary: "Leitura internacional para acompanhar o que está acontecendo na comunidade Airsoft fora do Brasil.", description: "Conteúdo internacional demonstrativo para validar a camada global do Radar antes da integração com fontes externas.", image: "https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=1200&q=82", city: "Lisboa", state: "", country: "Portugal", date: "2026-10-18", time: "09:00", organizer: "Field Ops international", field: "Lisboa", category: "Internacional", tags: ["internacional", "comunidade"], productIds: [], status: "published", popularity: 61, distanceKm: 9850, source: "Field Ops editorial" }
+];
+
 const state = {
   route: "home",
   selectedProduct: null,
@@ -174,8 +183,28 @@ const state = {
   cartShipping: JSON.parse(localStorage.getItem("fieldops-cart-shipping") || "null"),
   shippingCache: JSON.parse(localStorage.getItem("fieldops-shipping-cache") || "{}"),
   shippingSort: "price",
-  quantity: 1
+  quantity: 1,
+  radar: JSON.parse(localStorage.getItem("fieldops-radar") || "null") || { location: { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual" }, scope: "nearby", type: "all", radius: 100, sort: "relevance", view: "feed" },
+  radarFollowing: JSON.parse(localStorage.getItem("fieldops-radar-following") || "[]"),
+  radarContents: JSON.parse(localStorage.getItem("fieldops-radar-content") || "null") || seedRadarContent
 };
+
+const radarTypes = { event: "Eventos", field: "Campos", store: "Lojas", news: "Notícias", release: "Lançamentos" };
+const radarStatuses = { draft: "Rascunho", review: "Em revisão", published: "Publicado", archived: "Arquivado" };
+const radarScopes = { nearby: "Perto de mim", state: "Minha cidade / estado", brazil: "Brasil", world: "Internacional" };
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+}
+
+function ensureRadarContentShape(content) {
+  return { ...content, type: radarTypes[content.type] ? content.type : "news", status: radarStatuses[content.status] ? content.status : "draft", title: content.title || "Sem título", summary: content.summary || "Conteúdo Radar Airsoft.", description: content.description || content.summary || "", city: content.city || "São Paulo", state: content.state ?? (content.country === "Brasil" ? "SP" : ""), country: content.country || "Brasil", date: content.date || new Date().toISOString().slice(0, 10), time: content.time || "", tags: Array.isArray(content.tags) ? content.tags : String(content.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean), productIds: Array.isArray(content.productIds) ? content.productIds : [], popularity: Number(content.popularity || 0), distanceKm: Number(content.distanceKm || 0), image: content.image || "https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=1200&q=82" };
+}
+
+state.radar = { location: { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual" }, scope: "nearby", type: "all", radius: 100, sort: "relevance", view: "feed", ...(state.radar || {}) };
+state.radar.location = { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual", ...(state.radar.location || {}) };
+state.radarContents = (Array.isArray(state.radarContents) ? state.radarContents : seedRadarContent).map(ensureRadarContentShape).map((content) => content.country !== "Brasil" ? { ...content, state: "" } : content);
+state.radarFollowing = Array.isArray(state.radarFollowing) ? state.radarFollowing : [];
 
 const quoteStatuses = ["Novo", "Em análise", "Proposta enviada", "Aguardando cliente", "Aprovado", "Rejeitado", "Expirado", "Convertido em pedido", "Cancelado"];
 const orderStatuses = ["Novo pedido", "Pagamento pendente", "Pagamento confirmado", "Preparando pedido", "Separação", "Pronto para envio", "Enviado", "Entregue", "Cancelado"];
@@ -266,6 +295,9 @@ function persist() {
   localStorage.setItem("fieldops-recent-products", JSON.stringify(state.recentProducts));
   localStorage.setItem("fieldops-settings", JSON.stringify(state.settings));
   localStorage.setItem("fieldops-theme", state.theme);
+  localStorage.setItem("fieldops-radar", JSON.stringify(state.radar));
+  localStorage.setItem("fieldops-radar-following", JSON.stringify(state.radarFollowing));
+  localStorage.setItem("fieldops-radar-content", JSON.stringify(state.radarContents));
 }
 
 function filteredProducts() {
@@ -341,6 +373,160 @@ function resumeStrip() {
   return `<section class="resume-strip"><div><span class="eyebrow">CONTINUE SUA OPERAÇÃO</span><strong>Você viu estes itens recentemente.</strong><button class="resume-clear" data-action="clear-recent">Limpar histórico</button></div><div class="resume-items">${items.map((product) => `<button class="resume-item" data-product="${product.id}"><img src="${product.image}" alt="" /><span><strong>${product.name}</strong><small>${money(product.price)}</small></span></button>`).join("")}</div></section>`;
 }
 
+function radarLocationLabel() {
+  const location = state.radar.location || {};
+  if (location.mode === "geo") return "Perto de você";
+  return [location.city, location.state].filter(Boolean).join(" / ") || "São Paulo / SP";
+}
+
+function radarTypeLabel(type) {
+  return radarTypes[type] || "Radar";
+}
+
+function radarDateLabel(date, time = "") {
+  const parsed = new Date(`${date || ""}T${time || "12:00"}:00`);
+  if (Number.isNaN(parsed.getTime())) return "Data a confirmar";
+  const formatted = parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "");
+  return formatted + (time ? " · " + time : "");
+}
+
+function radarDistance(content) {
+  if (Number(content.distanceKm) > 0) return Number(content.distanceKm);
+  const location = state.radar.location || {};
+  const currentCity = String(location.mode === "geo" ? state.settings.city : location.city || "").toLowerCase();
+  const currentState = String(location.state || "SP").toLowerCase();
+  const city = String(content.city || "").toLowerCase();
+  const contentState = String(content.state || "").toLowerCase();
+  if (city && currentCity && city === currentCity) return 8;
+  if (contentState && currentState && contentState === currentState) return 85;
+  if (String(content.country || "Brasil").toLowerCase() === "brasil") return 520;
+  return 9850;
+}
+
+function radarMatches(content) {
+  if (!content || content.status !== "published") return false;
+  const location = state.radar.location || {};
+  const city = String(location.mode === "geo" ? state.settings.city : location.city || "").toLowerCase();
+  const currentState = String(location.state || "SP").toLowerCase();
+  const contentCity = String(content.city || "").toLowerCase();
+  const contentState = String(content.state || "").toLowerCase();
+  const contentCountry = String(content.country || "Brasil").toLowerCase();
+  if (state.radar.type !== "all" && content.type !== state.radar.type) return false;
+  if (state.radar.scope === "nearby") return contentState === currentState && radarDistance(content) <= Number(state.radar.radius || 100);
+  if (state.radar.scope === "state") return (contentCity === city || contentState === currentState) && radarDistance(content) <= Number(state.radar.radius || 100);
+  if (state.radar.scope === "brazil") return contentCountry === "brasil";
+  return true;
+}
+
+function radarSortedContents() {
+  const contents = state.radarContents.filter(radarMatches);
+  const followed = (content) => state.radarFollowing.includes(content.id);
+  const sort = state.radar.sort || "relevance";
+  return contents.sort((a, b) => {
+    if (sort === "distance") return radarDistance(a) - radarDistance(b) || b.popularity - a.popularity;
+    if (sort === "date") return new Date(a.date || 0) - new Date(b.date || 0);
+    if (sort === "category") return radarTypeLabel(a.type).localeCompare(radarTypeLabel(b.type)) || b.popularity - a.popularity;
+    if (sort === "popularity") return b.popularity - a.popularity;
+    return Number(followed(b)) - Number(followed(a)) || b.popularity - a.popularity || radarDistance(a) - radarDistance(b);
+  });
+}
+
+function radarProductLinks(content) {
+  return (content.productIds || []).map((id) => findProduct(id)).filter(Boolean).slice(0, 3).map((product) => `<button class="radar-product-chip" data-action="radar-product" data-radar-product="${product.id}"><span>${escapeHtml(product.name)}</span><small>${money(product.price)}</small></button>`).join("");
+}
+
+function radarCard(content, compact = false) {
+  const followed = state.radarFollowing.includes(content.id);
+  const distance = radarDistance(content);
+  return `<article class="radar-card ${compact ? "radar-card-compact" : ""}">
+    <button class="radar-card-media" data-action="radar-detail" data-radar-id="${escapeHtml(content.id)}" aria-label="Abrir ${escapeHtml(content.title)}"><img src="${escapeHtml(content.image)}" alt="" loading="lazy" /><span class="radar-type-chip">${escapeHtml(radarTypeLabel(content.type))}</span></button>
+    <div class="radar-card-body">
+      <div class="radar-card-meta"><span>${escapeHtml(radarDateLabel(content.date, content.time))}</span><button class="radar-follow ${followed ? "is-following" : ""}" data-action="radar-follow" data-radar-id="${escapeHtml(content.id)}" aria-label="${followed ? "Deixar de seguir" : "Seguir"}">${followed ? "Seguindo" : "Seguir"} ${followed ? "✓" : "+"}</button></div>
+      <h3><button class="radar-card-title" data-action="radar-detail" data-radar-id="${escapeHtml(content.id)}">${escapeHtml(content.title)}</button></h3>
+      <p>${escapeHtml(content.summary)}</p>
+      <div class="radar-card-location"><span>⌖</span>${escapeHtml(content.city)}${content.state ? ` / ${escapeHtml(content.state)}` : ""}<small>${distance > 1000 ? "internacional" : `${Math.round(distance)} km`}</small></div>
+      ${compact ? "" : `<div class="radar-product-links">${radarProductLinks(content)}</div>`}
+    </div>
+  </article>`;
+}
+
+function radarHomeSection() {
+  const featured = state.radarContents.filter((content) => content.status === "published" && (content.city === state.radar.location.city || content.type === "event")).sort((a, b) => b.popularity - a.popularity).slice(0, 3);
+  const cards = (featured.length ? featured : state.radarContents.filter((content) => content.status === "published")).slice(0, 3);
+  return `<section class="radar-home-block">
+    <div class="radar-home-head"><div><span class="eyebrow">RADAR AIRSOFT / FIELD INTEL</span><h2>Radar perto<br>de você.</h2><p>Partidas, campos, lojas e novidades com curadoria para o próximo jogo.</p></div><div class="radar-home-actions"><button class="radar-location-button" data-action="radar-location">⌖ ${escapeHtml(radarLocationLabel())} <span>Alterar</span></button><button class="outline-cta" data-route="radar">Abrir Radar</button></div></div>
+    <div class="radar-home-grid">${cards.map((content) => radarCard(content, true)).join("")}</div>
+    <div class="radar-home-foot"><span><i class="status-dot"></i>${state.radarContents.filter((content) => content.status === "published").length} sinais publicados</span><button class="text-link" data-route="radar">Ver feed completo</button></div>
+  </section>`;
+}
+
+function radarMapMarkup(contents) {
+  return `<section class="radar-map-panel"><div class="radar-map-head"><div><span class="eyebrow">TACTICAL MAP / LOCAL-FIRST</span><h2>Leitura de campo.</h2></div><span class="admin-sync">Mapa preparado sem rastrear sua posição</span></div><div class="radar-map"><div class="radar-map-grid"></div><div class="radar-map-crosshair"></div><span class="radar-map-label radar-map-label-a">SP / FIELD ZONE</span><span class="radar-map-label radar-map-label-b">LIVE SIGNALS</span>${contents.map((content, index) => `<button class="radar-map-marker ${content.type}" style="--marker-x:${18 + (index * 23) % 68}%;--marker-y:${24 + (index * 17) % 52}%" data-action="radar-detail" data-radar-id="${escapeHtml(content.id)}" title="${escapeHtml(content.title)}"><span>${String(index + 1).padStart(2, "0")}</span></button>`).join("")}<div class="radar-map-center"><span class="status-dot"></span><small>${escapeHtml(radarLocationLabel())}</small></div></div><div class="radar-map-legend"><span><i class="event"></i>Evento</span><span><i class="field"></i>Campo</span><span><i class="store"></i>Apoio</span><span><i class="release"></i>Novidade</span></div></section>`;
+}
+
+function radarPage() {
+  const contents = radarSortedContents();
+  return `<section class="page radar-page"><div class="container">
+    <div class="page-heading radar-page-heading"><div><span class="eyebrow">FIELD INTEL / RADAR AIRSOFT</span><h1>Radar<br>perto de você.</h1></div><p>Descubra o que está acontecendo no Airsoft e conecte o próximo movimento ao seu catálogo.</p></div>
+    <section class="radar-console">
+      <div class="radar-console-top"><div><span class="eyebrow">SINAL ATUAL</span><strong>⌖ ${escapeHtml(radarLocationLabel())}</strong><small>${state.radar.location.mode === "geo" ? "Localização aproximada, usada apenas nesta experiência." : "Cidade e estado salvos neste dispositivo."}</small></div><button class="outline-cta" data-action="radar-location">Ajustar localização</button></div>
+      <div class="radar-scope-tabs" role="tablist">${Object.entries(radarScopes).map(([key, label]) => `<button class="${state.radar.scope === key ? "active" : ""}" data-radar-scope="${key}">${escapeHtml(label)}</button>`).join("")}</div>
+      <div class="radar-filter-row"><label><span>Categoria</span><select data-radar-type><option value="all">Tudo no radar</option>${Object.entries(radarTypes).map(([key, label]) => `<option value="${key}" ${state.radar.type === key ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select></label><label><span>Raio</span><select data-radar-radius>${[25, 50, 100, 200].map((value) => `<option value="${value}" ${Number(state.radar.radius) === value ? "selected" : ""}>${value} km</option>`).join("")}</select></label><label><span>Ordenar por</span><select data-radar-sort><option value="relevance" ${state.radar.sort === "relevance" ? "selected" : ""}>Relevância</option><option value="distance" ${state.radar.sort === "distance" ? "selected" : ""}>Distância</option><option value="date" ${state.radar.sort === "date" ? "selected" : ""}>Data</option><option value="category" ${state.radar.sort === "category" ? "selected" : ""}>Categoria</option><option value="popularity" ${state.radar.sort === "popularity" ? "selected" : ""}>Popularidade</option></select></label><div class="radar-view-toggle"><span>Visão</span><button class="${state.radar.view === "feed" ? "active" : ""}" data-radar-view="feed">Feed</button><button class="${state.radar.view === "map" ? "active" : ""}" data-radar-view="map">Mapa</button></div></div>
+    </section>
+    ${state.radar.view === "map" ? radarMapMarkup(contents) : `<div class="radar-feed-head"><div><span class="eyebrow">SIGNALS / ${contents.length}</span><h2>O próximo movimento.</h2></div><small>Atualizado localmente · sem GPS automático</small></div><div class="radar-feed-grid">${contents.length ? contents.map((content) => radarCard(content)).join("") : `<div class="radar-empty"><span class="empty-mark">⌖</span><h3>Nenhum sinal neste raio.</h3><p>Amplie a área ou troque a localização para encontrar novos pontos de interesse.</p><button class="outline-cta" data-action="radar-location">Escolher outra área</button></div>`}</div>`}
+  </div></section>`;
+}
+
+function radarLocationModal() {
+  const location = state.radar.location || {};
+  openModal(`<span class="eyebrow">RADAR / LOCATION</span><h2>Defina seu<br>ponto de partida.</h2><p>Escolha uma cidade para receber sinais relevantes. O Radar não pede sua localização automaticamente.</p><div class="radar-location-benefit"><span>01</span><div><strong>Mais contexto no feed.</strong><small>Partidas, campos e lojas mais próximos do seu próximo jogo.</small></div></div><form class="form-grid" id="radar-location-form"><div class="form-row"><label class="form-label">Cidade<input name="city" value="${escapeHtml(location.mode === "geo" ? state.settings.city : location.city || state.settings.city)}" placeholder="São Paulo" required /></label><label class="form-label">Estado<input name="state" value="${escapeHtml(location.state || "SP")}" placeholder="SP" maxlength="2" required /></label></div><button class="modal-submit" type="submit">Salvar ponto de partida</button></form><button class="radar-geo-button" data-action="radar-use-location">Usar minha localização agora ↗</button><button class="radar-skip-button" data-action="radar-skip-location">Agora não</button>`);
+  const form = document.querySelector("#radar-location-form");
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    state.radar.location = { city: String(data.get("city") || state.settings.city).trim(), state: String(data.get("state") || "SP").trim().toUpperCase().slice(0, 2), country: "Brasil", mode: "manual" };
+    persist();
+    closeModal();
+    render();
+    showToast("Ponto de partida do Radar salvo.");
+  });
+}
+
+function requestRadarLocation() {
+  if (!navigator.geolocation) { showToast("Seu navegador não oferece localização. Escolha cidade e estado."); return; }
+  showToast("Solicitando sua localização aproximada…");
+  navigator.geolocation.getCurrentPosition(() => {
+    state.radar.location = { city: state.settings.city || "Perto de você", state: "SP", country: "Brasil", mode: "geo" };
+    persist();
+    closeModal();
+    render();
+    showToast("Radar ajustado para perto de você.");
+  }, () => showToast("Localização não autorizada. Você ainda pode escolher sua cidade manualmente."), { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
+}
+
+function toggleRadarFollow(id) {
+  if (!id) return;
+  state.radarFollowing = state.radarFollowing.includes(id) ? state.radarFollowing.filter((item) => item !== id) : [...state.radarFollowing, id];
+  persist();
+  render();
+  showToast(state.radarFollowing.includes(id) ? "Sinal seguido." : "Sinal removido dos seguidos.");
+}
+
+function copyRadarBriefing(id) {
+  const content = state.radarContents.find((item) => item.id === id);
+  if (!content) return;
+  const briefing = `${content.title}\n${content.city}${content.state ? ` / ${content.state}` : ""}\n${radarDateLabel(content.date, content.time)}\n\n${content.summary}`;
+  navigator.clipboard?.writeText(briefing).then(() => showToast("Briefing copiado."), () => showToast("Não foi possível copiar o briefing."));
+}
+
+function radarDetailModal(id) {
+  const content = state.radarContents.find((item) => item.id === id);
+  if (!content) return;
+  const followed = state.radarFollowing.includes(content.id);
+  const related = (content.productIds || []).map((productId) => findProduct(productId)).filter(Boolean);
+  openModal(`<div class="radar-detail"><div class="radar-detail-image"><img src="${escapeHtml(content.image)}" alt="" /><span class="radar-type-chip">${escapeHtml(radarTypeLabel(content.type))}</span></div><div class="radar-detail-copy"><span class="eyebrow">RADAR SIGNAL / ${escapeHtml(content.category || radarTypeLabel(content.type))}</span><h2>${escapeHtml(content.title)}</h2><div class="radar-detail-meta"><span>⌖ ${escapeHtml(content.city)}${content.state ? ` / ${escapeHtml(content.state)}` : ""}</span><span>◷ ${escapeHtml(radarDateLabel(content.date, content.time))}</span></div><p>${escapeHtml(content.description || content.summary)}</p>${content.organizer ? `<div class="radar-detail-info"><span>Organização</span><strong>${escapeHtml(content.organizer)}</strong></div>` : ""}${content.field ? `<div class="radar-detail-info"><span>Local / referência</span><strong>${escapeHtml(content.field)}</strong></div>` : ""}<div class="radar-tag-list">${(content.tags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div><div class="radar-detail-actions"><button class="hero-cta" data-action="radar-follow" data-radar-id="${escapeHtml(content.id)}">${followed ? "Deixar de seguir" : "Seguir sinal"}</button>${content.type === "event" ? `<button class="outline-cta" data-action="radar-copy" data-radar-id="${escapeHtml(content.id)}">Copiar briefing</button>` : ""}</div></div>${related.length ? `<div class="radar-related"><div class="section-label"><div><span class="eyebrow">CONNECTED LOADOUT</span><h3>Leve este sinal<br>para o catálogo.</h3></div><button class="text-link" data-route="loadout">Montar loadout</button></div><div class="radar-related-products">${related.map((product) => `<button data-action="radar-product" data-radar-product="${product.id}"><img src="${escapeHtml(product.image)}" alt="" /><span><strong>${escapeHtml(product.name)}</strong><small>${money(product.price)}</small></span><b>↗</b></button>`).join("")}</div></div>` : ""}</div>`);
+}
+
 function homePage() {
   const feature = recommendedProducts().slice(0, 4);
   return `<section class="page home-page">
@@ -352,6 +538,7 @@ function homePage() {
     </section>
     ${searchBar()}
     <div class="container">
+      ${radarHomeSection()}
       ${missionDeck()}
       ${resumeStrip()}
       <section class="home-section"><div class="section-label"><div><span class="eyebrow">01 / ARSENAL</span><h2>Escolha sua<br>plataforma.</h2></div><p>O essencial para entrar em campo com o setup certo, do primeiro jogo ao próximo upgrade.</p></div><div class="category-grid">${categories.map((category) => `<button class="category-card" type="button" data-category="${category.name}" style="--category-image: url('${category.image}')"><span class="category-card-content"><strong>${category.name}</strong><small>${activeProducts().filter((product) => product.category === category.name).length} itens ↗</small></span></button>`).join("")}</div></section>
@@ -444,7 +631,7 @@ function exportDataModal() {
 
 function exportBackup() {
   closeModal();
-  const payload = { exportedAt: new Date().toISOString(), source: "FIELD OPS", products, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, loadout: state.loadout, settings: state.settings, profile: state.profile };
+  const payload = { exportedAt: new Date().toISOString(), source: "FIELD OPS", products, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, loadout: state.loadout, settings: state.settings, profile: state.profile, radar: state.radar, radarFollowing: state.radarFollowing, radarContents: state.radarContents };
   downloadLocalFile(`field-ops-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
   showToast("Backup completo exportado.");
 }
@@ -487,8 +674,45 @@ function adminImportPage() {
   return adminShell("admin-import", "05 / DATA INTAKE", "Importar.", `<div class="import-steps"><div class="import-step active"><span>01</span><strong>Upload</strong><small>Enviar arquivo</small></div><div class="import-step"><span>02</span><strong>Analisar</strong><small>Detectar colunas</small></div><div class="import-step"><span>03</span><strong>Validar</strong><small>Revisar erros</small></div><div class="import-step"><span>04</span><strong>Importar</strong><small>Publicar registros</small></div></div><section class="admin-panel import-panel"><div class="admin-panel-head"><div><span class="eyebrow">EXCEL / CSV</span><h2>Traga seu inventário.</h2></div><span class="admin-sync">Mapeamento salvo: Produtos Field Ops</span></div><label class="dropzone"><input type="file" accept=".csv,.xlsx,.xls" /><span class="dropzone-mark">↑</span><strong>Solte sua planilha aqui</strong><small>CSV ou Excel até 10 MB</small><span class="outline-cta">Escolher arquivo</span></label><div class="import-preview"><div><span>Última análise</span><strong>1.248 encontrados</strong></div><div><span>Novos</span><strong>1.190</strong></div><div><span>Atualizações</span><strong>43</strong></div><div><span>Erros</span><strong class="import-error-count">15</strong></div></div><button class="hero-cta import-submit" data-action="simulate-import">Analisar arquivo</button></section>`);
 }
 
+function radarContentStatusClass(status) {
+  return status === "published" ? "status-live" : status === "review" ? "status-progress" : status === "archived" ? "status-low" : "status-wait";
+}
+
+function updateRadarContentStatus(id, status) {
+  const content = state.radarContents.find((item) => item.id === id);
+  if (!content || !radarStatuses[status]) return;
+  content.status = status;
+  persist();
+  render();
+  showToast(`Radar: ${radarStatuses[status].toLowerCase()}.`);
+}
+
+function adminContentPage() {
+  const published = state.radarContents.filter((content) => content.status === "published").length;
+  const review = state.radarContents.filter((content) => content.status === "review").length;
+  return `${adminShell("admin-content", "06 / RADAR AIRSOFT", "Central de Conteúdo.", `<div class="admin-toolbar"><div><span class="admin-sync"><i class="status-dot"></i> ${published} publicados · ${review} em revisão</span></div><button class="hero-cta" data-action="radar-content-new">Novo sinal</button></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">RADAR CONTENT / LOCAL-FIRST</span><h2>Publicação e curadoria.</h2></div><span class="admin-sync">Nada é publicado automaticamente</span></div><p class="admin-content-note">Crie eventos, campos, lojas, notícias e lançamentos. O status <strong>Em revisão</strong> prepara a futura etapa de fontes externas e IA sem expor conteúdo antes da aprovação.</p><div class="admin-table-wrap"><table class="admin-table radar-admin-table"><thead><tr><th>Sinal</th><th>Categoria</th><th>Região</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead><tbody>${state.radarContents.map((content) => `<tr><td><div class="admin-product-cell"><img src="${escapeHtml(content.image)}" alt="" /><div><strong>${escapeHtml(content.title)}</strong><small>${escapeHtml(content.summary)}</small></div></div></td><td>${escapeHtml(radarTypeLabel(content.type))}</td><td>${escapeHtml(content.city)}${content.state ? ` / ${escapeHtml(content.state)}` : ""}</td><td>${escapeHtml(radarDateLabel(content.date, content.time))}</td><td><span class="admin-status ${radarContentStatusClass(content.status)}">${escapeHtml(radarStatuses[content.status])}</span></td><td><div class="admin-row-actions"><button data-action="radar-content-edit" data-radar-id="${escapeHtml(content.id)}">Editar</button>${content.status !== "published" ? `<button data-action="radar-content-status" data-radar-status="published" data-radar-id="${escapeHtml(content.id)}">Publicar</button>` : `<button data-action="radar-content-status" data-radar-status="archived" data-radar-id="${escapeHtml(content.id)}">Arquivar</button>`}</div></td></tr>`).join("")}</tbody></table></div></section>`) }`;
+}
+
+function radarContentModal(id = null) {
+  const current = state.radarContents.find((item) => item.id === id) || ensureRadarContentShape({ type: "event", status: "draft", title: "", summary: "", description: "", city: state.settings.city, state: "SP", country: "Brasil", date: new Date().toISOString().slice(0, 10), time: "09:00", organizer: "Field Ops", field: "", category: "Partida", tags: [], productIds: [], popularity: 50, image: "" });
+  const productOptions = activeProducts().map((product) => `<label class="radar-product-check"><input type="checkbox" name="productIds" value="${product.id}" ${(current.productIds || []).includes(product.id) ? "checked" : ""} /><span>${escapeHtml(product.name)}</span><small>${money(product.price)}</small></label>`).join("");
+  openModal(`<span class="eyebrow">RADAR / CONTENT ${id ? "EDIT" : "NEW"}</span><h2>${id ? "Editar sinal." : "Novo sinal."}</h2><p>Cadastre uma peça de field intel e escolha quando ela pode aparecer para o público.</p><form class="form-grid radar-content-form" id="radar-content-form"><div class="form-row"><label class="form-label">Título<input name="title" value="${escapeHtml(current.title)}" required /></label><label class="form-label">Tipo<select name="type">${Object.entries(radarTypes).map(([key, label]) => `<option value="${key}" ${current.type === key ? "selected" : ""}>${label}</option>`).join("")}</select></label></div><div class="form-row"><label class="form-label">Cidade<input name="city" value="${escapeHtml(current.city)}" required /></label><label class="form-label">Estado<input name="state" value="${escapeHtml(current.state)}" maxlength="2" /></label></div><div class="form-row"><label class="form-label">Data<input name="date" type="date" value="${escapeHtml(current.date)}" required /></label><label class="form-label">Horário<input name="time" type="time" value="${escapeHtml(current.time)}" /></label></div><label class="form-label">Resumo<textarea name="summary" required>${escapeHtml(current.summary)}</textarea></label><label class="form-label">Descrição completa<textarea name="description">${escapeHtml(current.description)}</textarea></label><div class="form-row"><label class="form-label">Organização<input name="organizer" value="${escapeHtml(current.organizer)}" /></label><label class="form-label">Local / referência<input name="field" value="${escapeHtml(current.field)}" /></label></div><label class="form-label">Imagem URL<input name="image" value="${escapeHtml(current.image)}" placeholder="https://..." /></label><label class="form-label">Tags<input name="tags" value="${escapeHtml((current.tags || []).join(", "))}" placeholder="CQB, iniciante, AEG" /></label><div class="radar-product-builder"><span class="eyebrow">CONNECTED CATALOG</span><strong>Produtos relacionados</strong><div class="radar-product-checks">${productOptions}</div></div><label class="form-label">Status<select name="status">${Object.entries(radarStatuses).map(([key, label]) => `<option value="${key}" ${current.status === key ? "selected" : ""}>${label}</option>`).join("")}</select></label><button class="modal-submit" type="submit">${id ? "Salvar alterações" : "Criar sinal"}</button></form>`);
+  document.querySelector("#radar-content-form")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const record = ensureRadarContentShape({ ...current, id: current.id || `radar-${Date.now()}`, title: String(form.get("title") || "").trim(), type: form.get("type"), city: String(form.get("city") || "").trim(), state: String(form.get("state") || "").trim().toUpperCase().slice(0, 2), country: "Brasil", date: form.get("date"), time: form.get("time"), summary: String(form.get("summary") || "").trim(), description: String(form.get("description") || "").trim(), organizer: String(form.get("organizer") || "").trim(), field: String(form.get("field") || "").trim(), image: String(form.get("image") || "").trim(), tags: String(form.get("tags") || "").split(",").map((tag) => tag.trim()).filter(Boolean), productIds: [...event.currentTarget.querySelectorAll("[name=productIds]:checked")].map((input) => input.value), status: form.get("status") });
+    const index = state.radarContents.findIndex((item) => item.id === id);
+    if (index >= 0) state.radarContents[index] = record;
+    else state.radarContents.unshift(record);
+    persist();
+    closeModal();
+    render();
+    showToast(id ? "Sinal atualizado." : "Novo sinal criado.");
+  });
+}
+
 function adminNav(active) {
-  const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-settings", "Configurações"]];
+  const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-content", "Radar / Conteúdo"], ["admin-settings", "Configurações"]];
   return `<aside class="admin-sidebar"><div class="admin-side-brand"><span class="eyebrow">FIELD OPS / OPS</span><strong>Command<br>center.</strong></div><nav class="admin-menu">${items.map(([route, label], index) => `<a href="#${route}" data-route="${route}" class="${active === route ? "active" : ""}"><span class="admin-menu-index">${String(index + 1).padStart(2, "0")}</span>${label}</a>`).join("")}</nav><div class="admin-side-foot"><span class="status-dot"></span><span>OPERATIONAL MODE</span><small>v0.1 / LOCAL-FIRST</small></div></aside>`;
 }
 
@@ -1206,6 +1430,7 @@ function render() {
   if (state.route === "loadout") view = loadoutPage();
   if (state.route === "favorites") view = favoritesPage();
   if (state.route === "brands") view = brandsPage();
+  if (state.route === "radar") view = radarPage();
   if (state.route === "admin") view = adminDashboardPage();
   if (state.route === "admin-products") view = adminProductsPage();
   if (state.route === "admin-stock") view = adminStockPage();
@@ -1217,6 +1442,7 @@ function render() {
   if (state.route === "admin-customers") view = adminCustomersPage();
   if (state.route === "quote" && state.selectedQuoteId) view = publicQuotePage(state.selectedQuoteId);
   if (state.route === "admin-import") view = adminImportPage();
+  if (state.route === "admin-content") view = adminContentPage();
   if (state.route === "admin-settings") view = adminSettingsPage();
   app.innerHTML = view + compareBar();
   updateNav();
@@ -1724,6 +1950,11 @@ function bindViewEvents() {
   document.querySelectorAll("[data-clear-category]").forEach((el) => el.addEventListener("click", () => { state.category = ""; render(); }));
   document.querySelectorAll("[data-clear-search]").forEach((el) => el.addEventListener("click", () => { state.search = ""; state.category = ""; render(); }));
   bindFilterControls(document, true);
+  document.querySelectorAll("[data-radar-scope]").forEach((el) => el.addEventListener("click", () => { state.radar.scope = el.dataset.radarScope; persist(); render(); }));
+  document.querySelectorAll("[data-radar-type]").forEach((el) => el.addEventListener("change", () => { state.radar.type = el.value; persist(); render(); }));
+  document.querySelectorAll("[data-radar-radius]").forEach((el) => el.addEventListener("change", () => { state.radar.radius = Number(el.value) || 100; persist(); render(); }));
+  document.querySelectorAll("[data-radar-sort]").forEach((el) => el.addEventListener("change", () => { state.radar.sort = el.value; persist(); render(); }));
+  document.querySelectorAll("[data-radar-view]").forEach((el) => el.addEventListener("click", () => { state.radar.view = el.dataset.radarView === "map" ? "map" : "feed"; persist(); render(); }));
   const sort = document.querySelector("#sort-products");
   if (sort) sort.addEventListener("change", () => { state.sort = sort.value; render(); });
   document.querySelectorAll("[data-quantity]").forEach((el) => el.addEventListener("click", () => { state.quantity = Math.max(1, state.quantity + (el.dataset.quantity === "+" ? 1 : -1)); document.querySelector("[data-quantity-value]").textContent = state.quantity; }));
@@ -1758,6 +1989,18 @@ document.addEventListener("click", (event) => {
   if (action === "toggle-theme") toggleTheme(event);
   if (action === "open-search") searchPalette();
   if (action === "profile-setup") profileSetupModal();
+  if (action === "radar-location") radarLocationModal();
+  if (action === "radar-use-location") requestRadarLocation();
+  if (action === "radar-skip-location") closeModal();
+  const radarId = event.target.closest("[data-radar-id]")?.dataset.radarId;
+  if (action === "radar-detail" && radarId) radarDetailModal(radarId);
+  if (action === "radar-follow" && radarId) toggleRadarFollow(radarId);
+  if (action === "radar-copy" && radarId) copyRadarBriefing(radarId);
+  if (action === "radar-content-new") radarContentModal();
+  if (action === "radar-content-edit" && radarId) radarContentModal(radarId);
+  if (action === "radar-content-status" && radarId) updateRadarContentStatus(radarId, event.target.closest("[data-radar-status]")?.dataset.radarStatus);
+  const radarProductId = event.target.closest("[data-radar-product]")?.dataset.radarProduct;
+  if (action === "radar-product" && radarProductId) { const product = findProduct(radarProductId); if (product) { closeModal(); go("product", product); } }
   if (action === "clear-recent") { state.recentProducts = []; persist(); render(); showToast("Histórico de produtos limpo."); }
   if (action === "export-data") exportDataModal();
   if (action === "export-backup") exportBackup();
@@ -1781,8 +2024,8 @@ document.addEventListener("click", (event) => {
   if (action === "commit-import") commitImport();
   if (action === "import-reset") { state.importData = null; render(); }
   if (action === "import-rollback") rollbackImport(event.target.closest("[data-import-id]")?.dataset.importId);
-  if (action === "reset-local-data" && window.confirm("Restaurar os dados demo e apagar os dados salvos neste dispositivo?")) { ["fieldops-products", "fieldops-cart", "fieldops-cart-shipping", "fieldops-shipping-cache", "fieldops-shipping", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme"].forEach((key) => localStorage.removeItem(key)); location.hash = "#admin"; location.reload(); }
-  if (action === "menu") openModal(`<span class="eyebrow">FIELD OPS / MENU</span><h2>Navegue<br>pelo arsenal.</h2><div class="form-grid"><button class="outline-cta" data-route="catalog">Catálogo</button><button class="outline-cta" data-route="loadout">Monte seu loadout</button><button class="outline-cta" data-route="favorites">Favoritos</button><button class="outline-cta" data-route="admin">Painel operacional</button></div>`);
+  if (action === "reset-local-data" && window.confirm("Restaurar os dados demo e apagar os dados salvos neste dispositivo?")) { ["fieldops-products", "fieldops-cart", "fieldops-cart-shipping", "fieldops-shipping-cache", "fieldops-shipping", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme", "fieldops-radar", "fieldops-radar-following", "fieldops-radar-content"].forEach((key) => localStorage.removeItem(key)); location.hash = "#admin"; location.reload(); }
+  if (action === "menu") openModal(`<span class="eyebrow">FIELD OPS / MENU</span><h2>Navegue<br>pelo arsenal.</h2><div class="form-grid"><button class="outline-cta" data-route="catalog">Catálogo</button><button class="outline-cta" data-route="radar">Radar Airsoft</button><button class="outline-cta" data-route="loadout">Monte seu loadout</button><button class="outline-cta" data-route="favorites">Favoritos</button><button class="outline-cta" data-route="admin">Painel operacional</button></div>`);
   if (action === "apply-filter-modal") { closeModal(); render(); }
   const loadoutId = event.target.closest("[data-loadout-select]")?.dataset.loadoutSelect;
   const loadoutSlot = event.target.closest("[data-loadout-select]")?.dataset.loadoutSlot;
@@ -1851,12 +2094,12 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) { event.preventDefault(); searchPalette(); }
   if (event.key === "Escape" && modalLayer.classList.contains("is-open")) closeModal();
 });
-window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); const quoteMatch = route.match(/^quote\/(.+)$/); closeModal(); state.route = productMatch ? "product" : quoteMatch ? "quote" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-settings"].includes(route) ? route : "home"; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; state.selectedQuoteId = quoteMatch ? quoteMatch[1] : null; render(); });
+window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); const quoteMatch = route.match(/^quote\/(.+)$/); closeModal(); state.route = productMatch ? "product" : quoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-settings"].includes(route) ? route : "home"; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; state.selectedQuoteId = quoteMatch ? quoteMatch[1] : null; render(); });
 
 const initialRoute = location.hash.replace("#", "") || "home";
 const initialProductMatch = initialRoute.match(/^product\/(.+)$/);
 const initialQuoteMatch = initialRoute.match(/^quote\/(.+)$/);
-state.route = initialProductMatch ? "product" : initialQuoteMatch ? "quote" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
+state.route = initialProductMatch ? "product" : initialQuoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
 state.selectedProduct = initialProductMatch ? findProduct(initialProductMatch[1]) : null;
 state.selectedQuoteId = initialQuoteMatch ? initialQuoteMatch[1] : null;
 applyTheme(state.theme);

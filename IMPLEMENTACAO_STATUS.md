@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 25/09/2026  
-Última versão publicada: versão 18 — frete local, expedição e hero mobile
+Última versão publicada: versão 22 — cache-bust do hero e ajustes de movimento
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: privado, com login do ChatGPT.
 
@@ -77,6 +77,11 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Persistência local de produtos, carrinho, favoritos, comparação, loadout, perfil, briefing, buscas recentes, produtos recentes, orçamentos e configurações.
 - Cards de recomendação e itens recentes com abertura direta do produto, além de limpeza do histórico local.
 - Exportação local de backup completo em JSON e relatórios de produtos/estoque e orçamentos/clientes em CSV.
+- Radar Airsoft integrado à home com bloco discreto, localização por cidade/estado e abertura sob demanda; nenhuma solicitação de GPS acontece automaticamente.
+- Página Radar com escopos Perto de mim, Minha cidade/estado, Brasil e Internacional, raio de 25/50/100/200 km, filtros por categoria, ordenação por relevância/distância/data/categoria/popularidade e visão feed/mapa.
+- Cards de eventos, campos, lojas, notícias e lançamentos com seguir/deixar de seguir, detalhes, tags e produtos relacionados ligados ao catálogo e ao loadout.
+- Central de Conteúdo no painel operacional para criar, editar, revisar, publicar e arquivar sinais Radar localmente, com status Rascunho, Em revisão, Publicado e Arquivado.
+- Arquitetura inicial de Radar preparada para receber fontes externas e sumarização futura sem publicação automática; conteúdo demo continua separado do catálogo de produtos.
 
 ### Qualidade e publicação
 
@@ -89,6 +94,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Alternância entre temas validada no catálogo, com retorno aos dois modos e persistência após recarregar a página.
 - Contraste do hero reforçado com texto branco/lima, gradiente lateral dedicado e sombras de leitura nos modos noturno, claro e mobile.
 - Versão atual publicada em produção com o hero interativo, o fluxo comercial de Orçamentos, importação operacional e a Central de Pedidos ampliada.
+- Radar Airsoft validado localmente no feed, mapa tático, detalhe, localização manual, filtros e Central de Conteúdo.
 - Acesso privado preservado conforme a configuração atual do projeto.
 
 ## Pendências de desenvolvimento
@@ -105,6 +111,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Registrar histórico de alterações de preço, estoque, produto e status de orçamento.
 - Conectar um gateway real de frete (Correios, Melhor Envio, Frenet ou equivalente) para substituir o simulador local e retornar preços/prazos oficiais.
 - Persistir cotações, volumes, etiquetas, rastreios e eventos de expedição em backend compartilhado, com auditoria por usuário.
+- Migrar o Radar Airsoft para backend compartilhado, com entidades de conteúdo, eventos, campos, lojas, seguidores e histórico de publicação.
 
 ### Prioridade P1 — operação comercial e conteúdo
 
@@ -120,6 +127,8 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Permitir regras de preço por grupo: varejo, lojista e distribuidor, em vez de percentuais fixos.
 - Adicionar variações de produto, SKUs, códigos de barras, marcas e campos técnicos completos.
 - Implementar upload/armazenamento otimizado de imagens e fallback para imagens indisponíveis.
+- Conectar fontes reais de eventos/campos/lojas e criar fluxo de ingestão → resumo assistido → revisão administrativa → publicação; o protótipo atual não coleta fontes externas nem publica automaticamente.
+- Integrar geocodificação reversa opcional e um provedor de mapas quando houver necessidade operacional; a visão atual é um mapa tático local sem dependência externa e sem guardar coordenadas precisas.
 
 ### Prioridade P1 — experiência, acessibilidade e confiabilidade
 
@@ -138,6 +147,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Notificações de estoque baixo e acompanhamento de orçamento.
 - Pagamento online, emissão de NF-e e checkout completo.
 - Recomendações inteligentes e agentes de IA.
+- Radar internacional com conteúdo real, favoritos por categoria/marca/campo e notificações de novos sinais.
 
 ## Fora do escopo desta primeira fase
 
