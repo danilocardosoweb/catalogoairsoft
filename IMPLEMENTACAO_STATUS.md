@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 25/09/2026  
-Último commit publicado: `ae08d6e28750645f4363d6d9997e0df7d1594ec7`  
+Última versão publicada: fluxo comercial de Orçamentos + Central de Pedidos  
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: privado, com login do ChatGPT.
 
@@ -45,6 +45,13 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Cópia do resumo do orçamento para colar em outros canais.
 - Abertura do WhatsApp do cliente quando existe um número válido.
 - Exclusão protegida por confirmação para orçamentos salvos localmente.
+- Central comercial adaptada com CPF/CNPJ, CEP, origem, vendedor, validade, observação interna, desconto, frete, transportadora, modalidade, prazo e volumes.
+- Fluxo de status ampliado: Novo, Em análise, Proposta enviada, Aguardando cliente, Aprovado, Rejeitado, Expirado, Convertido em pedido e Cancelado.
+- Histórico local de mudanças de status e condições comerciais.
+- Link compartilhável do orçamento usando a rota hash atual do app: `#quote/ORC-000000`.
+- Página de proposta para o cliente com aceite local e contato do vendedor.
+- Conversão de orçamento aprovado em pedido relacionado, sem duplicar a origem.
+- Central inicial de Pedidos com filtros, timeline, avanço de status e folha de separação para impressão.
 - Lista de clientes derivada dos orçamentos locais.
 - Importação de CSV e XLSX com análise, pré-visualização, validação básica e confirmação da carga.
 - Configurações da operação: nome da loja, cidade, WhatsApp e limite de estoque baixo.
@@ -57,14 +64,14 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Verificação de diferenças sem erros de whitespace.
 - Fluxos de estoque, preço e busca testados no navegador local.
 - Preview local validado sem erros de console.
-- Versão `5c01e3c` enviada para o repositório de origem e publicada em produção.
+- Versão atual preparada para envio ao repositório de origem e publicação em produção.
 - Acesso privado preservado conforme a configuração atual do projeto.
 
 ## Pendências de desenvolvimento
 
 ### Prioridade P0 — necessária antes de operação real
 
-- Criar backend persistente para produtos, estoque, preços, clientes e orçamentos.
+- Criar backend persistente para produtos, estoque, preços, clientes, orçamentos, pedidos e histórico.
 - Trocar o `localStorage` por uma base de dados compartilhada entre usuários e dispositivos.
 - Implementar autenticação real e permissões por perfil: administrador, vendedor, lojista e distribuidor.
 - Proteger o painel administrativo no servidor, não apenas pela navegação do frontend.
@@ -81,6 +88,9 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Criar catálogos personalizados por link, com seleção de produtos, preço e validade.
 - Adicionar compartilhamento de loadout e orçamento por link.
 - Integrar o pipeline de orçamento a um atendimento real, com webhook ou CRM/WhatsApp Business quando disponível; as ações atuais ainda operam localmente.
+- Completar a operação de pedidos com separação por item, localização de estoque, etiquetas, QR Code, impressão em lote e romaneio.
+- Criar permissões reais para vendedor, supervisor e administrador; o painel atual ainda não aplica perfis no servidor.
+- Integrar pagamento, aprovação remota persistente e atualização de status entre dispositivos.
 - Permitir regras de preço por grupo: varejo, lojista e distribuidor, em vez de percentuais fixos.
 - Adicionar variações de produto, SKUs, códigos de barras, marcas e campos técnicos completos.
 - Implementar upload/armazenamento otimizado de imagens e fallback para imagens indisponíveis.

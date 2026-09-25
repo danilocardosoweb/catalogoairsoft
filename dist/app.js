@@ -112,6 +112,7 @@ const storedSettings = JSON.parse(localStorage.getItem("fieldops-settings") || "
 const state = {
   route: "home",
   selectedProduct: null,
+  selectedQuoteId: null,
   search: "",
   category: "",
   sort: "relevance",
@@ -120,6 +121,7 @@ const state = {
   favorites: JSON.parse(localStorage.getItem("fieldops-favorites") || "[]"),
   compare: JSON.parse(localStorage.getItem("fieldops-compare") || "[]"),
   quotes: JSON.parse(localStorage.getItem("fieldops-quotes") || "[]"),
+  orders: JSON.parse(localStorage.getItem("fieldops-orders") || "[]"),
   loadout: JSON.parse(localStorage.getItem("fieldops-loadout") || "null") || { Rifle: "neptune-10" },
   importData: null,
   adminProductSearch: "",
@@ -130,8 +132,29 @@ const state = {
   settings: { ...defaultSettings, ...(storedSettings || {}) },
   quoteSearch: "",
   quoteStatusFilter: "all",
+  orderSearch: "",
+  orderStatusFilter: "all",
   quantity: 1
 };
+
+const quoteStatuses = ["Novo", "Em análise", "Proposta enviada", "Aguardando cliente", "Aprovado", "Rejeitado", "Expirado", "Convertido em pedido", "Cancelado"];
+const orderStatuses = ["Novo pedido", "Pagamento pendente", "Pagamento confirmado", "Preparando pedido", "Separação", "Pronto para envio", "Enviado", "Entregue", "Cancelado"];
+
+function ensureQuoteShape(quote) {
+  const subtotal = Number(quote.subtotal ?? quote.total ?? 0);
+  const discount = Number(quote.discount || 0);
+  const freight = Number(quote.freight || 0);
+  const migratedStatus = quote.status === "Respondido" ? "Proposta enviada" : quote.status;
+  const history = Array.isArray(quote.history) && quote.history.length ? quote.history : [{ at: quote.createdAt || new Date().toISOString(), actor: "Sistema", from: null, to: migratedStatus || "Novo", note: "Orçamento criado" }];
+  return { ...quote, subtotal, discount, freight, total: Math.max(0, subtotal - discount + freight), status: quoteStatuses.includes(migratedStatus) ? migratedStatus : "Novo", shipping: { carrier: "", method: "", deadline: "", volumes: 1, weight: "", ...quote.shipping }, seller: quote.seller || "Operação local", origin: quote.origin || "Catálogo", validUntil: quote.validUntil || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10), internalNote: quote.internalNote || "", history };
+}
+
+function ensureOrderShape(order) {
+  return { ...order, status: orderStatuses.includes(order.status) ? order.status : "Novo pedido", history: Array.isArray(order.history) && order.history.length ? order.history : [{ at: order.createdAt || new Date().toISOString(), actor: "Sistema", from: null, to: order.status || "Novo pedido", note: "Pedido criado" }], shipping: { carrier: "", method: "", deadline: "", volumes: 1, tracking: "", ...order.shipping } };
+}
+
+state.quotes = state.quotes.map(ensureQuoteShape);
+state.orders = state.orders.map(ensureOrderShape);
 
 const app = document.querySelector("#app");
 const drawer = document.querySelector(".cart-drawer");
@@ -155,6 +178,7 @@ function persist() {
   localStorage.setItem("fieldops-products", JSON.stringify(products));
   localStorage.setItem("fieldops-compare", JSON.stringify(state.compare));
   localStorage.setItem("fieldops-quotes", JSON.stringify(state.quotes));
+  localStorage.setItem("fieldops-orders", JSON.stringify(state.orders));
   localStorage.setItem("fieldops-loadout", JSON.stringify(state.loadout));
   localStorage.setItem("fieldops-profile", JSON.stringify(state.profile));
   localStorage.setItem("fieldops-recent-searches", JSON.stringify(state.recentSearches));
@@ -333,7 +357,7 @@ function adminImportPage() {
 }
 
 function adminNav(active) {
-  const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-settings", "Configurações"]];
+  const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-settings", "Configurações"]];
   return `<aside class="admin-sidebar"><div class="admin-side-brand"><span class="eyebrow">FIELD OPS / OPS</span><strong>Command<br>center.</strong></div><nav class="admin-menu">${items.map(([route, label], index) => `<a href="#${route}" data-route="${route}" class="${active === route ? "active" : ""}"><span class="admin-menu-index">${String(index + 1).padStart(2, "0")}</span>${label}</a>`).join("")}</nav><div class="admin-side-foot"><span class="status-dot"></span><span>OPERATIONAL MODE</span><small>v0.1 / LOCAL-FIRST</small></div></aside>`;
 }
 
@@ -379,7 +403,7 @@ function adminImportPage() {
 }
 
 function quoteDemoData() {
-  return [{ id: "ORC-000128", customer: "Lucas Mendes", total: 2328, status: "Novo", createdAt: new Date().toISOString(), items: [{ id: "neptune-10", quantity: 1 }, { id: "red-dot-rd1", quantity: 1 }] }, { id: "ORC-000127", customer: "Bruno Azevedo", total: 999, status: "Em análise", createdAt: new Date(Date.now() - 3600000).toISOString(), items: [{ id: "hi-capa-5-1", quantity: 1 }] }];
+  return [{ id: "ORC-000128", customer: "Lucas Mendes", phone: "", city: "São Paulo / SP", subtotal: 2328, discount: 0, freight: 0, total: 2328, status: "Novo", origin: "Catálogo", seller: "Operação demo", createdAt: new Date().toISOString(), items: [{ id: "neptune-10", quantity: 1 }, { id: "red-dot-rd1", quantity: 1 }] }, { id: "ORC-000127", customer: "Bruno Azevedo", phone: "", city: "Campinas / SP", subtotal: 999, discount: 0, freight: 0, total: 999, status: "Em análise", origin: "WhatsApp", seller: "Operação demo", createdAt: new Date(Date.now() - 3600000).toISOString(), items: [{ id: "hi-capa-5-1", quantity: 1 }] }];
 }
 
 function quoteCollection() {
@@ -387,7 +411,12 @@ function quoteCollection() {
 }
 
 function quoteStatusClass(status) {
-  return status === "Novo" ? "status-new" : status === "Respondido" ? "status-done" : "status-progress";
+  if (status === "Novo") return "status-new";
+  if (["Aprovado", "Convertido em pedido"].includes(status)) return "status-done";
+  if (["Rejeitado", "Cancelado"].includes(status)) return "status-danger";
+  if (status === "Expirado") return "status-low";
+  if (status === "Aguardando cliente") return "status-wait";
+  return "status-progress";
 }
 
 function quoteItems(quote) {
@@ -396,7 +425,7 @@ function quoteItems(quote) {
 
 function quoteSummary(quote) {
   const items = quoteItems(quote).map((item) => `${item.quantity}x ${item.product?.name || item.name || item.id}`).join("\n");
-  return [`Orçamento ${quote.id}`, `Cliente: ${quote.customer}`, `WhatsApp: ${quote.phone || "Não informado"}`, `Cidade: ${quote.city || "Não informada"}`, "", "Itens:", items || "Nenhum item detalhado", "", `Total estimado: ${money(quote.total)}`, `Status: ${quote.status}`, quote.note && quote.note !== "—" ? `Observação: ${quote.note}` : ""].filter(Boolean).join("\n");
+  return [`Orçamento ${quote.id}`, `Cliente: ${quote.customer}`, `WhatsApp: ${quote.phone || "Não informado"}`, `Cidade: ${quote.city || "Não informada"}`, `Validade: ${quote.validUntil || "Não definida"}`, "", "Itens:", items || "Nenhum item detalhado", "", `Subtotal: ${money(quote.subtotal || quote.total)}`, `Desconto: ${money(quote.discount || 0)}`, `Frete: ${money(quote.freight || 0)}`, `Total final: ${money(quote.total)}`, `Status: ${quote.status}`, quote.note && quote.note !== "—" ? `Observação: ${quote.note}` : ""].filter(Boolean).join("\n");
 }
 
 function nextQuoteId() {
@@ -408,11 +437,12 @@ function adminQuotesWorkspace() {
   const allQuotes = quoteCollection();
   const query = state.quoteSearch.trim().toLowerCase();
   const list = allQuotes.filter((quote) => {
-    const matchesQuery = !query || `${quote.id} ${quote.customer} ${quote.phone || ""}`.toLowerCase().includes(query);
+    const itemSearch = quoteItems(quote).map((item) => `${item.product?.name || item.name || ""} ${item.product?.meta || ""} ${item.product?.id || item.id || ""}`).join(" ");
+    const matchesQuery = !query || `${quote.id} ${quote.customer} ${quote.phone || ""} ${itemSearch}`.toLowerCase().includes(query);
     const matchesStatus = state.quoteStatusFilter === "all" || quote.status === state.quoteStatusFilter;
     return matchesQuery && matchesStatus;
   });
-  return adminShell("admin-quotes", "04 / COMMERCIAL", "Orçamentos.", `<div class="admin-toolbar quote-toolbar"><div class="admin-search"><span class="icon icon-search"></span><input id="quote-search" value="${state.quoteSearch}" placeholder="Buscar por número, cliente ou WhatsApp" /></div><select class="quote-status-filter" id="quote-status-filter" aria-label="Filtrar orçamentos por status"><option value="all" ${state.quoteStatusFilter === "all" ? "selected" : ""}>Todos os status</option><option value="Novo" ${state.quoteStatusFilter === "Novo" ? "selected" : ""}>Novos</option><option value="Em análise" ${state.quoteStatusFilter === "Em análise" ? "selected" : ""}>Em análise</option><option value="Respondido" ${state.quoteStatusFilter === "Respondido" ? "selected" : ""}>Respondidos</option></select><button class="hero-cta" data-action="quote-new">Novo orçamento</button></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">QUOTE PIPELINE</span><h2>${list.length} conversas na visão atual</h2></div><span class="admin-sync"><i class="status-dot"></i> ${state.quotes.length} salvos neste dispositivo</span></div><div class="admin-quote-cards"><div><span>NOVOS</span><strong>${allQuotes.filter((quote) => quote.status === "Novo").length}</strong><small>aguardando primeiro contato</small></div><div><span>EM ANÁLISE</span><strong>${allQuotes.filter((quote) => quote.status === "Em análise").length}</strong><small>time comercial em atendimento</small></div><div><span>RESPONDIDOS</span><strong>${allQuotes.filter((quote) => quote.status === "Respondido").length}</strong><small>últimas conversas concluídas</small></div></div><div class="admin-table-wrap"><table class="admin-table quotes-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Total estimado</th><th>Itens</th><th>Status</th><th>Ações</th></tr></thead><tbody>${list.length ? list.map((quote) => { const saved = state.quotes.some((item) => item.id === quote.id); return `<tr><td><strong>#${quote.id}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td><strong>${quote.customer}</strong><small>${quote.phone || "WhatsApp não informado"}</small></td><td><strong>${money(quote.total)}</strong></td><td>${(quote.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)} itens</td><td><span class="admin-status ${quoteStatusClass(quote.status)}">${quote.status}</span></td><td><div class="admin-row-actions quote-row-actions"><button data-action="quote-view" data-quote-id="${quote.id}">Ver</button>${saved ? `<button data-action="quote-advance" data-quote-id="${quote.id}">Avançar</button>` : `<span class="admin-table-muted">Demo</span>`}</div></td></tr>`; }).join("") : `<tr><td colspan="6"><div class="admin-inline-empty">Nenhum orçamento corresponde aos filtros atuais.</div></td></tr>`}</tbody></table></div></section>`);
+  return adminShell("admin-quotes", "04 / COMMERCIAL", "Orçamentos.", `<div class="admin-toolbar quote-toolbar"><div class="admin-search"><span class="icon icon-search"></span><input id="quote-search" value="${state.quoteSearch}" placeholder="Buscar por número, cliente, produto ou SKU" /></div><select class="quote-status-filter" id="quote-status-filter" aria-label="Filtrar orçamentos por status"><option value="all" ${state.quoteStatusFilter === "all" ? "selected" : ""}>Todos os status</option>${quoteStatuses.map((status) => `<option value="${status}" ${state.quoteStatusFilter === status ? "selected" : ""}>${status}</option>`).join("")}</select><button class="hero-cta" data-action="quote-new">Novo orçamento</button></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">QUOTE PIPELINE</span><h2>${list.length} conversas na visão atual</h2></div><span class="admin-sync"><i class="status-dot"></i> ${state.quotes.length} salvos neste dispositivo</span></div><div class="admin-quote-cards"><div><span>NOVOS</span><strong>${allQuotes.filter((quote) => quote.status === "Novo").length}</strong><small>aguardando primeiro contato</small></div><div><span>EM ANÁLISE</span><strong>${allQuotes.filter((quote) => ["Em análise", "Proposta enviada", "Aguardando cliente"].includes(quote.status)).length}</strong><small>propostas em atendimento</small></div><div><span>APROVADOS</span><strong>${allQuotes.filter((quote) => ["Aprovado", "Convertido em pedido"].includes(quote.status)).length}</strong><small>prontos para virar pedido</small></div></div><div class="admin-table-wrap"><table class="admin-table quotes-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Total estimado</th><th>Itens</th><th>Status</th><th>Ações</th></tr></thead><tbody>${list.length ? list.map((quote) => { const saved = state.quotes.some((item) => item.id === quote.id); return `<tr><td><strong>#${quote.id}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td><strong>${quote.customer}</strong><small>${quote.phone || "WhatsApp não informado"}</small></td><td><strong>${money(quote.total)}</strong></td><td>${(quote.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)} itens</td><td><span class="admin-status ${quoteStatusClass(quote.status)}">${quote.status}</span></td><td><div class="admin-row-actions quote-row-actions"><button data-action="quote-view" data-quote-id="${quote.id}">Ver</button>${saved ? `<button data-action="quote-advance" data-quote-id="${quote.id}">Avançar</button>` : `<span class="admin-table-muted">Demo</span>`}</div></td></tr>`; }).join("") : `<tr><td colspan="6"><div class="admin-inline-empty">Nenhum orçamento corresponde aos filtros atuais.</div></td></tr>`}</tbody></table></div></section>`);
 }
 
 function quoteDetailModal(id) {
@@ -450,7 +480,7 @@ function openQuoteWhatsApp(id) {
   const quote = state.quotes.find((item) => item.id === id) || quoteDemoData().find((item) => item.id === id);
   const phone = String(quote?.phone || "").replace(/\D/g, "");
   if (!quote || phone.length < 10) { showToast("Este orçamento não tem um WhatsApp válido."); return; }
-  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(quoteSummary(quote))}`, "_blank", "noopener,noreferrer");
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`${quoteSummary(quote)}\n\nVer proposta: ${quoteShareLink(quote)}`)}`, "_blank", "noopener,noreferrer");
 }
 
 function deleteQuote(id) {
@@ -461,6 +491,160 @@ function deleteQuote(id) {
   closeModal();
   render();
   showToast("Orçamento excluído.");
+}
+
+function addQuoteHistory(quote, status, note, actor = "Operação local") {
+  const from = quote.status;
+  quote.status = status;
+  quote.history = [...(quote.history || []), { at: new Date().toISOString(), actor, from, to: status, note }];
+}
+
+function quoteShareLink(quote) {
+  return `${location.origin}${location.pathname}#quote/${quote.id}`;
+}
+
+function quoteDetailModalV2(id) {
+  const quote = quoteCollection().find((item) => item.id === id);
+  if (!quote) return;
+  const saved = state.quotes.some((item) => item.id === quote.id);
+  const items = quoteItems(quote);
+  const history = [...(quote.history || [])].reverse();
+  openModal(`<span class="eyebrow">QUOTE / ${quote.id}</span><h2>Central do<br>orçamento.</h2><div class="quote-detail-head"><div><strong>${quote.customer}</strong><small>${quote.phone || "WhatsApp não informado"} · ${quote.city || "Cidade não informada"}</small></div><span class="admin-status ${quoteStatusClass(quote.status)}">${quote.status}</span></div><div class="quote-detail-section"><div class="quote-section-title"><span class="eyebrow">CUSTOMER / CLIENTE</span><strong>Dados do atendimento</strong></div><div class="quote-info-grid"><div><span>CPF / CNPJ</span><strong>${quote.document || "Não informado"}</strong></div><div><span>CEP</span><strong>${quote.zip || "Não informado"}</strong></div><div><span>Vendedor</span><strong>${quote.seller || "Não informado"}</strong></div><div><span>Origem</span><strong>${quote.origin || "Catálogo"}</strong></div><div><span>Validade</span><strong>${quote.validUntil ? new Date(`${quote.validUntil}T12:00:00`).toLocaleDateString("pt-BR") : "Não definida"}</strong></div><div><span>Pedido relacionado</span><strong>${quote.orderId || "Ainda não convertido"}</strong></div></div></div><div class="quote-detail-section"><div class="quote-section-title"><span class="eyebrow">ITEMS / PRODUTOS</span><strong>${items.length} item(ns) no orçamento</strong></div><div class="quote-detail-items">${items.length ? items.map((item) => `<div class="quote-detail-item"><div><strong>${item.product?.name || item.name || item.id}</strong><small>${item.product?.brand || "Produto registrado"} · SKU ${item.product?.id || item.id || "—"} · ${item.quantity} unidade(s)</small></div><b>${item.product ? money(item.product.price * item.quantity) : "—"}</b></div>`).join("") : `<p class="admin-inline-empty">Este orçamento não possui itens detalhados.</p>`}</div></div><div class="quote-detail-section"><div class="quote-section-title"><span class="eyebrow">FULFILLMENT / ENTREGA</span><strong>Frete e condições</strong></div><div class="quote-info-grid"><div><span>Transportadora</span><strong>${quote.shipping?.carrier || "A definir"}</strong></div><div><span>Modalidade</span><strong>${quote.shipping?.method || "A definir"}</strong></div><div><span>Prazo</span><strong>${quote.shipping?.deadline || "A definir"}</strong></div><div><span>Volumes</span><strong>${quote.shipping?.volumes || 1}</strong></div></div></div><div class="quote-financial"><div><span>Subtotal dos produtos</span><strong>${money(quote.subtotal)}</strong></div><div><span>Descontos</span><strong>− ${money(quote.discount)}</strong></div><div><span>Frete</span><strong>${money(quote.freight)}</strong></div><div class="quote-total"><span>Total final</span><strong>${money(quote.total)}</strong></div></div>${quote.note && quote.note !== "—" ? `<div class="quote-note"><span>OBSERVAÇÃO DO CLIENTE</span><p>${quote.note}</p></div>` : ""}${quote.internalNote ? `<div class="quote-note internal"><span>OBSERVAÇÃO INTERNA</span><p>${quote.internalNote}</p></div>` : ""}<div class="quote-history"><div class="quote-section-title"><span class="eyebrow">TRACE / HISTÓRICO</span><strong>Rastreabilidade</strong></div>${history.length ? `<div class="quote-timeline">${history.map((entry) => `<div class="quote-timeline-item"><i></i><div><strong>${entry.from ? `${entry.from} → ` : ""}${entry.to}</strong><small>${new Date(entry.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · ${entry.actor}</small><p>${entry.note || "Atualização registrada."}</p></div></div>`).join("")}</div>` : `<p class="admin-inline-empty">Nenhum evento registrado.</p>`}</div><div class="quote-detail-actions"><button class="hero-cta" data-action="quote-edit" data-quote-id="${quote.id}" ${saved ? "" : "disabled"}>Editar condições</button><button class="outline-cta" data-action="quote-advance" data-quote-id="${quote.id}" ${saved ? "" : "disabled"}>Avançar etapa</button>${saved && quote.status === "Aprovado" ? `<button class="hero-cta" data-action="quote-convert" data-quote-id="${quote.id}">Converter em pedido</button>` : ""}<button class="outline-cta" data-action="quote-copy" data-quote-id="${quote.id}">Copiar resumo</button><button class="outline-cta" data-action="quote-share" data-quote-id="${quote.id}">Copiar link</button>${quote.phone ? `<button class="outline-cta" data-action="quote-whatsapp" data-quote-id="${quote.id}">WhatsApp cliente ↗</button>` : ""}${saved ? `<button class="danger-cta" data-action="quote-delete" data-quote-id="${quote.id}">Excluir orçamento</button>` : ""}</div>`);
+}
+
+function quoteEditModal(id) {
+  const quote = state.quotes.find((item) => item.id === id);
+  if (!quote) return;
+  openModal(`<span class="eyebrow">QUOTE / ${quote.id} / EDIT</span><h2>Editar<br>condições.</h2><p>Atualize a proposta sem perder o histórico de alterações.</p><form class="form-grid" id="quote-edit-form"><div class="form-row"><label class="form-label">Status<select name="status">${quoteStatuses.map((status) => `<option value="${status}" ${quote.status === status ? "selected" : ""}>${status}</option>`).join("")}</select></label><label class="form-label">Vendedor<input name="seller" value="${quote.seller || ""}" placeholder="Responsável" /></label></div><div class="form-row"><label class="form-label">Desconto<input name="discount" type="number" min="0" step="1" value="${quote.discount || 0}" /></label><label class="form-label">Frete<input name="freight" type="number" min="0" step="1" value="${quote.freight || 0}" /></label></div><div class="form-row"><label class="form-label">Transportadora<input name="carrier" value="${quote.shipping?.carrier || ""}" placeholder="A definir" /></label><label class="form-label">Modalidade<input name="method" value="${quote.shipping?.method || ""}" placeholder="PAC, retirada, motoboy..." /></label></div><div class="form-row"><label class="form-label">Prazo estimado<input name="deadline" value="${quote.shipping?.deadline || ""}" placeholder="3 dias úteis" /></label><label class="form-label">Volumes<input name="volumes" type="number" min="1" step="1" value="${quote.shipping?.volumes || 1}" /></label></div><label class="form-label">Validade<input name="validUntil" type="date" value="${quote.validUntil || ""}" /></label><label class="form-label">Observação interna<textarea name="internalNote" placeholder="Informação para o time comercial">${quote.internalNote || ""}</textarea></label><button class="modal-submit" type="submit">Salvar condições</button></form>`);
+  document.querySelector("#quote-edit-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const previous = `${quote.status}|${quote.discount}|${quote.freight}|${quote.shipping?.carrier}|${quote.shipping?.method}`;
+    quote.discount = Math.max(0, Number(form.get("discount")) || 0);
+    quote.freight = Math.max(0, Number(form.get("freight")) || 0);
+    quote.total = Math.max(0, quote.subtotal - quote.discount + quote.freight);
+    quote.seller = form.get("seller")?.toString().trim() || "Operação local";
+    quote.validUntil = form.get("validUntil")?.toString() || quote.validUntil;
+    quote.internalNote = form.get("internalNote")?.toString().trim() || "";
+    quote.shipping = { ...quote.shipping, carrier: form.get("carrier")?.toString().trim() || "", method: form.get("method")?.toString().trim() || "", deadline: form.get("deadline")?.toString().trim() || "", volumes: Math.max(1, Number(form.get("volumes")) || 1) };
+    if (form.get("status") !== quote.status) addQuoteHistory(quote, form.get("status"), "Status atualizado pelo painel.");
+    const current = `${quote.status}|${quote.discount}|${quote.freight}|${quote.shipping.carrier}|${quote.shipping.method}`;
+    if (previous !== current && !quote.history.some((entry) => entry.at === quote.updatedAt)) quote.history.push({ at: new Date().toISOString(), actor: quote.seller, from: quote.status, to: quote.status, note: "Condições comerciais atualizadas." });
+    quote.updatedAt = new Date().toISOString();
+    persist();
+    closeModal();
+    render();
+    showToast("Condições do orçamento atualizadas.");
+  });
+}
+
+function convertQuoteToOrder(id) {
+  const quote = state.quotes.find((item) => item.id === id);
+  if (!quote || quote.status !== "Aprovado") return;
+  if (quote.orderId) { showToast(`Este orçamento já virou o pedido ${quote.orderId}.`); return; }
+  const order = { id: `PED-${String(154 + state.orders.length).padStart(6, "0")}`, quoteId: quote.id, customer: quote.customer, phone: quote.phone, document: quote.document || "", zip: quote.zip || "", city: quote.city || "", seller: quote.seller, items: quote.items.map((item) => ({ ...item })), subtotal: quote.subtotal, discount: quote.discount, freight: quote.freight, total: quote.total, status: "Novo pedido", createdAt: new Date().toISOString(), shipping: { ...quote.shipping }, history: [{ at: new Date().toISOString(), actor: quote.seller || "Operação local", from: null, to: "Novo pedido", note: `Convertido do orçamento ${quote.id}.` }], note: quote.note || "—" };
+  state.orders.unshift(order);
+  quote.orderId = order.id;
+  addQuoteHistory(quote, "Convertido em pedido", `Pedido ${order.id} criado.`);
+  persist();
+  closeModal();
+  render();
+  showToast(`Pedido ${order.id} criado.`);
+}
+
+function copyQuoteLink(id) {
+  const quote = quoteCollection().find((item) => item.id === id);
+  if (!quote || !navigator.clipboard?.writeText) { showToast("Não foi possível copiar o link."); return; }
+  navigator.clipboard.writeText(quoteShareLink(quote)).then(() => showToast("Link do orçamento copiado."), () => showToast("Não foi possível copiar o link."));
+}
+
+function quoteCreateModalV2() {
+  openModal(`<span class="eyebrow">QUOTE / NEW REQUEST</span><h2>Nova central<br>de orçamento.</h2><p>Registre a solicitação e deixe a proposta pronta para análise comercial.</p><form class="form-grid" id="admin-quote-form"><div class="form-row"><label class="form-label">Nome do cliente<input name="name" required placeholder="Nome completo" /></label><label class="form-label">WhatsApp<input name="phone" required placeholder="(11) 99999-9999" /></label></div><div class="form-row"><label class="form-label">CPF / CNPJ<input name="document" placeholder="Opcional" /></label><label class="form-label">CEP<input name="zip" placeholder="00000-000" /></label></div><div class="form-row"><label class="form-label">Cidade / UF<input name="city" placeholder="São Paulo / SP" /></label><label class="form-label">Origem<select name="origin"><option>Catálogo</option><option>WhatsApp</option><option>Telefone</option><option>Balcão</option><option>Indicação</option></select></label></div><div class="form-row"><label class="form-label">Produto principal<select name="productId" required>${activeProducts().map((product) => `<option value="${product.id}">${product.name} · ${money(product.price)}</option>`).join("")}</select></label><label class="form-label">Quantidade<input name="quantity" type="number" min="1" step="1" value="1" required /></label></div><label class="form-label">Vendedor responsável<input name="seller" value="${state.account?.name || "Operação local"}" placeholder="Responsável" /></label><div class="form-row"><label class="form-label">Observação do cliente<textarea name="note" placeholder="Preferências, prazo ou contexto"></textarea></label><label class="form-label">Observação interna<textarea name="internalNote" placeholder="Uso exclusivo do time"></textarea></label></div><button class="modal-submit" type="submit">Criar orçamento</button></form>`);
+  document.querySelector("#admin-quote-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const product = findProduct(form.get("productId"));
+    if (!product) return;
+    const quantity = Math.max(1, Number(form.get("quantity")) || 1);
+    const createdAt = new Date().toISOString();
+    const quote = { id: nextQuoteId(), customer: form.get("name").toString().trim(), phone: form.get("phone").toString().trim(), document: form.get("document")?.toString().trim() || "", zip: form.get("zip")?.toString().trim() || "", city: form.get("city")?.toString().trim() || "—", origin: form.get("origin")?.toString() || "Catálogo", seller: form.get("seller")?.toString().trim() || "Operação local", note: form.get("note")?.toString().trim() || "—", internalNote: form.get("internalNote")?.toString().trim() || "", subtotal: product.price * quantity, discount: 0, freight: 0, total: product.price * quantity, status: "Novo", createdAt, updatedAt: createdAt, validUntil: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10), shipping: { carrier: "", method: "", deadline: "", volumes: 1, weight: "" }, items: [{ id: product.id, quantity }], history: [{ at: createdAt, actor: form.get("seller")?.toString().trim() || "Operação local", from: null, to: "Novo", note: "Orçamento criado manualmente." }] };
+    state.quotes.unshift(quote);
+    persist();
+    closeModal();
+    render();
+    showToast("Orçamento criado.");
+  });
+}
+
+function openSellerWhatsApp(id) {
+  const quote = quoteCollection().find((item) => item.id === id);
+  const phone = String(state.settings.whatsapp || "").replace(/\D/g, "");
+  if (!quote || phone.length < 10) { showToast("O WhatsApp da operação ainda não foi configurado."); return; }
+  const message = `Olá, sou ${quote.customer} e quero falar sobre o orçamento ${quote.id}.\n\n${quoteShareLink(quote)}`;
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+}
+
+function publicQuotePage(id) {
+  const quote = quoteCollection().find((item) => item.id === id);
+  if (!quote) return `<section class="page public-quote-page"><div class="container"><div class="empty-state"><div><div class="empty-mark">⌖</div><h2>Orçamento não encontrado.</h2><p>Confira o link recebido ou fale com o time ${state.settings.storeName}.</p><a class="hero-cta" href="#catalog" data-route="catalog">Voltar ao catálogo</a></div></div></div></section>`;
+  const items = quoteItems(quote);
+  return `<section class="page public-quote-page"><div class="container"><div class="public-quote-header"><div><span class="eyebrow">${state.settings.storeName.toUpperCase()} / PROPOSAL</span><h1>Orçamento<br>${quote.id}.</h1><p>Proposta preparada para ${quote.customer}.</p></div><span class="admin-status ${quoteStatusClass(quote.status)}">${quote.status}</span></div><div class="public-quote-grid"><section class="public-quote-card"><div class="quote-section-title"><span class="eyebrow">SUMMARY / RESUMO</span><strong>Seu equipamento em campo</strong></div><div class="public-quote-items">${items.map((item) => `<div class="quote-detail-item"><div><strong>${item.product?.name || item.name || item.id}</strong><small>${item.product?.brand || "Produto"} · ${item.quantity} unidade(s)</small></div><b>${item.product ? money(item.product.price * item.quantity) : "—"}</b></div>`).join("")}</div><div class="quote-financial"><div><span>Subtotal</span><strong>${money(quote.subtotal)}</strong></div><div><span>Desconto</span><strong>− ${money(quote.discount)}</strong></div><div><span>Frete</span><strong>${money(quote.freight)}</strong></div><div class="quote-total"><span>Total final</span><strong>${money(quote.total)}</strong></div></div></section><aside class="public-quote-card public-quote-side"><span class="eyebrow">NEXT STEP / PRÓXIMO PASSO</span><h2>Pronto para<br>seguir?</h2><p>Revise a proposta e escolha como quer continuar com a equipe.</p><button class="hero-cta" data-action="quote-accept-public" data-quote-id="${quote.id}" ${state.quotes.some((item) => item.id === quote.id) && quote.status !== "Convertido em pedido" ? "" : "disabled"}>Aceitar orçamento</button><button class="outline-cta" data-action="quote-whatsapp" data-quote-id="${quote.id}">Falar com vendedor ↗</button><button class="text-link public-copy-link" data-action="quote-share" data-quote-id="${quote.id}">Copiar este link</button><small>Validade: ${quote.validUntil ? new Date(`${quote.validUntil}T12:00:00`).toLocaleDateString("pt-BR") : "A confirmar"}</small></aside></div></div></section>`;
+}
+
+function acceptPublicQuote(id) {
+  const quote = state.quotes.find((item) => item.id === id);
+  if (!quote || quote.status === "Convertido em pedido") return;
+  addQuoteHistory(quote, "Aprovado", "Orçamento aceito pelo cliente.", quote.customer);
+  persist();
+  render();
+  showToast("Orçamento aprovado. O time já pode converter em pedido.");
+}
+
+function orderStatusClass(status) {
+  if (status === "Novo pedido") return "status-new";
+  if (["Pagamento confirmado", "Pronto para envio", "Entregue"].includes(status)) return "status-done";
+  if (status === "Cancelado") return "status-danger";
+  return "status-progress";
+}
+
+function adminOrdersPage() {
+  const query = state.orderSearch.trim().toLowerCase();
+  const list = state.orders.filter((order) => {
+    const matchesQuery = !query || `${order.id} ${order.customer} ${order.phone || ""} ${order.quoteId || ""}`.toLowerCase().includes(query);
+    const matchesStatus = state.orderStatusFilter === "all" || order.status === state.orderStatusFilter;
+    return matchesQuery && matchesStatus;
+  });
+  return adminShell("admin-orders", "05 / FULFILLMENT", "Pedidos.", `<div class="admin-toolbar quote-toolbar"><div class="admin-search"><span class="icon icon-search"></span><input id="order-search" value="${state.orderSearch}" placeholder="Buscar por pedido, cliente ou orçamento" /></div><select class="quote-status-filter" id="order-status-filter" aria-label="Filtrar pedidos por status"><option value="all" ${state.orderStatusFilter === "all" ? "selected" : ""}>Todos os status</option>${orderStatuses.map((status) => `<option value="${status}" ${state.orderStatusFilter === status ? "selected" : ""}>${status}</option>`).join("")}</select></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">ORDER PIPELINE</span><h2>${list.length} pedido(s) na visão atual</h2></div><span class="admin-sync"><i class="status-dot"></i> ${state.orders.length} salvos neste dispositivo</span></div><div class="admin-quote-cards"><div><span>NOVOS</span><strong>${state.orders.filter((order) => order.status === "Novo pedido").length}</strong><small>aguardando processamento</small></div><div><span>SEPARAÇÃO</span><strong>${state.orders.filter((order) => ["Preparando pedido", "Separação"].includes(order.status)).length}</strong><small>itens para o estoque</small></div><div><span>EXPEDIÇÃO</span><strong>${state.orders.filter((order) => ["Pronto para envio", "Enviado"].includes(order.status)).length}</strong><small>pedidos em trânsito</small></div></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Origem</th><th>Total</th><th>Status</th><th>Ações</th></tr></thead><tbody>${list.length ? list.map((order) => `<tr><td><strong>#${order.id}</strong><small>${order.quoteId || "Sem orçamento"}</small></td><td><strong>${order.customer}</strong><small>${order.phone || "WhatsApp não informado"}</small></td><td>${(order.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)} itens</td><td><strong>${money(order.total)}</strong></td><td><span class="admin-status ${orderStatusClass(order.status)}">${order.status}</span></td><td><div class="admin-row-actions quote-row-actions"><button data-action="order-view" data-order-id="${order.id}">Ver</button><button data-action="order-advance" data-order-id="${order.id}">Avançar</button></div></td></tr>`).join("") : `<tr><td colspan="6"><div class="admin-inline-empty">Nenhum pedido foi criado a partir dos orçamentos aprovados.</div></td></tr>`}</tbody></table></div></section>`);
+}
+
+function orderDetailModal(id) {
+  const order = state.orders.find((item) => item.id === id);
+  if (!order) return;
+  const items = quoteItems(order);
+  const history = [...(order.history || [])].reverse();
+  openModal(`<span class="eyebrow">ORDER / ${order.id}</span><h2>Detalhes do<br>pedido.</h2><div class="quote-detail-head"><div><strong>${order.customer}</strong><small>${order.phone || "WhatsApp não informado"} · ${order.city || "Cidade não informada"}</small></div><span class="admin-status ${orderStatusClass(order.status)}">${order.status}</span></div><div class="quote-detail-section"><div class="quote-section-title"><span class="eyebrow">PRODUCTS / PRODUTOS</span><strong>${items.length} item(ns)</strong></div><div class="quote-detail-items">${items.map((item) => `<div class="quote-detail-item"><div><strong>${item.product?.name || item.name || item.id}</strong><small>SKU ${item.product?.id || item.id || "—"} · ${item.quantity} unidade(s)</small></div><b>${item.product ? money(item.product.price * item.quantity) : "—"}</b></div>`).join("")}</div></div><div class="quote-detail-section"><div class="quote-section-title"><span class="eyebrow">SHIPMENT / EXPEDIÇÃO</span><strong>Preparação logística</strong></div><div class="quote-info-grid"><div><span>Transportadora</span><strong>${order.shipping?.carrier || "A definir"}</strong></div><div><span>Modalidade</span><strong>${order.shipping?.method || "A definir"}</strong></div><div><span>Volumes</span><strong>${order.shipping?.volumes || 1}</strong></div><div><span>Rastreamento</span><strong>${order.shipping?.tracking || "A definir"}</strong></div></div></div><div class="quote-financial"><div><span>Subtotal</span><strong>${money(order.subtotal)}</strong></div><div><span>Desconto</span><strong>− ${money(order.discount)}</strong></div><div><span>Frete</span><strong>${money(order.freight)}</strong></div><div class="quote-total"><span>Total final</span><strong>${money(order.total)}</strong></div></div><div class="quote-history"><div class="quote-section-title"><span class="eyebrow">TRACE / HISTÓRICO</span><strong>Rastreabilidade</strong></div><div class="quote-timeline">${history.map((entry) => `<div class="quote-timeline-item"><i></i><div><strong>${entry.from ? `${entry.from} → ` : ""}${entry.to}</strong><small>${new Date(entry.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · ${entry.actor}</small><p>${entry.note || "Atualização registrada."}</p></div></div>`).join("")}</div></div><div class="quote-detail-actions"><button class="hero-cta" data-action="order-advance" data-order-id="${order.id}">Avançar pedido</button><button class="outline-cta" data-action="order-print" data-order-id="${order.id}">Imprimir pedido</button></div>`);
+}
+
+function advanceOrderStatus(id) {
+  const order = state.orders.find((item) => item.id === id);
+  if (!order) return;
+  const nextIndex = orderStatuses.indexOf(order.status) + 1;
+  if (order.status === "Cancelado" || nextIndex >= orderStatuses.length - 1) { showToast("Este pedido já está na última etapa operacional."); return; }
+  const next = orderStatuses[nextIndex];
+  const from = order.status;
+  order.status = next;
+  order.history = [...(order.history || []), { at: new Date().toISOString(), actor: "Operação local", from, to: next, note: "Status avançado pelo painel." }];
+  persist();
+  closeModal();
+  render();
+  showToast(`Pedido ${order.id}: ${order.status}.`);
+}
+
+function printOrder(id) {
+  const order = state.orders.find((item) => item.id === id);
+  if (!order) return;
+  const items = quoteItems(order);
+  openModal(`<div class="print-sheet"><span class="eyebrow">FIELD OPS / PICKING SLIP</span><h2>${order.id}</h2><p><strong>${order.customer}</strong><br>${order.city || "Endereço não informado"}</p><div class="print-items">${items.map((item) => `<div><strong>${item.quantity}x</strong><span>${item.product?.name || item.name || item.id}<small>SKU ${item.product?.id || item.id || "—"}</small></span></div>`).join("")}</div><p class="print-note">Observações: ${order.note || "—"}</p><button class="modal-submit" data-action="print-now">Imprimir esta folha</button></div>`);
 }
 
 function profileSetupModal() {
@@ -571,8 +755,10 @@ function duplicateProduct(id) {
 function advanceQuoteStatus(id) {
   const quote = state.quotes.find((item) => item.id === id);
   if (!quote) return;
-  const statuses = ["Novo", "Em análise", "Respondido"];
-  quote.status = statuses[(statuses.indexOf(quote.status) + 1) % statuses.length];
+  const pipeline = ["Novo", "Em análise", "Proposta enviada", "Aguardando cliente", "Aprovado"];
+  const currentIndex = pipeline.indexOf(quote.status);
+  if (currentIndex < 0 || currentIndex >= pipeline.length - 1) { showToast(quote.status === "Aprovado" ? "Aprovado. Use Converter em pedido para continuar." : `O orçamento está em ${quote.status}.`); return; }
+  addQuoteHistory(quote, pipeline[currentIndex + 1], "Etapa avançada pelo painel.");
   persist();
   closeModal();
   render();
@@ -588,7 +774,8 @@ function loadoutModal(label) {
 
 function quoteRecord(form) {
   const total = state.cart.reduce((sum, item) => sum + findProduct(item.id).price * item.quantity, 0);
-  const record = { id: nextQuoteId(), customer: form.get("name").toString(), phone: form.get("phone").toString(), city: form.get("city")?.toString() || "—", note: form.get("note")?.toString() || "—", total, status: "Novo", createdAt: new Date().toISOString(), items: state.cart.map((item) => ({ id: item.id, quantity: item.quantity })) };
+  const createdAt = new Date().toISOString();
+  const record = ensureQuoteShape({ id: nextQuoteId(), customer: form.get("name").toString(), phone: form.get("phone").toString(), city: form.get("city")?.toString() || "—", note: form.get("note")?.toString() || "—", subtotal: total, discount: 0, freight: 0, total, status: "Novo", createdAt, items: state.cart.map((item) => ({ id: item.id, quantity: item.quantity })), history: [{ at: createdAt, actor: "Cliente", from: null, to: "Novo", note: "Orçamento criado pelo catálogo." }] });
   state.quotes.unshift(record);
   persist();
   return record;
@@ -656,7 +843,9 @@ function render() {
   if (state.route === "admin-stock") view = adminStockPage();
   if (state.route === "admin-prices") view = adminPricesPage();
   if (state.route === "admin-quotes") view = adminQuotesWorkspace();
+  if (state.route === "admin-orders") view = adminOrdersPage();
   if (state.route === "admin-customers") view = adminCustomersPage();
+  if (state.route === "quote" && state.selectedQuoteId) view = publicQuotePage(state.selectedQuoteId);
   if (state.route === "admin-import") view = adminImportPage();
   if (state.route === "admin-settings") view = adminSettingsPage();
   app.innerHTML = view + compareBar();
@@ -853,6 +1042,10 @@ function bindViewEvents() {
   if (quoteSearch) quoteSearch.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.quoteSearch = quoteSearch.value; render(); } });
   const quoteStatusFilter = document.querySelector("#quote-status-filter");
   if (quoteStatusFilter) quoteStatusFilter.addEventListener("change", () => { state.quoteStatusFilter = quoteStatusFilter.value; render(); });
+  const orderSearch = document.querySelector("#order-search");
+  if (orderSearch) orderSearch.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.orderSearch = orderSearch.value; render(); } });
+  const orderStatusFilter = document.querySelector("#order-status-filter");
+  if (orderStatusFilter) orderStatusFilter.addEventListener("change", () => { state.orderStatusFilter = orderStatusFilter.value; render(); });
   const importFile = document.querySelector("#import-file");
   if (importFile) importFile.addEventListener("change", () => analyzeImportFile(importFile.files[0]));
   const settingsForm = document.querySelector("#settings-form");
@@ -895,13 +1088,22 @@ document.addEventListener("click", (event) => {
   if (event.target.closest("[data-clear-filters]")) { state.category = ""; state.search = ""; state.filters = { systems: [], availability: "all", maxPrice: catalogPriceMax() }; render(); }
   const quoteStatusId = event.target.closest("[data-quote-status]")?.dataset.quoteStatus;
   if (quoteStatusId) advanceQuoteStatus(quoteStatusId);
-  if (action === "quote-new") quoteCreateModal();
+  if (action === "quote-new") quoteCreateModalV2();
   const quoteId = event.target.closest("[data-quote-id]")?.dataset.quoteId;
-  if (action === "quote-view" && quoteId) quoteDetailModal(quoteId);
+  if (action === "quote-view" && quoteId) quoteDetailModalV2(quoteId);
   if (action === "quote-advance" && quoteId) advanceQuoteStatus(quoteId);
+  if (action === "quote-edit" && quoteId) quoteEditModal(quoteId);
+  if (action === "quote-convert" && quoteId) convertQuoteToOrder(quoteId);
   if (action === "quote-copy" && quoteId) copyQuoteSummary(quoteId);
-  if (action === "quote-whatsapp" && quoteId) openQuoteWhatsApp(quoteId);
+  if (action === "quote-share" && quoteId) copyQuoteLink(quoteId);
+  if (action === "quote-whatsapp" && quoteId) { if (state.route === "quote") openSellerWhatsApp(quoteId); else openQuoteWhatsApp(quoteId); }
   if (action === "quote-delete" && quoteId) deleteQuote(quoteId);
+  if (action === "quote-accept-public" && quoteId) acceptPublicQuote(quoteId);
+  const orderId = event.target.closest("[data-order-id]")?.dataset.orderId;
+  if (action === "order-view" && orderId) orderDetailModal(orderId);
+  if (action === "order-advance" && orderId) advanceOrderStatus(orderId);
+  if (action === "order-print" && orderId) printOrder(orderId);
+  if (action === "print-now") window.print();
   const stockEditId = event.target.closest("[data-stock-edit]")?.dataset.stockEdit;
   if (stockEditId) stockModal(findProduct(stockEditId));
   const priceEditId = event.target.closest("[data-edit-price]")?.dataset.editPrice;
@@ -926,11 +1128,13 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) { event.preventDefault(); searchPalette(); }
   if (event.key === "Escape" && modalLayer.classList.contains("is-open")) closeModal();
 });
-window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); state.route = productMatch ? "product" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-customers", "admin-import", "admin-settings"].includes(route) ? route : "home"; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; render(); });
+window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); const quoteMatch = route.match(/^quote\/(.+)$/); closeModal(); state.route = productMatch ? "product" : quoteMatch ? "quote" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-customers", "admin-import", "admin-settings"].includes(route) ? route : "home"; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; state.selectedQuoteId = quoteMatch ? quoteMatch[1] : null; render(); });
 
 const initialRoute = location.hash.replace("#", "") || "home";
 const initialProductMatch = initialRoute.match(/^product\/(.+)$/);
-state.route = initialProductMatch ? "product" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-customers", "admin-import", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
+const initialQuoteMatch = initialRoute.match(/^quote\/(.+)$/);
+state.route = initialProductMatch ? "product" : initialQuoteMatch ? "quote" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-customers", "admin-import", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
 state.selectedProduct = initialProductMatch ? findProduct(initialProductMatch[1]) : null;
+state.selectedQuoteId = initialQuoteMatch ? initialQuoteMatch[1] : null;
 render();
 renderDrawer();

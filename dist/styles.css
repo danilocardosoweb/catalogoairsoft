@@ -356,6 +356,54 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .quote-detail-actions .hero-cta, .quote-detail-actions .outline-cta, .quote-detail-actions .danger-cta { min-height: 42px; flex: 1 1 150px; }
 .danger-cta { border: 1px solid rgba(255, 122, 103, .35); background: transparent; color: #ff9d8d; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
 .danger-cta:hover { border-color: #ff7a67; background: rgba(255, 122, 103, .08); }
+.status-danger { color: #ff9d8d; background: rgba(255, 122, 103, .08); }
+.status-wait { color: #c6b2ff; background: rgba(198, 178, 255, .08); }
+.quote-detail-section { margin-top: 22px; }
+.quote-section-title { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 10px; }
+.quote-section-title strong { color: var(--ink-soft); font-size: 11px; }
+.quote-info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.quote-info-grid > div { padding: 10px; background: var(--bg-elevated); border: 1px solid var(--line); }
+.quote-info-grid span, .quote-info-grid strong { display: block; }
+.quote-info-grid span { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.quote-info-grid strong { margin-top: 6px; color: var(--ink-soft); font-size: 10px; }
+.quote-financial { display: grid; gap: 8px; margin: 16px 0; padding-top: 14px; border-top: 1px solid var(--line); }
+.quote-financial > div { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 11px; }
+.quote-financial strong { color: var(--ink-soft); }
+.quote-financial .quote-total { margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--line-strong); color: var(--ink); font-weight: 800; }
+.quote-financial .quote-total strong { color: var(--accent); font: 600 25px var(--display); }
+.quote-note.internal { border-left-color: var(--accent); }
+.quote-history { margin-top: 22px; }
+.quote-timeline { display: grid; gap: 0; margin-top: 13px; }
+.quote-timeline-item { position: relative; display: grid; grid-template-columns: 15px 1fr; gap: 9px; padding-bottom: 15px; }
+.quote-timeline-item:last-child { padding-bottom: 0; }
+.quote-timeline-item::before { content: ""; position: absolute; left: 5px; top: 12px; bottom: 0; width: 1px; background: var(--line-strong); }
+.quote-timeline-item:last-child::before { display: none; }
+.quote-timeline-item i { position: relative; z-index: 1; width: 11px; height: 11px; margin-top: 2px; border: 2px solid var(--accent); border-radius: 50%; background: var(--surface); }
+.quote-timeline-item strong, .quote-timeline-item small, .quote-timeline-item p { display: block; }
+.quote-timeline-item strong { font-size: 11px; }
+.quote-timeline-item small { margin-top: 3px; color: var(--muted); font-size: 9px; }
+.quote-timeline-item p { margin: 5px 0 0; color: var(--ink-soft); font-size: 10px; line-height: 1.4; }
+.public-quote-page { padding: 55px 0 100px; }
+.public-quote-header { display: flex; align-items: end; justify-content: space-between; gap: 24px; padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+.public-quote-header h1 { margin: 10px 0 8px; font: 600 clamp(54px, 8vw, 96px)/.84 var(--display); text-transform: uppercase; }
+.public-quote-header p { margin: 0; color: var(--muted); font-size: 13px; }
+.public-quote-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, .7fr); gap: 14px; margin-top: 22px; }
+.public-quote-card { padding: 23px; background: var(--surface); border: 1px solid var(--line-strong); }
+.public-quote-side { align-self: start; }
+.public-quote-side h2 { margin: 12px 0 10px; font: 600 36px/.88 var(--display); text-transform: uppercase; }
+.public-quote-side p { margin: 0 0 17px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.public-quote-side .hero-cta, .public-quote-side .outline-cta { width: 100%; min-height: 44px; margin-top: 8px; justify-content: center; }
+.public-quote-side small { display: block; margin-top: 17px; color: var(--muted); font-size: 10px; }
+.public-copy-link { display: block; margin-top: 13px; color: var(--ink-soft); font-size: 10px; cursor: pointer; }
+.print-sheet h2 { margin: 9px 0 17px; font: 600 46px var(--display); }
+.print-sheet > p { color: var(--ink-soft); font-size: 12px; line-height: 1.6; }
+.print-items { display: grid; gap: 0; margin: 18px 0; border-top: 1px solid var(--line); }
+.print-items > div { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.print-items > div > strong { color: var(--accent); font: 600 22px var(--display); }
+.print-items span, .print-items small { display: block; }
+.print-items span { font-size: 11px; font-weight: 800; }
+.print-items small { margin-top: 4px; color: var(--muted); font-size: 9px; font-weight: 400; }
+.print-note { padding: 12px; background: var(--bg-elevated); }
 .inventory-list { display: grid; }
 .inventory-row { display: grid; grid-template-columns: 42px 1fr 100px 85px auto; align-items: center; gap: 13px; padding: 13px 0; border-bottom: 1px solid var(--line); }
 .inventory-row:last-child { border-bottom: 0; }
@@ -738,6 +786,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .admin-toolbar .hero-cta { width: 100%; margin-top: 8px; }
   .quote-status-filter { width: 100%; margin-top: 8px; }
   .admin-quote-cards { grid-template-columns: 1fr; }
+  .quote-info-grid { grid-template-columns: repeat(2, 1fr); }
+  .public-quote-page { padding-top: 32px; }
+  .public-quote-header { display: block; }
+  .public-quote-header .admin-status { margin-top: 20px; }
+  .public-quote-grid { grid-template-columns: 1fr; }
+  .public-quote-card { padding: 16px 13px; }
   .inventory-row { grid-template-columns: 42px 1fr auto; gap: 9px; }
   .inventory-row .admin-status { grid-column: 2 / -1; justify-self: start; }
   .inventory-row .status-action { grid-column: 2 / -1; justify-self: start; }
