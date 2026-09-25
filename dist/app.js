@@ -121,6 +121,9 @@ const state = {
   importData: null,
   adminProductSearch: "",
   account: JSON.parse(localStorage.getItem("fieldops-account") || "null"),
+  profile: JSON.parse(localStorage.getItem("fieldops-profile") || "null"),
+  recentSearches: JSON.parse(localStorage.getItem("fieldops-recent-searches") || "[]"),
+  recentProducts: JSON.parse(localStorage.getItem("fieldops-recent-products") || "[]"),
   quantity: 1
 };
 
@@ -147,6 +150,9 @@ function persist() {
   localStorage.setItem("fieldops-compare", JSON.stringify(state.compare));
   localStorage.setItem("fieldops-quotes", JSON.stringify(state.quotes));
   localStorage.setItem("fieldops-loadout", JSON.stringify(state.loadout));
+  localStorage.setItem("fieldops-profile", JSON.stringify(state.profile));
+  localStorage.setItem("fieldops-recent-searches", JSON.stringify(state.recentSearches));
+  localStorage.setItem("fieldops-recent-products", JSON.stringify(state.recentProducts));
 }
 
 function filteredProducts() {
@@ -191,10 +197,39 @@ function productCard(product) {
 }
 
 function searchBar() {
-  return `<div class="search-zone container"><div class="search-bar"><span class="icon icon-search"></span><input id="global-search" value="${state.search}" placeholder="Buscar equipamento, marca ou categoria" autocomplete="off" /><span class="search-key">⌘ K</span></div><div class="search-results" data-search-results></div></div>`;
+  return `<div class="search-zone container"><div class="search-bar"><span class="icon icon-search"></span><input id="global-search" value="${state.search}" placeholder="Buscar equipamento, marca ou categoria" autocomplete="off" /><button class="search-key" data-action="open-search" aria-label="Abrir busca avançada">⌘ K</button></div><div class="search-results" data-search-results></div></div>`;
+}
+
+function recommendedProducts() {
+  const profile = state.profile || {};
+  const style = profile.style || "assalto";
+  const budget = Number(profile.budget || 5000);
+  const weights = {
+    assalto: { Rifles: 4, AEG: 3, Gear: 1 },
+    precisao: { Rifles: 3, Ópticas: 3, AEG: 2 },
+    proximidade: { Pistolas: 4, GBB: 3, Gear: 2 }
+  }[style] || {};
+  return activeProducts().map((product) => ({ product, score: (weights[product.category] || 0) + (weights[product.system] || 0) + (product.price <= budget ? 2 : -2) + (product.stockCount > 0 ? 1 : -2) })).sort((a, b) => b.score - a.score || a.product.price - b.product.price).map(({ product }) => product);
+}
+
+function profileLabel() {
+  return { assalto: "Assalto", precisao: "Precisão", proximidade: "Proximidade" }[state.profile?.style] || "seu estilo";
+}
+
+function missionDeck() {
+  const profile = state.profile;
+  const recommendations = recommendedProducts().slice(0, 2);
+  return `<section class="mission-deck"><div class="mission-intro"><div><span class="eyebrow">FIELD BRIEFING / ${profile ? "PERSONALIZADO" : "PRIMEIRO ACESSO"}</span><h2>${profile ? `Setup para ${profileLabel()}.` : "Qual é a sua missão?"}</h2><p>${profile ? "Seu catálogo foi ajustado ao seu estilo de jogo e faixa de investimento." : "Defina duas preferências e receba um ponto de partida feito para o seu próximo jogo."}</p></div><button class="mission-edit" data-action="profile-setup">${profile ? "Editar briefing" : "Começar briefing"} <span>↗</span></button></div><div class="mission-grid"><div class="mission-recommendation"><span class="mission-card-label">RECOMENDAÇÃO AGORA</span><div class="mission-product-list">${recommendations.map((product) => `<button class="mission-product" data-product="${product.id}"><img src="${product.image}" alt="" /><span><strong>${product.name}</strong><small>${product.brand} · ${money(product.price)}</small></span><b>↗</b></button>`).join("")}</div></div><div class="mission-actions"><button data-route="loadout"><span>01</span><strong>Montar loadout</strong><small>Escolha por etapa.</small></button><button data-action="open-search"><span>02</span><strong>Busca rápida</strong><small>Encontre por marca.</small></button></div></div></section>`;
+}
+
+function resumeStrip() {
+  const items = state.recentProducts.map(findProduct).filter(Boolean);
+  if (!items.length) return "";
+  return `<section class="resume-strip"><div><span class="eyebrow">CONTINUE SUA OPERAÇÃO</span><strong>Você viu estes itens recentemente.</strong></div><div class="resume-items">${items.map((product) => `<button class="resume-item" data-product="${product.id}"><img src="${product.image}" alt="" /><span><strong>${product.name}</strong><small>${money(product.price)}</small></span></button>`).join("")}</div></section>`;
 }
 
 function homePage() {
+  const feature = recommendedProducts().slice(0, 4);
   return `<section class="page home-page">
     <section class="home-hero">
       <div class="hero-content"><span class="hero-kicker">AIRSOFT EQUIPMENT / 01</span><h1 class="hero-title">EQUIP<br><em>YOUR</em><br>GAME.</h1><p class="hero-subtitle">Performance, precisão e estratégia para quem leva cada operação a sério.</p><button class="hero-cta" data-route="catalog">Explorar catálogo</button></div>
@@ -202,10 +237,12 @@ function homePage() {
     </section>
     ${searchBar()}
     <div class="container">
-      <section class="home-section"><div class="section-label"><div><span class="eyebrow">01 / ARSENAL</span><h2>Escolha sua<br>plataforma.</h2></div><p>O essencial para entrar em campo com o setup certo, do primeiro jogo ao próximo upgrade.</p></div><div class="category-grid">${categories.map((category) => `<button class="category-card" type="button" data-category="${category.name}" style="--category-image: url('${category.image}')"><span class="category-card-content"><strong>${category.name}</strong><small>${category.count} ↗</small></span></button>`).join("")}</div></section>
-      <section class="home-section"><div class="section-label"><div><span class="eyebrow">02 / CURATED GEAR</span><h2>Featured<br>loadout.</h2></div><a class="text-link" href="#catalog" data-route="catalog">Ver catálogo</a></div><div class="product-grid">${products.slice(0, 4).map(productCard).join("")}</div></section>
+      ${missionDeck()}
+      ${resumeStrip()}
+      <section class="home-section"><div class="section-label"><div><span class="eyebrow">01 / ARSENAL</span><h2>Escolha sua<br>plataforma.</h2></div><p>O essencial para entrar em campo com o setup certo, do primeiro jogo ao próximo upgrade.</p></div><div class="category-grid">${categories.map((category) => `<button class="category-card" type="button" data-category="${category.name}" style="--category-image: url('${category.image}')"><span class="category-card-content"><strong>${category.name}</strong><small>${activeProducts().filter((product) => product.category === category.name).length} itens ↗</small></span></button>`).join("")}</div></section>
+      <section class="home-section"><div class="section-label"><div><span class="eyebrow">02 / CURATED GEAR</span><h2>Escolhas<br>de campo.</h2></div><a class="text-link" href="#catalog" data-route="catalog">Ver catálogo</a></div><div class="product-grid">${feature.map(productCard).join("")}</div></section>
       <section class="home-section"><div class="loadout-banner"><div class="loadout-copy"><span class="eyebrow">03 / BUILD YOUR LOADOUT</span><h2>Monte uma<br>vantagem.</h2><p>Combine arma, óptica, magazine e proteção em uma configuração que faz sentido para o seu próximo jogo.</p><button class="outline-cta" data-route="loadout">Montar loadout</button></div></div></section>
-      <section class="home-section"><div class="section-label"><div><span class="eyebrow">04 / BRANDS</span><h2>Marcas<br>em campo.</h2></div><a class="text-link" href="#catalog" data-route="catalog">Ver todas</a></div><div class="brand-strip">${["ROSSI", "G&G", "KJW", "BLS", "8FIELDS", "VECTOR"].map((brand) => `<button class="brand-pill" data-search-brand="${brand}">${brand}</button>`).join("")}</div></section>
+      <section class="home-section"><div class="section-label"><div><span class="eyebrow">04 / BRANDS</span><h2>Marcas<br>em campo.</h2></div><a class="text-link" href="#brands" data-route="brands">Ver todas</a></div><div class="brand-strip">${["ROSSI", "G&G", "KJW", "BLS", "8FIELDS", "VECTOR"].map((brand) => `<button class="brand-pill" data-search-brand="${brand}">${brand}</button>`).join("")}</div></section>
     </div>
   </section>`;
 }
@@ -328,6 +365,44 @@ function adminQuotesPage() {
 function adminImportPage() {
   const preview = state.importData;
   return adminShell("admin-import", "05 / DATA INTAKE", "Importar.", `<div class="import-steps"><div class="import-step ${preview ? "done" : "active"}"><span>01</span><strong>Upload</strong><small>Enviar arquivo</small></div><div class="import-step ${preview ? "active" : ""}"><span>02</span><strong>Analisar</strong><small>Detectar colunas</small></div><div class="import-step"><span>03</span><strong>Validar</strong><small>Revisar erros</small></div><div class="import-step"><span>04</span><strong>Importar</strong><small>Publicar registros</small></div></div><section class="admin-panel import-panel"><div class="admin-panel-head"><div><span class="eyebrow">EXCEL / CSV</span><h2>${preview ? "Revise sua carga." : "Traga seu inventário."}</h2></div><span class="admin-sync">Mapeamento salvo: Produtos Field Ops</span></div>${preview ? `<div class="import-file-banner"><span class="dropzone-mark">✓</span><div><strong>${preview.fileName}</strong><small>${preview.validCount} registros válidos · ${preview.errorCount} erros de linha</small></div><button class="outline-cta" data-action="import-reset">Escolher outro</button></div><div class="import-preview"><div><span>Encontrados</span><strong>${preview.rows.length}</strong></div><div><span>Novos</span><strong>${preview.validCount}</strong></div><div><span>Atualizações</span><strong>0</strong></div><div><span>Erros</span><strong class="import-error-count">${preview.errorCount}</strong></div></div><div class="admin-table-wrap import-table"><table class="admin-table"><thead><tr>${preview.headers.slice(0, 5).map((header) => `<th>${header}</th>`).join("")}</tr></thead><tbody>${preview.rows.slice(0, 5).map((row) => `<tr>${preview.headers.slice(0, 5).map((header) => `<td>${row[header.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_")] || "—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div><div class="import-actions"><button class="outline-cta" data-action="import-reset">Cancelar</button><button class="hero-cta" data-action="commit-import" ${preview.validCount ? "" : "disabled"}>Importar ${preview.validCount} produtos</button></div>` : `<label class="dropzone"><input id="import-file" type="file" accept=".csv,.xlsx,.xls" /><span class="dropzone-mark">↑</span><strong>Solte sua planilha aqui</strong><small>CSV ou Excel até 10 MB</small><span class="outline-cta">Escolher arquivo</span></label><div class="import-preview"><div><span>Última análise</span><strong>—</strong></div><div><span>Novos</span><strong>—</strong></div><div><span>Atualizações</span><strong>—</strong></div><div><span>Erros</span><strong>—</strong></div></div><p class="import-help">O arquivo precisa conter pelo menos uma coluna <strong>Nome Produto</strong> ou <strong>product_name</strong>. Outras colunas aceitas: marca, categoria, preço, estoque, sistema, sku, fps.</p>`}</section>`);
+}
+
+function profileSetupModal() {
+  const profile = state.profile || {};
+  openModal(`<div class="profile-setup"><span class="eyebrow">FIELD BRIEFING / 02 MIN</span><h2>Seu jeito<br>de jogar.</h2><p>Duas escolhas. Um catálogo muito mais útil para você.</p><form class="form-grid" id="profile-form"><fieldset class="choice-fieldset"><legend>Como você joga?</legend><label class="choice-card"><input type="radio" name="style" value="assalto" ${profile.style === "assalto" || !profile.style ? "checked" : ""}><span><strong>Assalto</strong><small>Ritmo, mobilidade e versatilidade.</small></span><b>01</b></label><label class="choice-card"><input type="radio" name="style" value="precisao" ${profile.style === "precisao" ? "checked" : ""}><span><strong>Precisão</strong><small>Controle, alcance e consistência.</small></span><b>02</b></label><label class="choice-card"><input type="radio" name="style" value="proximidade" ${profile.style === "proximidade" ? "checked" : ""}><span><strong>Proximidade</strong><small>Resposta rápida para curta distância.</small></span><b>03</b></label></fieldset><label class="form-label">Faixa de investimento<select name="budget"><option value="1000" ${Number(profile.budget) === 1000 ? "selected" : ""}>Até R$ 1.000</option><option value="2000" ${Number(profile.budget) === 2000 ? "selected" : ""}>Até R$ 2.000</option><option value="5000" ${Number(profile.budget) === 5000 || !profile.budget ? "selected" : ""}>Sem limite definido</option></select></label><button class="modal-submit" type="submit">Atualizar meu briefing</button></form></div>`);
+  document.querySelector("#profile-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    state.profile = { style: form.get("style"), budget: Number(form.get("budget")) };
+    persist();
+    closeModal();
+    render();
+    showToast("Briefing atualizado.");
+  });
+}
+
+function rememberSearch(query) {
+  const clean = query.trim();
+  if (!clean) return;
+  state.recentSearches = [clean, ...state.recentSearches.filter((item) => item.toLowerCase() !== clean.toLowerCase())].slice(0, 5);
+  persist();
+}
+
+function paletteResults(query = "") {
+  const clean = query.trim().toLowerCase();
+  const matches = activeProducts().filter((product) => `${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(clean)).slice(0, 5);
+  const quick = `<div class="palette-quick"><button data-route="catalog"><span>⌕</span> Abrir catálogo</button><button data-route="loadout"><span>＋</span> Montar loadout</button><button data-route="favorites"><span>♡</span> Ver favoritos</button></div>`;
+  if (!clean) return `${quick}${state.recentSearches.length ? `<div class="palette-heading">Buscas recentes</div><div class="palette-history">${state.recentSearches.map((item) => `<button data-palette-search="${item}">${item}<span>↗</span></button>`).join("")}</div>` : `<div class="palette-empty">Digite para encontrar produtos, marcas ou categorias.</div>`}`;
+  return `${matches.length ? `<div class="palette-heading">Produtos</div><div class="palette-matches">${matches.map((product) => `<button class="palette-match" data-palette-product="${product.id}"><img src="${product.image}" alt="" /><span><strong>${product.brand} ${product.name}</strong><small>${product.category} · ${money(product.price)}</small></span><b>↗</b></button>`).join("")}</div>` : `<div class="palette-empty">Nada encontrado para “${query}”.</div>`}<button class="palette-search-all" data-palette-search="${query}">Buscar “${query}” no catálogo <span>↗</span></button>`;
+}
+
+function searchPalette(initial = "") {
+  openModal(`<div class="command-palette"><span class="eyebrow">COMMAND / SEARCH</span><h2>Encontre seu<br>próximo setup.</h2><div class="palette-input"><span class="icon icon-search"></span><input id="palette-search" value="${initial}" placeholder="Produto, marca ou categoria" autocomplete="off" /><kbd>ESC</kbd></div><div class="palette-results" data-palette-results>${paletteResults(initial)}</div></div>`);
+  const input = document.querySelector("#palette-search");
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+  input.addEventListener("input", () => { modalContent.querySelector("[data-palette-results]").innerHTML = paletteResults(input.value); });
+  input.addEventListener("keydown", (event) => { if (event.key === "Enter" && input.value.trim()) { rememberSearch(input.value); closeModal(); state.search = input.value.trim(); state.category = ""; go("catalog"); } });
 }
 
 function accountModal() {
@@ -467,13 +542,14 @@ function render() {
 function updateNav() {
   document.querySelectorAll("[data-cart-count]").forEach((el) => { el.textContent = state.cart.reduce((sum, item) => sum + item.quantity, 0); });
   document.querySelectorAll("[data-favorite-count]").forEach((el) => { el.textContent = state.favorites.length; });
+  document.querySelectorAll("[data-catalog-count]").forEach((el) => { el.textContent = activeProducts().length; });
   document.querySelectorAll("[data-route]").forEach((el) => el.classList.toggle("active", el.dataset.route === state.route || (state.route === "product" && el.dataset.route === "catalog")));
 }
 
 function go(route, product = null) {
   state.route = route;
   state.selectedProduct = product;
-  if (route === "product" && product) sessionStorage.setItem("fieldops-product", product.id);
+  if (route === "product" && product) { sessionStorage.setItem("fieldops-product", product.id); state.recentProducts = [product.id, ...state.recentProducts.filter((id) => id !== product.id)].slice(0, 4); persist(); }
   if (route !== "catalog") state.category = route === "home" ? "" : state.category;
   history.replaceState({}, "", route === "home" ? "#home" : route === "product" && product ? `#product/${product.id}` : `#${route}`);
   render();
@@ -550,8 +626,8 @@ function renderDrawer() {
 
 function openDrawer() { drawer.classList.add("is-open"); drawerBackdrop.classList.add("is-open"); drawer.setAttribute("aria-hidden", "false"); }
 function closeDrawer() { drawer.classList.remove("is-open"); drawerBackdrop.classList.remove("is-open"); drawer.setAttribute("aria-hidden", "true"); }
-function openModal(content) { modalContent.innerHTML = content; modalLayer.classList.add("is-open"); modalLayer.setAttribute("aria-hidden", "false"); }
-function closeModal() { modalLayer.classList.remove("is-open"); modalLayer.setAttribute("aria-hidden", "true"); }
+function openModal(content) { modalContent.innerHTML = content; modalLayer.classList.add("is-open"); modalLayer.classList.toggle("is-command", content.includes("command-palette")); modalLayer.setAttribute("aria-hidden", "false"); const title = modalContent.querySelector("h2"); if (title) title.id = "modal-title"; }
+function closeModal() { modalLayer.classList.remove("is-open", "is-command"); modalLayer.setAttribute("aria-hidden", "true"); modalContent.innerHTML = ""; }
 
 function quoteModal() {
   const total = state.cart.reduce((sum, item) => sum + findProduct(item.id).price * item.quantity, 0);
@@ -615,7 +691,7 @@ function bindSearch() {
     results.classList.add("open");
   };
   input.addEventListener("input", update);
-  input.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.search = input.value; go("catalog"); } });
+  input.addEventListener("keydown", (event) => { if (event.key === "Enter") { rememberSearch(input.value); state.search = input.value; go("catalog"); } });
   input.addEventListener("focus", () => { if (input.value) update(); });
 }
 
@@ -653,6 +729,8 @@ function bindViewEvents() {
 
 document.addEventListener("click", (event) => {
   const action = event.target.closest("[data-action]")?.dataset.action;
+  if (action === "open-search") searchPalette();
+  if (action === "profile-setup") profileSetupModal();
   if (action === "cart") { renderDrawer(); openDrawer(); }
   if (action === "close-drawer") closeDrawer();
   if (action === "close-modal") closeModal();
@@ -684,6 +762,10 @@ document.addEventListener("click", (event) => {
   if (event.target.closest("[data-clear-filters]")) { state.category = ""; state.search = ""; state.filters = { systems: [], availability: "all", maxPrice: catalogPriceMax() }; render(); }
   const quoteStatusId = event.target.closest("[data-quote-status]")?.dataset.quoteStatus;
   if (quoteStatusId) advanceQuoteStatus(quoteStatusId);
+  const paletteProduct = event.target.closest("[data-palette-product]")?.dataset.paletteProduct;
+  if (paletteProduct) { const product = findProduct(paletteProduct); if (product) { closeModal(); go("product", product); } }
+  const paletteSearch = event.target.closest("[data-palette-search]")?.dataset.paletteSearch;
+  if (paletteSearch) { rememberSearch(paletteSearch); closeModal(); state.search = paletteSearch; state.category = ""; go("catalog"); }
 });
 
 document.addEventListener("click", (event) => {
@@ -693,6 +775,11 @@ document.addEventListener("click", (event) => {
 
 modalLayer.addEventListener("click", (event) => { if (event.target === modalLayer) closeModal(); });
 drawerBackdrop.addEventListener("click", closeDrawer);
+window.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); searchPalette(); }
+  if (event.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) { event.preventDefault(); searchPalette(); }
+  if (event.key === "Escape" && modalLayer.classList.contains("is-open")) closeModal();
+});
 window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); state.route = productMatch ? "product" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-customers", "admin-import"].includes(route) ? route : "home"; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; render(); });
 
 const initialRoute = location.hash.replace("#", "") || "home";
