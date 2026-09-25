@@ -46,6 +46,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Busca por número, cliente ou WhatsApp e filtro por status.
 - Visualização detalhada do cliente, itens, observação, status e total estimado.
 - Criação manual de orçamento pelo painel para atendimentos recebidos fora do catálogo.
+- Criação manual de orçamento com múltiplos produtos, quantidade por linha, adição/remoção de itens, consolidação de produtos repetidos e subtotal atualizado.
 - Cópia do resumo do orçamento para colar em outros canais.
 - Abertura do WhatsApp do cliente quando existe um número válido.
 - Exclusão protegida por confirmação para orçamentos salvos localmente.

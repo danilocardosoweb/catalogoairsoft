@@ -387,6 +387,19 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
 .quote-status-filter { min-height: 45px; padding: 0 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); font: 700 10px var(--body); letter-spacing: .06em; }
 .quote-toolbar .hero-cta { white-space: nowrap; }
 .quote-row-actions { align-items: center; flex-wrap: wrap; }
+.quote-item-builder { display: grid; gap: 10px; padding: 13px; border: 1px solid var(--line); background: var(--bg-elevated); }
+.quote-item-builder-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+.quote-item-builder-head strong { display: block; margin-top: 5px; color: var(--ink-soft); font-size: 11px; }
+.quote-item-builder-head .outline-cta { min-height: 34px; padding: 0 10px; }
+.quote-item-lines { display: grid; gap: 8px; }
+.quote-item-line { display: grid; grid-template-columns: minmax(0, 1fr) 82px auto 28px; align-items: end; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.quote-item-line:first-child { padding-top: 0; border-top: 0; }
+.quote-item-quantity input { text-align: center; }
+.quote-item-line-total { padding-bottom: 12px; color: var(--ink); font-size: 11px; white-space: nowrap; }
+.quote-line-remove { width: 28px; height: 28px; margin-bottom: 7px; border: 1px solid var(--line-strong); background: transparent; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; }
+.quote-line-remove:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.quote-line-remove:disabled { cursor: not-allowed; opacity: .3; }
+.quote-builder-total { margin-top: 2px; padding-top: 11px; border-top: 1px solid var(--line-strong); }
 .shipping-row-actions { min-width: 260px; flex-wrap: wrap; }
 .shipping-row-actions button { white-space: nowrap; }
 .quote-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -899,6 +912,11 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
   .shipping-calc-form { grid-template-columns: 1fr; }
   .shipping-calc-form .outline-cta { width: 100%; justify-content: center; }
   .shipping-row-actions { min-width: 0; }
+  .quote-item-builder-head { align-items: stretch; flex-direction: column; }
+  .quote-item-builder-head .outline-cta { width: 100%; justify-content: center; }
+  .quote-item-line { grid-template-columns: minmax(0, 1fr) 70px 28px; }
+  .quote-item-line-total { grid-column: 1 / 2; padding: 0; }
+  .quote-line-remove { grid-column: 3; grid-row: 1; }
   .form-row-tight { gap: 4px; }
 }
 

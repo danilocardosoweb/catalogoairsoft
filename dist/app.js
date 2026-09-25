@@ -694,21 +694,55 @@ function copyQuoteLink(id) {
 }
 
 function quoteCreateModalV2() {
-  openModal(`<span class="eyebrow">QUOTE / NEW REQUEST</span><h2>Nova central<br>de orçamento.</h2><p>Registre a solicitação e deixe a proposta pronta para análise comercial.</p><form class="form-grid" id="admin-quote-form"><div class="form-row"><label class="form-label">Nome do cliente<input name="name" required placeholder="Nome completo" /></label><label class="form-label">WhatsApp<input name="phone" required placeholder="(11) 99999-9999" /></label></div><div class="form-row"><label class="form-label">CPF / CNPJ<input name="document" placeholder="Opcional" /></label><label class="form-label">CEP<input name="zip" placeholder="00000-000" /></label></div><div class="form-row"><label class="form-label">Cidade / UF<input name="city" placeholder="São Paulo / SP" /></label><label class="form-label">Origem<select name="origin"><option>Catálogo</option><option>WhatsApp</option><option>Telefone</option><option>Balcão</option><option>Indicação</option></select></label></div><div class="form-row"><label class="form-label">Produto principal<select name="productId" required>${activeProducts().map((product) => `<option value="${product.id}">${product.name} · ${money(product.price)}</option>`).join("")}</select></label><label class="form-label">Quantidade<input name="quantity" type="number" min="1" step="1" value="1" required /></label></div><label class="form-label">Vendedor responsável<input name="seller" value="${state.account?.name || "Operação local"}" placeholder="Responsável" /></label><div class="form-row"><label class="form-label">Observação do cliente<textarea name="note" placeholder="Preferências, prazo ou contexto"></textarea></label><label class="form-label">Observação interna<textarea name="internalNote" placeholder="Uso exclusivo do time"></textarea></label></div><button class="modal-submit" type="submit">Criar orçamento</button></form>`);
-  document.querySelector("#admin-quote-form").addEventListener("submit", (event) => {
+  const quoteProducts = activeProducts();
+  if (!quoteProducts.length) { showToast("Cadastre pelo menos um produto antes de criar o orçamento."); return; }
+  const draftItems = [{ productId: quoteProducts[0].id, quantity: 1 }];
+  const productOptions = (selectedId) => quoteProducts.map((product) => `<option value="${product.id}" ${product.id === selectedId ? "selected" : ""}>${product.name} · ${money(product.price)}</option>`).join("");
+  const draftSubtotal = () => draftItems.reduce((sum, item) => { const product = findProduct(item.productId); return sum + (product ? product.price * Math.max(1, Number(item.quantity) || 1) : 0); }, 0);
+  openModal(`<span class="eyebrow">QUOTE / NEW REQUEST</span><h2>Nova central<br>de orçamento.</h2><p>Registre a solicitação e deixe a proposta pronta para análise comercial.</p><form class="form-grid" id="admin-quote-form"><div class="form-row"><label class="form-label">Nome do cliente<input name="name" required placeholder="Nome completo" /></label><label class="form-label">WhatsApp<input name="phone" required placeholder="(11) 99999-9999" /></label></div><div class="form-row"><label class="form-label">CPF / CNPJ<input name="document" placeholder="Opcional" /></label><label class="form-label">CEP<input name="zip" placeholder="00000-000" /></label></div><div class="form-row"><label class="form-label">Cidade / UF<input name="city" placeholder="São Paulo / SP" /></label><label class="form-label">Origem<select name="origin"><option>Catálogo</option><option>WhatsApp</option><option>Telefone</option><option>Balcão</option><option>Indicação</option></select></label></div><section class="quote-item-builder"><div class="quote-item-builder-head"><div><span class="eyebrow">ITEMS / PRODUTOS</span><strong data-quote-items-count>1 produto</strong></div><button class="outline-cta" type="button" data-quote-add-line>Adicionar produto +</button></div><div class="quote-item-lines" id="quote-item-lines"></div><div class="summary-row quote-builder-total"><span>Subtotal dos produtos</span><strong data-quote-subtotal>R$ 0,00</strong></div></section><label class="form-label">Vendedor responsável<input name="seller" value="${state.account?.name || "Operação local"}" placeholder="Responsável" /></label><div class="form-row"><label class="form-label">Observação do cliente<textarea name="note" placeholder="Preferências, prazo ou contexto"></textarea></label><label class="form-label">Observação interna<textarea name="internalNote" placeholder="Uso exclusivo do time"></textarea></label></div><button class="modal-submit" type="submit">Criar orçamento</button></form>`);
+  const formElement = document.querySelector("#admin-quote-form");
+  const syncDraftItems = () => formElement.querySelectorAll("[data-quote-line]").forEach((line, index) => { draftItems[index] = { productId: line.querySelector("[data-quote-product]")?.value || draftItems[index]?.productId, quantity: Math.max(1, Number(line.querySelector("[data-quote-quantity]")?.value) || 1) }; });
+  const renderDraftItems = () => {
+    formElement.querySelector("#quote-item-lines").innerHTML = draftItems.map((item, index) => { const product = findProduct(item.productId) || quoteProducts[0]; const quantity = Math.max(1, Number(item.quantity) || 1); item.productId = product.id; item.quantity = quantity; return `<div class="quote-item-line" data-quote-line="${index}"><label class="form-label">Produto<select data-quote-product aria-label="Produto ${index + 1}">${productOptions(product.id)}</select></label><label class="form-label quote-item-quantity">Qtd.<input data-quote-quantity type="number" min="1" step="1" value="${quantity}" aria-label="Quantidade do produto ${index + 1}" /></label><strong class="quote-item-line-total">${money(product.price * quantity)}</strong><button class="quote-line-remove" type="button" data-quote-remove-line="${index}" ${draftItems.length === 1 ? "disabled" : ""} aria-label="Remover produto ${index + 1}">×</button></div>`; }).join("");
+    formElement.querySelector("[data-quote-items-count]").textContent = `${draftItems.length} produto${draftItems.length === 1 ? "" : "s"}`;
+    formElement.querySelector("[data-quote-subtotal]").textContent = money(draftSubtotal());
+  };
+  formElement.addEventListener("click", (event) => {
+    const addButton = event.target.closest("[data-quote-add-line]");
+    const removeButton = event.target.closest("[data-quote-remove-line]");
+    if (addButton) { syncDraftItems(); draftItems.push({ productId: quoteProducts[0].id, quantity: 1 }); renderDraftItems(); }
+    if (removeButton) { syncDraftItems(); draftItems.splice(Number(removeButton.dataset.quoteRemoveLine), 1); if (!draftItems.length) draftItems.push({ productId: quoteProducts[0].id, quantity: 1 }); renderDraftItems(); }
+  });
+  formElement.addEventListener("change", (event) => { if (event.target.matches("[data-quote-product], [data-quote-quantity]")) { syncDraftItems(); renderDraftItems(); } });
+  formElement.addEventListener("input", (event) => {
+    if (!event.target.matches("[data-quote-quantity]")) return;
+    const line = event.target.closest("[data-quote-line]");
+    const index = Number(line?.dataset.quoteLine);
+    const quantity = Math.max(1, Number(event.target.value) || 1);
+    if (!Number.isInteger(index) || !draftItems[index]) return;
+    draftItems[index].quantity = quantity;
+    const product = findProduct(draftItems[index].productId);
+    if (product) line.querySelector(".quote-item-line-total").textContent = money(product.price * quantity);
+    formElement.querySelector("[data-quote-subtotal]").textContent = money(draftSubtotal());
+  });
+  formElement.addEventListener("submit", (event) => {
     event.preventDefault();
+    syncDraftItems();
+    const consolidatedItems = [];
+    draftItems.forEach((item) => { const product = findProduct(item.productId); if (!product) return; const current = consolidatedItems.find((line) => line.id === product.id); if (current) current.quantity += Math.max(1, Number(item.quantity) || 1); else consolidatedItems.push({ id: product.id, quantity: Math.max(1, Number(item.quantity) || 1) }); });
+    if (!consolidatedItems.length) { showToast("Adicione pelo menos um produto ao orçamento."); return; }
     const form = new FormData(event.currentTarget);
-    const product = findProduct(form.get("productId"));
-    if (!product) return;
-    const quantity = Math.max(1, Number(form.get("quantity")) || 1);
+    const subtotal = consolidatedItems.reduce((sum, item) => { const product = findProduct(item.id); return sum + product.price * item.quantity; }, 0);
     const createdAt = new Date().toISOString();
-    const quote = { id: nextQuoteId(), customer: form.get("name").toString().trim(), phone: form.get("phone").toString().trim(), document: form.get("document")?.toString().trim() || "", zip: form.get("zip")?.toString().trim() || "", city: form.get("city")?.toString().trim() || "—", origin: form.get("origin")?.toString() || "Catálogo", seller: form.get("seller")?.toString().trim() || "Operação local", note: form.get("note")?.toString().trim() || "—", internalNote: form.get("internalNote")?.toString().trim() || "", subtotal: product.price * quantity, discount: 0, freight: 0, total: product.price * quantity, status: "Novo", createdAt, updatedAt: createdAt, validUntil: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10), shipping: { carrier: "", method: "", deadline: "", volumes: 1, weight: "" }, items: [{ id: product.id, quantity }], history: [{ at: createdAt, actor: form.get("seller")?.toString().trim() || "Operação local", from: null, to: "Novo", note: "Orçamento criado manualmente." }] };
+    const seller = form.get("seller")?.toString().trim() || "Operação local";
+    const quote = ensureQuoteShape({ id: nextQuoteId(), customer: form.get("name").toString().trim(), phone: form.get("phone").toString().trim(), document: form.get("document")?.toString().trim() || "", zip: form.get("zip")?.toString().trim() || "", city: form.get("city")?.toString().trim() || "—", origin: form.get("origin")?.toString() || "Catálogo", seller, note: form.get("note")?.toString().trim() || "—", internalNote: form.get("internalNote")?.toString().trim() || "", subtotal, discount: 0, freight: 0, total: subtotal, status: "Novo", createdAt, updatedAt: createdAt, validUntil: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10), shipping: { carrier: "", method: "", deadline: "", volumes: 1, weight: "" }, items: consolidatedItems, history: [{ at: createdAt, actor: seller, from: null, to: "Novo", note: `Orçamento criado manualmente com ${consolidatedItems.length} produto(s).` }] });
     state.quotes.unshift(quote);
     persist();
     closeModal();
     render();
-    showToast("Orçamento criado.");
+    showToast("Orçamento criado com todos os produtos.");
   });
+  renderDraftItems();
 }
 
 function openSellerWhatsApp(id) {
