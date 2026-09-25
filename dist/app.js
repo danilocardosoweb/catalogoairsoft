@@ -345,7 +345,7 @@ function homePage() {
   const feature = recommendedProducts().slice(0, 4);
   return `<section class="page home-page">
     <section class="home-hero" data-hero-interactive aria-label="Banner interativo Field Ops">
-      <video class="hero-video" data-hero-video src="videos/operator-airsoft.mp4" muted playsinline preload="auto" tabindex="-1" aria-hidden="true"></video>
+      <video class="hero-video" data-hero-video src="videos/operator-airsoft.mp4?v=motion-smooth-21" muted playsinline preload="auto" tabindex="-1" aria-hidden="true"></video>
       <div class="hero-video-shade" aria-hidden="true"></div>
       <div class="hero-content"><span class="hero-kicker">AIRSOFT EQUIPMENT / 01</span><h1 class="hero-title">DOMINE<br><em>O JOGO</em></h1><p class="hero-subtitle">Equipamentos, precisão e adrenalina para quem vive Airsoft.</p><button class="hero-cta" data-route="catalog">Explorar catálogo</button></div>
       <div class="hero-coordinates"><span>System // Online</span><span>Stock // Updated</span><span>Field // Ready</span></div><div class="hero-index"><strong>01</strong> / 04</div>
