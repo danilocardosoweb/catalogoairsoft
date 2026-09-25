@@ -843,6 +843,8 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
   .quote-status-filter { width: 100%; margin-top: 8px; }
   .admin-quote-cards { grid-template-columns: 1fr; }
   .quote-info-grid { grid-template-columns: repeat(2, 1fr); }
+  .order-item-row { align-items: start; flex-direction: column; }
+  .order-item-actions { width: 100%; justify-content: space-between; }
   .public-quote-page { padding-top: 32px; }
   .public-quote-header { display: block; }
   .public-quote-header .admin-status { margin-top: 20px; }
