@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 25/09/2026  
-Última versão publicada: importação por SKU + rollback local + operação de separação e logística de Pedidos
+Última versão publicada: verifique a versão registrada na publicação mais recente após esta implementação
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: privado, com login do ChatGPT.
 
@@ -63,6 +63,15 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Histórico local das últimas cargas de catálogo com resumo de novos/atualizados e ação para desfazer a carga anterior.
 - Cadastro de produtos com SKU editável e SKU exibido de forma consistente no catálogo operacional e no estoque.
 - Configurações da operação: nome da loja, cidade, WhatsApp e limite de estoque baixo.
+- Módulo local de frete integrado ao carrinho e ao orçamento: CEP, subtotal, peso real, peso cúbico, peso tarifável, volumes e validade da cotação.
+- Cartonização local com rotações de orientação, tentativa de combinação de itens e separação automática de produtos marcados para envio separado.
+- Opções de recebimento com menor preço, mais rápido e recomendado, incluindo Field Express Econômico, Expresso e retirada no local.
+- Regras locais de frete grátis, frete base configurável, cache de cotações e snapshot logístico salvo no orçamento e no pedido.
+- Cadastro operacional de embalagens com dimensões internas/externas, capacidade, peso da embalagem, custo, tipo e status ativo.
+- Central de Expedição com fila, etapas de separação/embalagem, geração de etiqueta local, rastreamento, postagem e timeline de histórico.
+- Configurações logísticas para origem, fator de cubagem, validade, frete grátis e retirada no local.
+- Cadastro de produto ampliado com peso, dimensões, embalagem sugerida, fragilidade, combinação, envio separado, empilhamento e observações logísticas.
+- Hero mobile com enquadramento dedicado: vídeo reposicionado para preservar o operador fora da área principal do texto, altura e escala ajustadas para telas estreitas.
 - Restauração dos dados demo salvos no dispositivo.
 - Persistência local de produtos, carrinho, favoritos, comparação, loadout, perfil, briefing, buscas recentes, produtos recentes, orçamentos e configurações.
 - Cards de recomendação e itens recentes com abertura direta do produto, além de limpeza do histórico local.
@@ -93,6 +102,8 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Substituir dados demo e valores padrão por catálogo, preços, imagens e estoque reais.
 - Configurar o número oficial do WhatsApp fora do código e separar ambientes de desenvolvimento e produção.
 - Registrar histórico de alterações de preço, estoque, produto e status de orçamento.
+- Conectar um gateway real de frete (Correios, Melhor Envio, Frenet ou equivalente) para substituir o simulador local e retornar preços/prazos oficiais.
+- Persistir cotações, volumes, etiquetas, rastreios e eventos de expedição em backend compartilhado, com auditoria por usuário.
 
 ### Prioridade P1 — operação comercial e conteúdo
 
@@ -102,6 +113,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Adicionar compartilhamento de loadout e orçamento por link.
 - Integrar o pipeline de orçamento a um atendimento real, com webhook ou CRM/WhatsApp Business quando disponível; as ações atuais ainda operam localmente.
 - Completar a operação de pedidos com localização de estoque editável por item, etiquetas, QR Code, impressão em lote e romaneio.
+- Evoluir a expedição local para regras por faixa de CEP, dimensões máximas, múltiplos armazéns, seguro, adicionais e exceções por transportadora.
 - Criar permissões reais para vendedor, supervisor e administrador; o painel atual ainda não aplica perfis no servidor.
 - Integrar pagamento, aprovação remota persistente e atualização de status entre dispositivos.
 - Permitir regras de preço por grupo: varejo, lojista e distribuidor, em vez de percentuais fixos.

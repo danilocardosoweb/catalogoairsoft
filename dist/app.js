@@ -92,10 +92,43 @@ const seedProducts = [
 ];
 
 const products = JSON.parse(localStorage.getItem("fieldops-products") || "null") || seedProducts;
+const shippingStatuses = ["Aguardando separação", "Em separação", "Separado", "Aguardando embalagem", "Embalado", "Etiqueta gerada", "Aguardando postagem", "Postado", "Em transporte", "Saiu para entrega", "Entregue", "Problema na entrega"];
+const shippingProviders = [
+  { id: "field-economy", carrier: "Field Express", service: "Econômico", base: 16, perKg: 6.8, days: "5 a 7 dias úteis", factor: 5000 },
+  { id: "field-fast", carrier: "Field Express", service: "Expresso", base: 25, perKg: 9.5, days: "2 a 3 dias úteis", factor: 5000 },
+  { id: "pickup", carrier: "Field Ops", service: "Retirada no local", base: 0, perKg: 0, days: "Disponível em até 1 dia útil", factor: 5000 }
+];
+const defaultShippingPackages = [
+  { id: "box-rifle-p", code: "RIFLE-P", name: "Caixa Rifle P", inner: { length: 105, width: 28, height: 14 }, outer: { length: 108, width: 31, height: 17 }, packagingWeight: 0.65, maxWeight: 8, type: "Caixa", cost: 8, active: true },
+  { id: "box-rifle-g", code: "RIFLE-G", name: "Caixa Rifle G", inner: { length: 125, width: 35, height: 18 }, outer: { length: 128, width: 38, height: 21 }, packagingWeight: 0.9, maxWeight: 12, type: "Caixa", cost: 12, active: true },
+  { id: "box-pistol", code: "PISTOLA", name: "Caixa Pistola", inner: { length: 38, width: 25, height: 13 }, outer: { length: 41, width: 28, height: 16 }, packagingWeight: 0.35, maxWeight: 4, type: "Caixa", cost: 5, active: true },
+  { id: "box-accessories-p", code: "ACESS-P", name: "Caixa Acessórios P", inner: { length: 28, width: 20, height: 12 }, outer: { length: 31, width: 23, height: 15 }, packagingWeight: 0.25, maxWeight: 4, type: "Caixa", cost: 4, active: true },
+  { id: "box-accessories-m", code: "ACESS-M", name: "Caixa Acessórios M", inner: { length: 45, width: 32, height: 20 }, outer: { length: 48, width: 35, height: 23 }, packagingWeight: 0.45, maxWeight: 8, type: "Caixa", cost: 7, active: true },
+  { id: "box-accessories-g", code: "ACESS-G", name: "Caixa Acessórios G", inner: { length: 65, width: 45, height: 30 }, outer: { length: 68, width: 48, height: 33 }, packagingWeight: 0.7, maxWeight: 12, type: "Caixa", cost: 10, active: true }
+];
+const defaultShippingSettings = { originZip: "01310-100", originAddress: "Av. Paulista, 1000", originCity: "São Paulo", originState: "SP", cubingFactor: 5000, quoteValidityHours: 24, freeShippingMin: 499, flatSp: 19.9, pickupAddress: "Av. Paulista, 1000 · São Paulo / SP", pickupHours: "Seg a sex · 9h às 18h", pickupInstructions: "Apresente o número do pedido e um documento com foto." };
+const storedShipping = JSON.parse(localStorage.getItem("fieldops-shipping") || "null") || {};
+
+function productShippingDefaults(product) {
+  const category = String(product.category || "").toLowerCase();
+  if (category.includes("rifle")) return { weight: 2.8, length: 95, width: 25, height: 10, packagedWeight: 3.45, packagedLength: 105, packagedWidth: 28, packagedHeight: 14, fragile: false, stackable: false, canCombine: true, separate: false, originalPackaging: true, recommendedPackage: "Caixa Rifle P", logisticsNote: "Fixar a plataforma e proteger o cano." };
+  if (category.includes("pistola")) return { weight: 1.1, length: 25, width: 18, height: 5, packagedWeight: 1.35, packagedLength: 32, packagedWidth: 22, packagedHeight: 10, fragile: false, stackable: false, canCombine: true, separate: false, originalPackaging: true, recommendedPackage: "Caixa Pistola", logisticsNote: "Enviar descarregada e protegida." };
+  if (category.includes("óptica")) return { weight: 0.3, length: 12, width: 8, height: 6, packagedWeight: 0.45, packagedLength: 18, packagedWidth: 12, packagedHeight: 9, fragile: true, stackable: false, canCombine: true, separate: false, originalPackaging: true, recommendedPackage: "Caixa Acessórios P", logisticsNote: "Proteger lentes contra impacto." };
+  if (category.includes("munição")) return { weight: 1, length: 18, width: 12, height: 8, packagedWeight: 1.15, packagedLength: 24, packagedWidth: 17, packagedHeight: 11, fragile: false, stackable: true, canCombine: true, separate: false, originalPackaging: false, recommendedPackage: "Caixa Acessórios P", logisticsNote: "Manter seco e bem lacrado." };
+  return { weight: 1.2, length: 30, width: 22, height: 12, packagedWeight: 1.5, packagedLength: 38, packagedWidth: 28, packagedHeight: 17, fragile: false, stackable: true, canCombine: true, separate: false, originalPackaging: false, recommendedPackage: "Caixa Acessórios M", logisticsNote: "Preencher espaços vazios para evitar movimento." };
+}
+
+function ensureProductShipping(product) {
+  const defaults = productShippingDefaults(product);
+  product.shipping = { ...defaults, ...(product.shipping || {}) };
+  return product;
+}
+
 products.forEach((product, index) => {
   if (typeof product.stockCount !== "number") product.stockCount = product.id === "hi-capa-5-1" ? 12 : product.id === "bb-bio-025" ? 8 : 38 - index * 3;
   if (typeof product.active !== "boolean") product.active = true;
   if (!product.sku) product.sku = `FO-${String(index + 231).padStart(5, "0")}`;
+  ensureProductShipping(product);
 });
 
 const categories = [
@@ -137,6 +170,10 @@ const state = {
   quoteStatusFilter: "all",
   orderSearch: "",
   orderStatusFilter: "all",
+  shipping: { ...defaultShippingSettings, ...storedShipping, packages: Array.isArray(storedShipping.packages) && storedShipping.packages.length ? storedShipping.packages : defaultShippingPackages },
+  cartShipping: JSON.parse(localStorage.getItem("fieldops-cart-shipping") || "null"),
+  shippingCache: JSON.parse(localStorage.getItem("fieldops-shipping-cache") || "{}"),
+  shippingSort: "price",
   quantity: 1
 };
 
@@ -149,11 +186,11 @@ function ensureQuoteShape(quote) {
   const freight = Number(quote.freight || 0);
   const migratedStatus = quote.status === "Respondido" ? "Proposta enviada" : quote.status;
   const history = Array.isArray(quote.history) && quote.history.length ? quote.history : [{ at: quote.createdAt || new Date().toISOString(), actor: "Sistema", from: null, to: migratedStatus || "Novo", note: "Orçamento criado" }];
-  return { ...quote, subtotal, discount, freight, total: Math.max(0, subtotal - discount + freight), status: quoteStatuses.includes(migratedStatus) ? migratedStatus : "Novo", shipping: { carrier: "", method: "", deadline: "", volumes: 1, weight: "", ...quote.shipping }, seller: quote.seller || "Operação local", origin: quote.origin || "Catálogo", validUntil: quote.validUntil || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10), internalNote: quote.internalNote || "", history };
+  return { ...quote, subtotal, discount, freight, total: Math.max(0, subtotal - discount + freight), status: quoteStatuses.includes(migratedStatus) ? migratedStatus : "Novo", shipping: { carrier: "", service: "", method: "", deadline: "", volumes: 1, weight: "", cubedWeight: "", zip: quote.zip || "", address: "", quoteId: "", quotedAt: "", expiresAt: "", options: [], ...quote.shipping }, seller: quote.seller || "Operação local", origin: quote.origin || "Catálogo", validUntil: quote.validUntil || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10), internalNote: quote.internalNote || "", history };
 }
 
 function ensureOrderShape(order) {
-  return { ...order, status: orderStatuses.includes(order.status) ? order.status : "Novo pedido", items: (order.items || []).map((item) => ({ ...item, picked: Boolean(item.picked), location: item.location || "A definir" })), history: Array.isArray(order.history) && order.history.length ? order.history : [{ at: order.createdAt || new Date().toISOString(), actor: "Sistema", from: null, to: order.status || "Novo pedido", note: "Pedido criado" }], shipping: { carrier: "", method: "", deadline: "", volumes: 1, tracking: "", ...order.shipping } };
+  return { ...order, status: orderStatuses.includes(order.status) ? order.status : "Novo pedido", items: (order.items || []).map((item) => ({ ...item, picked: Boolean(item.picked), location: item.location || "A definir" })), history: Array.isArray(order.history) && order.history.length ? order.history : [{ at: order.createdAt || new Date().toISOString(), actor: "Sistema", from: null, to: order.status || "Novo pedido", note: "Pedido criado" }], shipping: { carrier: "", service: "", method: "", deadline: "", volumes: 1, tracking: "", zip: order.zip || "", address: "", weight: "", cubedWeight: "", status: "Aguardando separação", packages: [], ...order.shipping } };
 }
 
 state.quotes = state.quotes.map(ensureQuoteShape);
@@ -167,6 +204,7 @@ const modalContent = document.querySelector("[data-modal-content]");
 let heroInteractionCleanup = null;
 
 const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
+const moneyDetailed = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0);
 const findProduct = (id) => products.find((product) => product.id === id);
 const stockLabel = (product) => product.stockCount <= 0 ? "Indisponível" : product.stockCount <= state.settings.lowStock ? "Poucas unidades" : "Em estoque";
 const catalogPriceMax = () => Math.max(2500, Math.ceil(Math.max(...activeProducts().map((product) => product.price), 2500) / 500) * 500);
@@ -220,6 +258,9 @@ function persist() {
   localStorage.setItem("fieldops-orders", JSON.stringify(state.orders));
   localStorage.setItem("fieldops-loadout", JSON.stringify(state.loadout));
   localStorage.setItem("fieldops-import-history", JSON.stringify(state.importHistory));
+  localStorage.setItem("fieldops-shipping", JSON.stringify(state.shipping));
+  localStorage.setItem("fieldops-cart-shipping", JSON.stringify(state.cartShipping));
+  localStorage.setItem("fieldops-shipping-cache", JSON.stringify(state.shippingCache));
   localStorage.setItem("fieldops-profile", JSON.stringify(state.profile));
   localStorage.setItem("fieldops-recent-searches", JSON.stringify(state.recentSearches));
   localStorage.setItem("fieldops-recent-products", JSON.stringify(state.recentProducts));
@@ -403,14 +444,14 @@ function exportDataModal() {
 
 function exportBackup() {
   closeModal();
-  const payload = { exportedAt: new Date().toISOString(), source: "FIELD OPS", products, quotes: state.quotes, orders: state.orders, favorites: state.favorites, loadout: state.loadout, settings: state.settings, profile: state.profile };
+  const payload = { exportedAt: new Date().toISOString(), source: "FIELD OPS", products, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, loadout: state.loadout, settings: state.settings, profile: state.profile };
   downloadLocalFile(`field-ops-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
   showToast("Backup completo exportado.");
 }
 
 function exportProducts() {
   closeModal();
-  const rows = activeProducts().map((product) => ({ sku: `FO-${String(products.indexOf(product) + 231).padStart(5, "0")}`, marca: product.brand, nome: product.name, categoria: product.category, sistema: product.system, preco: product.price, estoque: product.stockCount, status: stockLabel(product) }));
+  const rows = activeProducts().map((product) => ({ sku: product.sku, marca: product.brand, nome: product.name, categoria: product.category, sistema: product.system, preco: product.price, estoque: product.stockCount, peso_kg: product.shipping?.packagedWeight || "", comprimento_cm: product.shipping?.packagedLength || "", largura_cm: product.shipping?.packagedWidth || "", altura_cm: product.shipping?.packagedHeight || "", status: stockLabel(product) }));
   downloadLocalFile(`field-ops-produtos-${new Date().toISOString().slice(0, 10)}.csv`, csvDocument(rows), "text/csv;charset=utf-8");
   showToast("Produtos e estoque exportados.");
 }
@@ -447,7 +488,7 @@ function adminImportPage() {
 }
 
 function adminNav(active) {
-  const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-settings", "Configurações"]];
+  const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-settings", "Configurações"]];
   return `<aside class="admin-sidebar"><div class="admin-side-brand"><span class="eyebrow">FIELD OPS / OPS</span><strong>Command<br>center.</strong></div><nav class="admin-menu">${items.map(([route, label], index) => `<a href="#${route}" data-route="${route}" class="${active === route ? "active" : ""}"><span class="admin-menu-index">${String(index + 1).padStart(2, "0")}</span>${label}</a>`).join("")}</nav><div class="admin-side-foot"><span class="status-dot"></span><span>OPERATIONAL MODE</span><small>v0.1 / LOCAL-FIRST</small></div></aside>`;
 }
 
@@ -472,7 +513,7 @@ function adminCustomersPage() {
 }
 
 function adminSettingsPage() {
-  return adminShell("admin-settings", "07 / SYSTEM", "Configurações.", `<section class="admin-panel settings-panel"><div class="admin-panel-head"><div><span class="eyebrow">STORE CONTROL</span><h2>Dados da operação.</h2></div><span class="admin-sync"><i class="status-dot"></i> Salvo neste dispositivo</span></div><p class="settings-intro">Ajuste os dados que aparecem no atendimento e defina quando o estoque deve pedir revisão.</p><form class="settings-form" id="settings-form"><div class="form-row"><label class="form-label">Nome da operação<input name="storeName" required value="${state.settings.storeName}" /></label><label class="form-label">Cidade<input name="city" required value="${state.settings.city}" /></label></div><div class="form-row"><label class="form-label">WhatsApp do atendimento<input name="whatsapp" required inputmode="tel" value="${state.settings.whatsapp}" placeholder="5511999999999" /></label><label class="form-label">Alerta de estoque baixo<input name="lowStock" required type="number" min="0" step="1" value="${state.settings.lowStock}" /></label></div><div class="settings-preview"><span class="eyebrow">ATENDIMENTO</span><strong>${state.settings.storeName} · ${state.settings.city}</strong><small>Orçamentos serão direcionados para ${state.settings.whatsapp}.</small></div><div class="settings-actions"><button class="hero-cta" type="submit">Salvar configurações</button><button class="outline-cta" type="button" data-action="reset-local-data">Restaurar dados demo</button></div></form></section>`);
+  return adminShell("admin-settings", "09 / SYSTEM", "Configurações.", `<section class="admin-panel settings-panel"><div class="admin-panel-head"><div><span class="eyebrow">STORE CONTROL</span><h2>Dados da operação.</h2></div><span class="admin-sync"><i class="status-dot"></i> Salvo neste dispositivo</span></div><p class="settings-intro">Ajuste atendimento, origem logística e regras simples de frete para o MVP local.</p><form class="settings-form" id="settings-form"><div class="form-row"><label class="form-label">Nome da operação<input name="storeName" required value="${state.settings.storeName}" /></label><label class="form-label">Cidade<input name="city" required value="${state.settings.city}" /></label></div><div class="form-row"><label class="form-label">WhatsApp do atendimento<input name="whatsapp" required inputmode="tel" value="${state.settings.whatsapp}" placeholder="5511999999999" /></label><label class="form-label">Alerta de estoque baixo<input name="lowStock" required type="number" min="0" step="1" value="${state.settings.lowStock}" /></label></div><fieldset class="shipping-fieldset"><legend>Logística</legend><div class="form-row"><label class="form-label">CEP de origem<input name="originZip" required value="${state.shipping.originZip}" placeholder="01310-100" /></label><label class="form-label">Endereço de origem<input name="originAddress" required value="${state.shipping.originAddress}" /></label></div><div class="form-row"><label class="form-label">Cidade de origem<input name="originCity" required value="${state.shipping.originCity}" /></label><label class="form-label">Estado<input name="originState" required maxlength="2" value="${state.shipping.originState}" /></label></div><div class="form-row"><label class="form-label">Fator de cubagem<input name="cubingFactor" type="number" min="1" step="1" value="${state.shipping.cubingFactor}" /><small class="form-help">Fórmula: C × L × A ÷ fator.</small></label><label class="form-label">Validade da cotação (horas)<input name="quoteValidityHours" type="number" min="1" step="1" value="${state.shipping.quoteValidityHours}" /></label></div><div class="form-row"><label class="form-label">Frete grátis acima de<input name="freeShippingMin" type="number" min="0" step="0.01" value="${state.shipping.freeShippingMin}" /></label><label class="form-label">Frete base SP<input name="flatSp" type="number" min="0" step="0.01" value="${state.shipping.flatSp}" /></label></div></fieldset><fieldset class="shipping-fieldset"><legend>Retirada no local</legend><label class="form-label">Endereço<input name="pickupAddress" required value="${state.shipping.pickupAddress}" /></label><div class="form-row"><label class="form-label">Horário<input name="pickupHours" required value="${state.shipping.pickupHours}" /></label><label class="form-label">Instruções<input name="pickupInstructions" required value="${state.shipping.pickupInstructions}" /></label></div></fieldset><div class="settings-preview"><span class="eyebrow">ATENDIMENTO</span><strong>${state.settings.storeName} · ${state.settings.city}</strong><small>Frete grátis a partir de ${moneyDetailed(state.shipping.freeShippingMin)} · cubagem ${state.shipping.cubingFactor}.</small></div><div class="settings-actions"><button class="hero-cta" type="submit">Salvar configurações</button><button class="outline-cta" type="button" data-action="reset-local-data">Restaurar dados demo</button></div></form></section>`);
 }
 
 function adminProductsPage() {
@@ -636,7 +677,7 @@ function convertQuoteToOrder(id) {
   const quote = state.quotes.find((item) => item.id === id);
   if (!quote || quote.status !== "Aprovado") return;
   if (quote.orderId) { showToast(`Este orçamento já virou o pedido ${quote.orderId}.`); return; }
-  const order = { id: `PED-${String(154 + state.orders.length).padStart(6, "0")}`, quoteId: quote.id, customer: quote.customer, phone: quote.phone, document: quote.document || "", zip: quote.zip || "", city: quote.city || "", seller: quote.seller, items: quote.items.map((item) => ({ ...item, picked: false, location: "A definir" })), subtotal: quote.subtotal, discount: quote.discount, freight: quote.freight, total: quote.total, status: "Novo pedido", createdAt: new Date().toISOString(), shipping: { ...quote.shipping }, history: [{ at: new Date().toISOString(), actor: quote.seller || "Operação local", from: null, to: "Novo pedido", note: `Convertido do orçamento ${quote.id}.` }], note: quote.note || "—" };
+  const order = { id: `PED-${String(154 + state.orders.length).padStart(6, "0")}`, quoteId: quote.id, customer: quote.customer, phone: quote.phone, document: quote.document || "", zip: quote.zip || "", address: quote.address || quote.shipping?.address || "", city: quote.city || "", seller: quote.seller, items: quote.items.map((item) => ({ ...item, picked: false, location: "A definir" })), subtotal: quote.subtotal, discount: quote.discount, freight: quote.freight, total: quote.total, status: "Novo pedido", createdAt: new Date().toISOString(), shipping: { ...quote.shipping, address: quote.address || quote.shipping?.address || "", status: "Aguardando separação", packages: quote.shipping?.packages || [] }, history: [{ at: new Date().toISOString(), actor: quote.seller || "Operação local", from: null, to: "Novo pedido", note: `Convertido do orçamento ${quote.id}.` }], note: quote.note || "—" };
   state.orders.unshift(order);
   quote.orderId = order.id;
   addQuoteHistory(quote, "Convertido em pedido", `Pedido ${order.id} criado.`);
@@ -711,6 +752,110 @@ function adminOrdersPage() {
   return adminShell("admin-orders", "05 / FULFILLMENT", "Pedidos.", `<div class="admin-toolbar quote-toolbar"><div class="admin-search"><span class="icon icon-search"></span><input id="order-search" value="${state.orderSearch}" placeholder="Buscar por pedido, cliente ou orçamento" /></div><select class="quote-status-filter" id="order-status-filter" aria-label="Filtrar pedidos por status"><option value="all" ${state.orderStatusFilter === "all" ? "selected" : ""}>Todos os status</option>${orderStatuses.map((status) => `<option value="${status}" ${state.orderStatusFilter === status ? "selected" : ""}>${status}</option>`).join("")}</select></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">ORDER PIPELINE</span><h2>${list.length} pedido(s) na visão atual</h2></div><span class="admin-sync"><i class="status-dot"></i> ${state.orders.length} salvos neste dispositivo</span></div><div class="admin-quote-cards"><div><span>NOVOS</span><strong>${state.orders.filter((order) => order.status === "Novo pedido").length}</strong><small>aguardando processamento</small></div><div><span>SEPARAÇÃO</span><strong>${state.orders.filter((order) => ["Preparando pedido", "Separação"].includes(order.status)).length}</strong><small>itens para o estoque</small></div><div><span>EXPEDIÇÃO</span><strong>${state.orders.filter((order) => ["Pronto para envio", "Enviado"].includes(order.status)).length}</strong><small>pedidos em trânsito</small></div></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Origem</th><th>Total</th><th>Status</th><th>Ações</th></tr></thead><tbody>${list.length ? list.map((order) => `<tr><td><strong>#${order.id}</strong><small>${order.quoteId || "Sem orçamento"}</small></td><td><strong>${order.customer}</strong><small>${order.phone || "WhatsApp não informado"}</small></td><td>${(order.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)} itens</td><td><strong>${money(order.total)}</strong></td><td><span class="admin-status ${orderStatusClass(order.status)}">${order.status}</span></td><td><div class="admin-row-actions quote-row-actions"><button data-action="order-view" data-order-id="${order.id}">Ver</button><button data-action="order-advance" data-order-id="${order.id}">Avançar</button></div></td></tr>`).join("") : `<tr><td colspan="6"><div class="admin-inline-empty">Nenhum pedido foi criado a partir dos orçamentos aprovados.</div></td></tr>`}</tbody></table></div></section>`);
 }
 
+function shippingStatusClass(status) {
+  if (["Entregue", "Postado", "Em transporte", "Saiu para entrega"].includes(status)) return "status-done";
+  if (status === "Problema na entrega") return "status-danger";
+  if (["Separado", "Embalado", "Etiqueta gerada"].includes(status)) return "status-progress";
+  return "status-wait";
+}
+
+function adminShippingPage() {
+  const orders = state.orders;
+  const count = (status) => orders.filter((order) => (order.shipping?.status || "Aguardando separação") === status).length;
+  return adminShell("admin-shipping", "06 / SHIPPING OPS", "Expedição.", `<div class="admin-kpi-grid shipping-kpis"><div class="admin-kpi"><span>Aguardando separação</span><strong>${count("Aguardando separação")}</strong><small>pedidos na fila</small></div><div class="admin-kpi"><span>Embalados</span><strong>${count("Embalado")}</strong><small>prontos para etiqueta</small></div><div class="admin-kpi"><span>Etiquetas pendentes</span><strong>${orders.filter((order) => !order.shipping?.labelGeneratedAt && !["Entregue", "Cancelado"].includes(order.status)).length}</strong><small>gerar agora</small></div><div class="admin-kpi"><span>Em transporte</span><strong>${count("Em transporte") + count("Postado")}</strong><small>acompanhamento ativo</small></div></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">FULFILLMENT BOARD</span><h2>${orders.length} pedido(s) na expedição</h2></div><span class="admin-sync"><i class="status-dot"></i> Cartonização local ativa</span></div><div class="admin-table-wrap"><table class="admin-table shipping-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Transportadora</th><th>Volumes</th><th>Peso tarifável</th><th>Cidade</th><th>Status</th><th>Ações</th></tr></thead><tbody>${orders.length ? orders.map((order) => `<tr><td><strong>#${order.id}</strong><small>${order.quoteId || "Sem orçamento"}</small></td><td>${order.customer}</td><td>${order.shipping?.carrier || "A definir"}<small>${order.shipping?.service || order.shipping?.method || "Serviço pendente"}</small></td><td>${order.shipping?.volumes || order.shipping?.packages?.length || 1}</td><td>${order.shipping?.weight ? `${Number(order.shipping.weight).toFixed(2)} kg` : "—"}</td><td>${order.city || "—"}</td><td><span class="admin-status ${shippingStatusClass(order.shipping?.status)}">${order.shipping?.status || "Aguardando separação"}</span></td><td><div class="admin-row-actions shipping-row-actions"><button data-action="order-view" data-order-id="${order.id}">Abrir</button><button data-action="shipping-status" data-order-id="${order.id}">Status</button><button data-action="shipping-label" data-order-id="${order.id}">Etiqueta</button><button data-action="shipping-post" data-order-id="${order.id}">Postar</button><button data-action="shipping-track" data-order-id="${order.id}">Rastrear</button></div></td></tr>`).join("") : `<tr><td colspan="8"><div class="admin-inline-empty">Os pedidos aprovados aparecerão aqui após a conversão do orçamento.</div></td></tr>`}</tbody></table></div></section>`);
+}
+
+function adminPackagesPage() {
+  return adminShell("admin-packages", "07 / PACKAGING", "Embalagens.", `<section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">PACKAGE REGISTER</span><h2>${state.shipping.packages.filter((pack) => pack.active !== false).length} embalagens ativas</h2></div><button class="hero-cta" data-action="package-new">Nova embalagem</button></div><div class="admin-table-wrap"><table class="admin-table packages-table"><thead><tr><th>Código</th><th>Nome</th><th>Dimensão interna</th><th>Peso máx.</th><th>Custo</th><th>Status</th><th>Ação</th></tr></thead><tbody>${state.shipping.packages.map((pack) => `<tr><td><strong>${pack.code}</strong></td><td>${pack.name}<small>${pack.type}</small></td><td>${pack.inner.length} × ${pack.inner.width} × ${pack.inner.height} cm</td><td>${pack.maxWeight} kg</td><td>${moneyDetailed(pack.cost)}</td><td><span class="admin-status ${pack.active === false ? "status-low" : "status-live"}">${pack.active === false ? "Inativa" : "Ativa"}</span></td><td><button class="status-action" data-action="package-edit" data-package-id="${pack.id}">Editar</button></td></tr>`).join("")}</tbody></table></div></section>`);
+}
+
+function packageModal(packageId = null) {
+  const pack = state.shipping.packages.find((item) => item.id === packageId) || { id: `pack-${Date.now()}`, code: "", name: "", inner: { length: 0, width: 0, height: 0 }, outer: { length: 0, width: 0, height: 0 }, packagingWeight: 0, maxWeight: 0, type: "Caixa", cost: 0, active: true };
+  const editing = Boolean(packageId);
+  openModal(`<span class="eyebrow">PACKAGING / ${editing ? "EDIT" : "NEW"}</span><h2>${editing ? "Editar embalagem." : "Nova embalagem."}</h2><p>As dimensões internas alimentam a cartonização. Use centímetros e quilogramas.</p><form class="form-grid" id="package-form"><div class="form-row"><label class="form-label">Código<input name="code" required value="${pack.code}" placeholder="ACESS-M" /></label><label class="form-label">Nome<input name="name" required value="${pack.name}" placeholder="Caixa Acessórios M" /></label></div><div class="form-row"><label class="form-label">C × L × A internos (cm)<div class="form-row form-row-tight"><input name="innerLength" type="number" min="0.1" step="0.1" required value="${pack.inner.length}" /><input name="innerWidth" type="number" min="0.1" step="0.1" required value="${pack.inner.width}" /><input name="innerHeight" type="number" min="0.1" step="0.1" required value="${pack.inner.height}" /></div></label><label class="form-label">Peso da embalagem (kg)<input name="packagingWeight" type="number" min="0" step="0.01" required value="${pack.packagingWeight}" /></label></div><div class="form-row"><label class="form-label">C × L × A externos (cm)<div class="form-row form-row-tight"><input name="outerLength" type="number" min="0.1" step="0.1" required value="${pack.outer.length}" /><input name="outerWidth" type="number" min="0.1" step="0.1" required value="${pack.outer.width}" /><input name="outerHeight" type="number" min="0.1" step="0.1" required value="${pack.outer.height}" /></div></label><label class="form-label">Peso máximo (kg)<input name="maxWeight" type="number" min="0.1" step="0.1" required value="${pack.maxWeight}" /></label></div><div class="form-row"><label class="form-label">Tipo<select name="type"><option ${pack.type === "Caixa" ? "selected" : ""}>Caixa</option><option ${pack.type === "Envelope" ? "selected" : ""}>Envelope</option><option ${pack.type === "Tubete" ? "selected" : ""}>Tubete</option></select></label><label class="form-label">Custo<input name="cost" type="number" min="0" step="0.01" required value="${pack.cost}" /></label></div><label class="form-label">Status<select name="active"><option value="true" ${pack.active !== false ? "selected" : ""}>Ativa</option><option value="false" ${pack.active === false ? "selected" : ""}>Inativa</option></select></label><button class="modal-submit" type="submit">Salvar embalagem</button></form>`);
+  document.querySelector("#package-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const values = ["innerLength", "innerWidth", "innerHeight", "outerLength", "outerWidth", "outerHeight", "maxWeight"].map((field) => Number(form.get(field)));
+    if (values.some((value) => !Number.isFinite(value) || value <= 0)) { showToast("Preencha todas as dimensões e capacidades da embalagem."); return; }
+    const data = { ...pack, code: form.get("code").toString().trim().toUpperCase(), name: form.get("name").toString().trim(), inner: { length: values[0], width: values[1], height: values[2] }, outer: { length: values[3], width: values[4], height: values[5] }, packagingWeight: Math.max(0, Number(form.get("packagingWeight")) || 0), maxWeight: values[6], type: form.get("type").toString(), cost: Math.max(0, Number(form.get("cost")) || 0), active: form.get("active") === "true" };
+    const index = state.shipping.packages.findIndex((item) => item.id === pack.id);
+    if (index >= 0) state.shipping.packages[index] = data;
+    else state.shipping.packages.push({ ...data, id: pack.id });
+    persist(); closeModal(); render(); showToast("Embalagem salva.");
+  });
+}
+
+function shippingStatusModal(id) {
+  const order = state.orders.find((item) => item.id === id);
+  if (!order) return;
+  openModal(`<span class="eyebrow">SHIPPING / ${order.id}</span><h2>Atualizar<br>expedição.</h2><p>Registre a etapa real do pedido sem perder o histórico.</p><form class="form-grid" id="shipping-status-form"><label class="form-label">Status<select name="status">${shippingStatuses.map((status) => `<option ${status === (order.shipping?.status || shippingStatuses[0]) ? "selected" : ""}>${status}</option>`).join("")}</select></label><label class="form-label">Observação<textarea name="note" placeholder="Ex.: volume conferido e lacrado"></textarea></label><button class="modal-submit" type="submit">Salvar etapa</button></form>`);
+  document.querySelector("#shipping-status-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const next = form.get("status").toString();
+    order.shipping.status = next;
+    order.history = [...(order.history || []), { at: new Date().toISOString(), actor: "Expedição local", from: order.status, to: order.status, note: `${next}: ${form.get("note")?.toString().trim() || "Etapa atualizada."}` }];
+    persist(); closeModal(); render(); showToast(`Expedição ${order.id}: ${next}.`);
+  });
+}
+
+function generateShippingLabel(id) {
+  const order = state.orders.find((item) => item.id === id);
+  if (!order) return;
+  order.shipping.labelGeneratedAt = new Date().toISOString();
+  if (!order.shipping.status || order.shipping.status === "Aguardando separação") order.shipping.status = "Etiqueta gerada";
+  order.history = [...(order.history || []), { at: new Date().toISOString(), actor: "Expedição local", from: order.status, to: order.status, note: "Etiqueta preparada para impressão." }];
+  persist(); render(); printShippingLabel(id); showToast("Etiqueta preparada.");
+}
+
+function printShippingLabel(id) {
+  const order = state.orders.find((item) => item.id === id);
+  if (!order) return;
+  const tracking = order.shipping.tracking || `FO${String(order.id).replace(/\D/g, "")}`;
+  openModal(`<div class="shipping-label"><span class="eyebrow">FIELD OPS / SHIPPING LABEL</span><h2>${order.id}</h2><div class="label-code">${tracking}</div><div class="label-grid"><div><span>DESTINATÁRIO</span><strong>${order.customer}</strong><small>${order.address || order.shipping.address || "Endereço a confirmar"}</small><small>${order.zip || order.shipping.zip || "CEP a confirmar"} · ${order.city || "Cidade"}</small></div><div><span>TRANSPORTADORA</span><strong>${order.shipping.carrier || "A definir"}</strong><small>${order.shipping.service || order.shipping.method || "Serviço"}</small><small>Volume 1 de ${order.shipping.volumes || 1}</small></div></div><button class="modal-submit" data-action="print-now">Imprimir etiqueta</button></div>`);
+}
+
+function markOrderPosted(id) {
+  const order = state.orders.find((item) => item.id === id);
+  if (!order) return;
+  order.shipping.status = "Postado";
+  order.shipping.tracking = order.shipping.tracking || `FO${String(order.id).replace(/\D/g, "")}`;
+  order.history = [...(order.history || []), { at: new Date().toISOString(), actor: "Expedição local", from: order.status, to: order.status, note: `Pedido postado. Rastreamento ${order.shipping.tracking}.` }];
+  persist(); render(); showToast(`Pedido ${order.id} marcado como postado.`);
+}
+
+function trackingModal(id) {
+  const order = state.orders.find((item) => item.id === id);
+  if (!order) return;
+  const events = [...(order.history || [])].reverse();
+  openModal(`<span class="eyebrow">TRACKING / ${order.id}</span><h2>Acompanhe<br>o envio.</h2><div class="tracking-code"><span>CÓDIGO</span><strong>${order.shipping.tracking || "Ainda não gerado"}</strong></div><div class="quote-timeline">${events.map((entry) => `<div class="quote-timeline-item"><i></i><div><strong>${entry.to}</strong><small>${new Date(entry.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small><p>${entry.note || "Atualização registrada."}</p></div></div>`).join("")}</div>`);
+}
+
+function orderPackageModal(id) {
+  const order = state.orders.find((item) => item.id === id);
+  if (!order) return;
+  openModal(`<span class="eyebrow">ORDER / ${order.id} / PACKAGING</span><h2>Escolha a<br>embalagem.</h2><p>O sistema sugere a menor caixa compatível. O operador pode ajustar antes de embalar.</p><div class="package-choice-list">${state.shipping.packages.filter((pack) => pack.active !== false).map((pack) => `<button class="loadout-picker-item" data-action="select-order-package" data-order-id="${order.id}" data-package-id="${pack.id}"><span><strong>${pack.name}</strong><small>${pack.inner.length} × ${pack.inner.width} × ${pack.inner.height} cm · até ${pack.maxWeight} kg</small></span><b>${order.shipping?.packages?.[0]?.packageId === pack.id ? "✓" : "+"}</b></button>`).join("")}</div>`);
+}
+
+function applyOrderPackage(orderId, packageId) {
+  const order = state.orders.find((item) => item.id === orderId);
+  const pack = state.shipping.packages.find((item) => item.id === packageId);
+  if (!order || !pack) return;
+  const itemWeight = (order.items || []).reduce((sum, item) => sum + (findProduct(item.id)?.shipping?.packagedWeight || findProduct(item.id)?.shipping?.weight || 0) * Number(item.quantity || 0), 0);
+  const realWeight = Number((itemWeight + Number(pack.packagingWeight || 0)).toFixed(2));
+  const cubedWeight = Number(((pack.outer.length * pack.outer.width * pack.outer.height) / Number(state.shipping.cubingFactor || 5000)).toFixed(2));
+  order.shipping.packages = [{ packageId: pack.id, packageName: pack.name, dimensions: { ...pack.outer }, realWeight, cubedWeight, chargeableWeight: Math.max(realWeight, cubedWeight) }];
+  order.shipping.volumes = 1;
+  order.shipping.weight = realWeight;
+  order.shipping.cubedWeight = cubedWeight;
+  const provider = shippingProviders.find((item) => item.carrier === order.shipping.carrier && item.service === (order.shipping.service || order.shipping.method)) || shippingProviders[0];
+  order.freight = Number((provider.base + Math.max(provider.perKg * Math.max(realWeight, cubedWeight), Number(state.shipping.flatSp || 0))).toFixed(2));
+  order.total = Math.max(0, Number(order.subtotal || 0) - Number(order.discount || 0) + order.freight);
+  order.history = [...(order.history || []), { at: new Date().toISOString(), actor: "Expedição local", from: order.status, to: order.status, note: `Embalagem alterada para ${pack.name}. Frete recalculado.` }];
+  persist(); closeModal(); orderDetailModal(orderId); showToast("Embalagem aplicada e frete recalculado.");
+}
+
 function orderDetailModal(id) {
   const order = state.orders.find((item) => item.id === id);
   if (!order) return;
@@ -735,11 +880,13 @@ function orderShippingModal(id) {
   const order = state.orders.find((item) => item.id === id);
   if (!order) return;
   const shipping = order.shipping || {};
-  openModal(`<span class="eyebrow">ORDER / ${order.id} / LOGISTICS</span><h2>Preparar<br>expedição.</h2><p>Registre os dados usados pela equipe no despacho e no rastreio.</p><form class="form-grid" id="order-shipping-form"><div class="form-row"><label class="form-label">Transportadora<input name="carrier" value="${shipping.carrier || ""}" placeholder="Correios, Jadlog..." /></label><label class="form-label">Modalidade<input name="method" value="${shipping.method || ""}" placeholder="PAC, Sedex, retirada..." /></label></div><div class="form-row"><label class="form-label">Prazo<input name="deadline" value="${shipping.deadline || ""}" placeholder="Até 3 dias úteis" /></label><label class="form-label">Volumes<input name="volumes" type="number" min="1" step="1" value="${shipping.volumes || 1}" /></label></div><label class="form-label">Rastreamento<input name="tracking" value="${shipping.tracking || ""}" placeholder="Código ou link de acompanhamento" /></label><button class="modal-submit" type="submit">Salvar logística</button></form>`);
+  openModal(`<span class="eyebrow">ORDER / ${order.id} / LOGISTICS</span><h2>Preparar<br>expedição.</h2><p>Registre os dados usados pela equipe no despacho e no rastreio.</p><form class="form-grid" id="order-shipping-form"><div class="form-row"><label class="form-label">Transportadora<input name="carrier" value="${shipping.carrier || ""}" placeholder="Correios, Jadlog..." /></label><label class="form-label">Modalidade<input name="method" value="${shipping.method || ""}" placeholder="PAC, Sedex, retirada..." /></label></div><div class="form-row"><label class="form-label">Prazo<input name="deadline" value="${shipping.deadline || ""}" placeholder="Até 3 dias úteis" /></label><label class="form-label">Volumes<input name="volumes" type="number" min="1" step="1" value="${shipping.volumes || 1}" /></label></div><label class="form-label">Embalagem<select name="packageId"><option value="">Manter embalagem atual</option>${state.shipping.packages.filter((pack) => pack.active !== false).map((pack) => `<option value="${pack.id}" ${shipping.packages?.[0]?.packageId === pack.id ? "selected" : ""}>${pack.name} · ${pack.inner.length} × ${pack.inner.width} × ${pack.inner.height} cm</option>`).join("")}</select></label><label class="form-label">Rastreamento<input name="tracking" value="${shipping.tracking || ""}" placeholder="Código ou link de acompanhamento" /></label><button class="modal-submit" type="submit">Salvar logística</button></form>`);
   document.querySelector("#order-shipping-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    order.shipping = { ...order.shipping, carrier: form.get("carrier")?.toString().trim() || "", method: form.get("method")?.toString().trim() || "", deadline: form.get("deadline")?.toString().trim() || "", volumes: Math.max(1, Number(form.get("volumes")) || 1), tracking: form.get("tracking")?.toString().trim() || "" };
+    order.shipping = { ...order.shipping, carrier: form.get("carrier")?.toString().trim() || "", method: form.get("method")?.toString().trim() || "", service: form.get("method")?.toString().trim() || "", deadline: form.get("deadline")?.toString().trim() || "", volumes: Math.max(1, Number(form.get("volumes")) || 1), tracking: form.get("tracking")?.toString().trim() || "" };
+    const packageId = form.get("packageId")?.toString();
+    if (packageId) { applyOrderPackage(id, packageId); return; }
     order.history = [...(order.history || []), { at: new Date().toISOString(), actor: "Operação local", from: order.status, to: order.status, note: "Dados de logística atualizados." }];
     persist();
     closeModal();
@@ -826,11 +973,14 @@ function compareModal() {
 
 function productModal(product = null) {
   const editing = Boolean(product);
-  openModal(`<span class="eyebrow">PRODUCT REGISTER / ${editing ? "EDIT" : "NEW"}</span><h2>${editing ? "Editar produto." : "Novo produto."}</h2><p>Atualize as informações essenciais para manter o catálogo pronto para o campo.</p><form class="form-grid" id="product-form"><div class="form-row"><label class="form-label">Marca<input name="brand" required value="${product?.brand || ""}" placeholder="ROSSI" /></label><label class="form-label">Nome<input name="name" required value="${product?.name || ""}" placeholder="NEPTUNE 10\"" /></label></div><div class="form-row"><label class="form-label">SKU<input name="sku" required value="${product?.sku || ""}" placeholder="FO-00231" /></label><label class="form-label">Sistema<input name="system" value="${product?.system || "AEG"}" placeholder="AEG" /></label></div><div class="form-row"><label class="form-label">Categoria<select name="category"><option ${product?.category === "Rifles" ? "selected" : ""}>Rifles</option><option ${product?.category === "Pistolas" ? "selected" : ""}>Pistolas</option><option ${product?.category === "Ópticas" ? "selected" : ""}>Ópticas</option><option ${product?.category === "Gear" ? "selected" : ""}>Gear</option><option ${product?.category === "Munição" ? "selected" : ""}>Munição</option><option ${product?.category === "Proteção" ? "selected" : ""}>Proteção</option></select></label><label class="form-label">Preço<input name="price" type="number" min="0" step="1" required value="${product?.price || ""}" placeholder="1899" /></label></div><label class="form-label">Estoque<input name="stockCount" type="number" min="0" step="1" required value="${product?.stockCount ?? 0}" placeholder="38" /></label><label class="form-label">Imagem<input name="image" value="${product?.image || "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"} /></label><label class="form-label">Descrição<textarea name="description" placeholder="Resumo do produto">${product?.description || ""}</textarea></label><button class="modal-submit" type="submit">${editing ? "Salvar alterações" : "Cadastrar produto"}</button></form>`);
+  const shipping = product?.shipping || productShippingDefaults(product || { category: "Gear" });
+  openModal(`<span class="eyebrow">PRODUCT REGISTER / ${editing ? "EDIT" : "NEW"}</span><h2>${editing ? "Editar produto." : "Novo produto."}</h2><p>Atualize as informações essenciais para manter o catálogo pronto para o campo.</p><form class="form-grid" id="product-form"><div class="form-row"><label class="form-label">Marca<input name="brand" required value="${product?.brand || ""}" placeholder="ROSSI" /></label><label class="form-label">Nome<input name="name" required value="${product?.name || ""}" placeholder="NEPTUNE 10\"" /></label></div><div class="form-row"><label class="form-label">SKU<input name="sku" required value="${product?.sku || ""}" placeholder="FO-00231" /></label><label class="form-label">Sistema<input name="system" value="${product?.system || "AEG"}" placeholder="AEG" /></label></div><div class="form-row"><label class="form-label">Categoria<select name="category"><option ${product?.category === "Rifles" ? "selected" : ""}>Rifles</option><option ${product?.category === "Pistolas" ? "selected" : ""}>Pistolas</option><option ${product?.category === "Ópticas" ? "selected" : ""}>Ópticas</option><option ${product?.category === "Gear" ? "selected" : ""}>Gear</option><option ${product?.category === "Munição" ? "selected" : ""}>Munição</option><option ${product?.category === "Proteção" ? "selected" : ""}>Proteção</option></select></label><label class="form-label">Preço<input name="price" type="number" min="0" step="1" required value="${product?.price || ""}" placeholder="1899" /></label></div><label class="form-label">Estoque<input name="stockCount" type="number" min="0" step="1" required value="${product?.stockCount ?? 0}" placeholder="38" /></label><label class="form-label">Imagem<input name="image" value="${product?.image || "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"} /></label><label class="form-label">Descrição<textarea name="description" placeholder="Resumo do produto">${product?.description || ""}</textarea></label><fieldset class="shipping-fieldset"><legend>Dados de envio</legend><p class="form-help">Use centímetros para dimensões e quilogramas para peso. Esses dados alimentam o cálculo de frete.</p><div class="form-row"><label class="form-label">Peso (kg)<input name="weight" type="number" min="0" step="0.01" required value="${shipping.weight}" /></label><label class="form-label">Dimensões (C × L × A cm)<div class="form-row form-row-tight"><input name="length" type="number" min="0.1" step="0.1" required value="${shipping.length}" aria-label="Comprimento sem embalagem" /><input name="width" type="number" min="0.1" step="0.1" required value="${shipping.width}" aria-label="Largura sem embalagem" /><input name="height" type="number" min="0.1" step="0.1" required value="${shipping.height}" aria-label="Altura sem embalagem" /></div></label></div><div class="form-row"><label class="form-label">Peso com embalagem (kg)<input name="packagedWeight" type="number" min="0" step="0.01" required value="${shipping.packagedWeight}" /></label><label class="form-label">Dimensões com embalagem (C × L × A cm)<div class="form-row form-row-tight"><input name="packagedLength" type="number" min="0.1" step="0.1" required value="${shipping.packagedLength}" aria-label="Comprimento com embalagem" /><input name="packagedWidth" type="number" min="0.1" step="0.1" required value="${shipping.packagedWidth}" aria-label="Largura com embalagem" /><input name="packagedHeight" type="number" min="0.1" step="0.1" required value="${shipping.packagedHeight}" aria-label="Altura com embalagem" /></div></label></div><div class="form-row"><label class="form-label">Frágil<select name="fragile"><option value="false" ${!shipping.fragile ? "selected" : ""}>Não</option><option value="true" ${shipping.fragile ? "selected" : ""}>Sim</option></select></label><label class="form-label">Pode combinar<select name="canCombine"><option value="true" ${shipping.canCombine ? "selected" : ""}>Sim</option><option value="false" ${!shipping.canCombine ? "selected" : ""}>Não</option></select></label></div><div class="form-row"><label class="form-label">Enviar separado<select name="separate"><option value="false" ${!shipping.separate ? "selected" : ""}>Não</option><option value="true" ${shipping.separate ? "selected" : ""}>Sim</option></select></label><label class="form-label">Empilhável<select name="stackable"><option value="true" ${shipping.stackable ? "selected" : ""}>Sim</option><option value="false" ${!shipping.stackable ? "selected" : ""}>Não</option></select></label></div><label class="form-label">Embalagem recomendada<input name="recommendedPackage" value="${shipping.recommendedPackage || ""}" placeholder="Caixa Acessórios M" /></label><label class="form-label">Observações logísticas<textarea name="logisticsNote" placeholder="Cuidados para separação e embalagem">${shipping.logisticsNote || ""}</textarea></label></fieldset><button class="modal-submit" type="submit">${editing ? "Salvar alterações" : "Cadastrar produto"}</button></form>`);
   document.querySelector("#product-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const data = { brand: form.get("brand").toString().toUpperCase(), name: form.get("name").toString().toUpperCase(), sku: form.get("sku").toString().trim().toUpperCase(), category: form.get("category"), system: form.get("system").toString().toUpperCase(), price: Number(form.get("price")), stockCount: Number(form.get("stockCount")), image: form.get("image"), description: form.get("description") || "Equipamento pronto para completar seu próximo loadout.", type: `${form.get("system")} · FIELD GEAR`, meta: "FIELD READY", stock: stockLabel({ stockCount: Number(form.get("stockCount")) }), specs: { FPS: "—", Gearbox: "—", Peso: "—", Sistema: form.get("system"), "Hop-Up": "—", Material: "—" }, tag: editing ? product.tag : "Novo", active: true };
+    const shippingData = { weight: Number(form.get("weight")), length: Number(form.get("length")), width: Number(form.get("width")), height: Number(form.get("height")), packagedWeight: Number(form.get("packagedWeight")), packagedLength: Number(form.get("packagedLength")), packagedWidth: Number(form.get("packagedWidth")), packagedHeight: Number(form.get("packagedHeight")), fragile: form.get("fragile") === "true", stackable: form.get("stackable") === "true", canCombine: form.get("canCombine") === "true", separate: form.get("separate") === "true", originalPackaging: Boolean(product?.shipping?.originalPackaging), recommendedPackage: form.get("recommendedPackage")?.toString().trim() || "", logisticsNote: form.get("logisticsNote")?.toString().trim() || "" };
+    if ([shippingData.weight, shippingData.length, shippingData.width, shippingData.height, shippingData.packagedWeight, shippingData.packagedLength, shippingData.packagedWidth, shippingData.packagedHeight].some((value) => !Number.isFinite(value) || value < 0) || [shippingData.length, shippingData.width, shippingData.height, shippingData.packagedLength, shippingData.packagedWidth, shippingData.packagedHeight].some((value) => value <= 0)) { showToast("Revise peso e dimensões de envio antes de salvar."); return; }
+    const data = { brand: form.get("brand").toString().toUpperCase(), name: form.get("name").toString().toUpperCase(), sku: form.get("sku").toString().trim().toUpperCase(), category: form.get("category"), system: form.get("system").toString().toUpperCase(), price: Number(form.get("price")), stockCount: Number(form.get("stockCount")), image: form.get("image"), description: form.get("description") || "Equipamento pronto para completar seu próximo loadout.", type: `${form.get("system")} · FIELD GEAR`, meta: "FIELD READY", stock: stockLabel({ stockCount: Number(form.get("stockCount")) }), specs: { FPS: "—", Gearbox: "—", Peso: "—", Sistema: form.get("system"), "Hop-Up": "—", Material: "—" }, shipping: shippingData, tag: editing ? product.tag : "Novo", active: true };
     if (editing) Object.assign(product, data);
     else products.unshift({ id: `${data.brand.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`, ...data });
     persist(); closeModal(); render(); showToast(editing ? "Produto atualizado." : "Produto cadastrado.");
@@ -896,9 +1046,12 @@ function loadoutModal(label) {
 }
 
 function quoteRecord(form) {
-  const total = state.cart.reduce((sum, item) => sum + findProduct(item.id).price * item.quantity, 0);
+  const selected = selectedShippingOption();
+  const subtotal = cartSubtotal();
+  const freight = selected?.price || 0;
+  const total = subtotal + freight;
   const createdAt = new Date().toISOString();
-  const record = ensureQuoteShape({ id: nextQuoteId(), customer: form.get("name").toString(), phone: form.get("phone").toString(), city: form.get("city")?.toString() || "—", note: form.get("note")?.toString() || "—", subtotal: total, discount: 0, freight: 0, total, status: "Novo", createdAt, items: state.cart.map((item) => ({ id: item.id, quantity: item.quantity })), history: [{ at: createdAt, actor: "Cliente", from: null, to: "Novo", note: "Orçamento criado pelo catálogo." }] });
+  const record = ensureQuoteShape({ id: nextQuoteId(), customer: form.get("name").toString(), phone: form.get("phone").toString(), zip: state.cartShipping?.zip || normalizeZip(form.get("zip")), address: form.get("address")?.toString().trim() || "", city: form.get("city")?.toString() || "—", note: form.get("note")?.toString() || "—", subtotal, discount: 0, freight, total, status: "Novo", createdAt, items: state.cart.map((item) => ({ id: item.id, quantity: item.quantity })), shipping: { ...(state.cartShipping || {}), carrier: selected?.carrier || "", service: selected?.service || "", method: selected?.service || "", packages: state.cartShipping?.volumes || [], volumes: selected?.volumes || 0, weight: state.cartShipping?.volumes?.reduce((sum, volume) => sum + volume.realWeight, 0) || "", cubedWeight: state.cartShipping?.volumes?.reduce((sum, volume) => sum + volume.cubedWeight, 0) || "", quoteId: state.cartShipping?.id || "", quotedAt: state.cartShipping?.quotedAt || "", expiresAt: state.cartShipping?.expiresAt || "" }, history: [{ at: createdAt, actor: "Cliente", from: null, to: "Novo", note: "Orçamento criado pelo catálogo com frete cotado." }] });
   state.quotes.unshift(record);
   persist();
   return record;
@@ -963,7 +1116,7 @@ function importedProductData(row, index, batchId) {
   const sku = normalizeCatalogSku(importValue(row, ["sku", "codigo", "codigo_produto", "product_sku"])) || `IMP-${batchId}-${String(index + 1).padStart(3, "0")}`;
   const price = importNumber(importValue(row, ["preco", "price"]));
   const stockCount = Math.max(0, Math.round(importNumber(importValue(row, ["estoque", "stock", "quantidade"]))));
-  return { sku, brand: brand.toUpperCase(), name: name.toUpperCase(), type: `${system} · IMPORTED`, meta: importValue(row, ["meta", "modelo"], "FIELD READY"), price, stockCount, stock: stockLabel({ stockCount }), category, system, image: importValue(row, ["imagem", "image"], "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"), specs: { FPS: importValue(row, ["fps"], "—"), Gearbox: importValue(row, ["gearbox", "gearbox_type"], "—"), Peso: importValue(row, ["peso", "weight"], "—"), Sistema: system, "Hop-Up": importValue(row, ["hop_up", "hopup"], "—"), Material: importValue(row, ["material"], "—") }, description: importValue(row, ["descricao", "description"], "Produto importado para revisão."), tag: "Importado", active: true };
+  return { sku, brand: brand.toUpperCase(), name: name.toUpperCase(), type: `${system} · IMPORTED`, meta: importValue(row, ["meta", "modelo"], "FIELD READY"), price, stockCount, stock: stockLabel({ stockCount }), category, system, image: importValue(row, ["imagem", "image"], "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"), specs: { FPS: importValue(row, ["fps"], "—"), Gearbox: importValue(row, ["gearbox", "gearbox_type"], "—"), Peso: importValue(row, ["peso", "weight"], "—"), Sistema: system, "Hop-Up": importValue(row, ["hop_up", "hopup"], "—"), Material: importValue(row, ["material"], "—") }, shipping: productShippingDefaults({ category }), description: importValue(row, ["descricao", "description"], "Produto importado para revisão."), tag: "Importado", active: true };
 }
 
 function summarizeImportRows(rows) {
@@ -1025,6 +1178,8 @@ function render() {
   if (state.route === "admin-prices") view = adminPricesPage();
   if (state.route === "admin-quotes") view = adminQuotesWorkspace();
   if (state.route === "admin-orders") view = adminOrdersPage();
+  if (state.route === "admin-shipping") view = adminShippingPage();
+  if (state.route === "admin-packages") view = adminPackagesPage();
   if (state.route === "admin-customers") view = adminCustomersPage();
   if (state.route === "quote" && state.selectedQuoteId) view = publicQuotePage(state.selectedQuoteId);
   if (state.route === "admin-import") view = adminImportPage();
@@ -1073,6 +1228,7 @@ function addToCart(id, quantity = 1) {
   const nextQuantity = Math.min(product.stockCount, Math.max(1, Number(quantity) || 1) + (existing?.quantity || 0));
   if (existing) existing.quantity = nextQuantity;
   else state.cart.push({ id, quantity: nextQuantity });
+  invalidateShipping();
   persist();
   updateNav();
   renderDrawer();
@@ -1089,6 +1245,7 @@ function addLoadoutToCart() {
     if (existing) existing.quantity = Math.min(product.stockCount, existing.quantity + 1);
     else state.cart.push({ id, quantity: 1 });
   });
+  invalidateShipping();
   persist();
   updateNav();
   renderDrawer();
@@ -1102,9 +1259,180 @@ function changeCartQuantity(id, delta) {
   if (!item || !product) return;
   item.quantity = Math.min(product.stockCount, item.quantity + delta);
   if (item.quantity <= 0) state.cart = state.cart.filter((entry) => entry.id !== id);
+  invalidateShipping();
   persist();
   updateNav();
   renderDrawer();
+}
+
+function normalizeZip(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 8);
+  return digits.length === 8 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : "";
+}
+
+function cartSubtotal() {
+  return state.cart.reduce((sum, item) => sum + (findProduct(item.id)?.price || 0) * item.quantity, 0);
+}
+
+function shippingCartLines() {
+  return state.cart.map((item) => {
+    const product = findProduct(item.id);
+    if (!product) return null;
+    ensureProductShipping(product);
+    return { id: product.id, name: product.name, product, quantity: item.quantity, shipping: product.shipping };
+  }).filter(Boolean);
+}
+
+function uniqueOrientations(dimensions) {
+  const [a, b, c] = dimensions.map((value) => Math.max(0.1, Number(value) || 0));
+  return [...new Set([[a, b, c], [a, c, b], [b, a, c], [b, c, a], [c, a, b], [c, b, a]].map((orientation) => orientation.join("x")))].map((orientation) => orientation.split("x").map(Number));
+}
+
+function packUnits(units, pack) {
+  const box = pack.inner;
+  const layers = [];
+  const placements = [];
+  const ordered = [...units].sort((a, b) => Math.max(b.length, b.width, b.height) - Math.max(a.length, a.width, a.height) || b.volume - a.volume);
+  for (const unit of ordered) {
+    let placed = false;
+    for (const [length, width, height] of uniqueOrientations([unit.length, unit.width, unit.height])) {
+      if (length > box.length || width > box.width || height > box.height) continue;
+      for (const layer of layers) {
+        if (height > layer.height) continue;
+        for (const row of layer.rows) {
+          if (row.x + length <= box.length && row.y + width <= box.width) {
+            placements.push({ unit, length, width, height, x: row.x, y: row.y, z: layer.z });
+            row.x += length;
+            placed = true;
+            break;
+          }
+        }
+        if (placed) break;
+        if (layer.usedWidth + width <= box.width && length <= box.length) {
+          layer.rows.push({ x: length, y: layer.usedWidth, width });
+          layer.usedWidth += width;
+          placements.push({ unit, length, width, height, x: 0, y: layer.usedWidth - width, z: layer.z });
+          placed = true;
+          break;
+        }
+      }
+      if (placed) break;
+      const z = layers.reduce((sum, layer) => sum + layer.height, 0);
+      if (z + height <= box.height) {
+        layers.push({ z, height, usedWidth: width, rows: [{ x: length, y: 0, width }] });
+        placements.push({ unit, length, width, height, x: 0, y: 0, z });
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) return null;
+  }
+  return { placements };
+}
+
+function chooseShippingPackage(units) {
+  const weight = units.reduce((sum, unit) => sum + unit.weight, 0);
+  return state.shipping.packages.filter((pack) => pack.active !== false && pack.maxWeight >= weight).sort((a, b) => (a.inner.length * a.inner.width * a.inner.height) - (b.inner.length * b.inner.width * b.inner.height) || a.cost - b.cost).map((pack) => ({ pack, layout: packUnits(units, pack) })).find((candidate) => candidate.layout)?.pack || null;
+}
+
+function shippingUnit(line, unitIndex) {
+  const data = line.shipping;
+  return { id: line.id, name: line.name, unitIndex, length: Number(data.packagedLength || data.length), width: Number(data.packagedWidth || data.width), height: Number(data.packagedHeight || data.height), weight: Number(data.packagedWeight || data.weight) * 1, volume: Number(data.packagedLength || data.length) * Number(data.packagedWidth || data.width) * Number(data.packagedHeight || data.height), separate: Boolean(data.separate), fragile: Boolean(data.fragile) };
+}
+
+function buildShippingVolumes() {
+  const lines = shippingCartLines();
+  const singleUnits = [];
+  const combinedUnits = [];
+  lines.forEach((line) => Array.from({ length: Math.max(1, line.quantity) }, (_, index) => shippingUnit(line, index)).forEach((unit) => (unit.separate ? singleUnits : combinedUnits).push(unit)));
+  const groups = singleUnits.map((unit) => [unit]);
+  let current = [];
+  combinedUnits.sort((a, b) => b.volume - a.volume).forEach((unit) => {
+    const candidate = chooseShippingPackage([...current, unit]);
+    if (current.length && !candidate) { groups.push(current); current = []; }
+    current.push(unit);
+  });
+  if (current.length) groups.push(current);
+  return groups.map((units, index) => {
+    const pack = chooseShippingPackage(units) || state.shipping.packages.find((item) => item.active !== false) || defaultShippingPackages[0];
+    const realWeight = Number(pack.packagingWeight || 0) + units.reduce((sum, unit) => sum + unit.weight, 0);
+    const cubedWeight = (Number(pack.outer?.length || pack.inner.length) * Number(pack.outer?.width || pack.inner.width) * Number(pack.outer?.height || pack.inner.height)) / Number(state.shipping.cubingFactor || 5000);
+    return { id: `VOL-${index + 1}`, packageId: pack.id, packageName: pack.name, units, realWeight: Number(realWeight.toFixed(2)), cubedWeight: Number(cubedWeight.toFixed(2)), chargeableWeight: Number(Math.max(realWeight, cubedWeight).toFixed(2)), dimensions: { ...(pack.outer || pack.inner) }, packagingCost: Number(pack.cost || 0) };
+  });
+}
+
+function shippingSignature(zip) {
+  return JSON.stringify({ zip, items: state.cart.map((item) => [item.id, item.quantity]), cubingFactor: state.shipping.cubingFactor, packages: state.shipping.packages.map((pack) => [pack.id, pack.active, pack.inner, pack.packagingWeight]) });
+}
+
+function calculateShippingQuote(zip) {
+  const normalized = normalizeZip(zip);
+  if (!normalized) return null;
+  const key = shippingSignature(normalized);
+  const cached = state.shippingCache[key];
+  if (cached && Date.now() - cached.storedAt < 5 * 60 * 1000) return { ...cached.quote, fromCache: true };
+  const volumes = buildShippingVolumes();
+  const chargeableWeight = volumes.reduce((sum, volume) => sum + volume.chargeableWeight, 0);
+  const regionFactor = Number(normalized[0]) >= 7 ? 1.22 : Number(normalized[0]) >= 4 ? 1.1 : 1;
+  const subtotal = cartSubtotal();
+  const freeShipping = subtotal >= Number(state.shipping.freeShippingMin || 0);
+  const options = shippingProviders.map((provider) => {
+    const basePrice = provider.id === "pickup" ? 0 : Math.max(provider.base, Number(state.shipping.flatSp || 0)) + (chargeableWeight * provider.perKg * regionFactor) + Math.max(0, volumes.length - 1) * 8;
+    return { id: provider.id, carrier: provider.carrier, service: provider.service, price: provider.id === "field-economy" && freeShipping ? 0 : Number(basePrice.toFixed(2)), days: provider.days, volumes: volumes.length, recommended: provider.id === "field-economy" && !freeShipping, pickup: provider.id === "pickup" };
+  }).sort((a, b) => a.price - b.price);
+  const quote = { id: `SHIP-${Date.now()}`, zip: normalized, address: `Entrega para o CEP ${normalized}`, subtotal, volumes, options, selectedOptionId: options[0]?.id || "", quotedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + Number(state.shipping.quoteValidityHours || 24) * 3600000).toISOString(), providerMode: "local-simulator" };
+  state.shippingCache[key] = { storedAt: Date.now(), quote };
+  state.shippingCache = Object.fromEntries(Object.entries(state.shippingCache).slice(-12));
+  return quote;
+}
+
+function selectedShippingOption() {
+  return state.cartShipping?.options?.find((option) => option.id === state.cartShipping.selectedOptionId) || state.cartShipping?.options?.[0] || null;
+}
+
+function orderedShippingOptions(options = []) {
+  const list = [...options];
+  if (state.shippingSort === "speed") return list.sort((a, b) => Number(a.days.match(/\d+/)?.[0] || 99) - Number(b.days.match(/\d+/)?.[0] || 99) || a.price - b.price);
+  if (state.shippingSort === "recommended") return list.sort((a, b) => Number(Boolean(b.recommended)) - Number(Boolean(a.recommended)) || a.price - b.price);
+  return list.sort((a, b) => a.price - b.price);
+}
+
+function cartShippingMarkup() {
+  const quote = state.cartShipping;
+  const selected = selectedShippingOption();
+  if (!quote) return `<div class="shipping-calc"><div><span class="eyebrow">DELIVERY / FRETE</span><strong>Calcule antes de solicitar.</strong></div><div class="shipping-calc-form"><input id="cart-zip" inputmode="numeric" maxlength="9" placeholder="Digite seu CEP" aria-label="CEP para calcular frete" /><button class="outline-cta" data-action="calculate-shipping">Calcular frete</button></div><small>O cálculo usa peso, dimensões e embalagem estimada dos itens.</small></div>`;
+  return `<div class="shipping-calc shipping-ready"><div class="shipping-calc-head"><div><span class="eyebrow">DELIVERY / ${quote.zip}</span><strong>Escolha como receber.</strong></div><button class="text-link" data-action="clear-shipping">Trocar CEP</button></div><div class="shipping-sort" role="group" aria-label="Ordenar opções de frete"><button class="${state.shippingSort === "price" ? "active" : ""}" data-action="shipping-sort" data-shipping-sort="price">Menor preço</button><button class="${state.shippingSort === "speed" ? "active" : ""}" data-action="shipping-sort" data-shipping-sort="speed">Mais rápido</button><button class="${state.shippingSort === "recommended" ? "active" : ""}" data-action="shipping-sort" data-shipping-sort="recommended">Recomendado</button></div><div class="shipping-options">${orderedShippingOptions(quote.options).map((option) => `<button class="shipping-option ${selected?.id === option.id ? "selected" : ""}" data-action="select-shipping" data-shipping-option="${option.id}"><span><strong>${option.carrier}</strong><small>${option.service} · ${option.days}${option.pickup ? ` · ${state.shipping.pickupAddress}` : ""}</small></span><b>${option.price ? moneyDetailed(option.price) : "Grátis"}</b><i>${selected?.id === option.id ? "✓" : ""}</i></button>`).join("")}</div><small class="shipping-meta">${quote.volumes.length} volume(s) · validade até ${new Date(quote.expiresAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></div>`;
+}
+
+function invalidateShipping() {
+  state.cartShipping = null;
+}
+
+function selectShippingOption(id) {
+  if (!state.cartShipping?.options?.some((option) => option.id === id)) return;
+  state.cartShipping.selectedOptionId = id;
+  persist();
+  renderDrawer();
+  showToast("Opção de frete selecionada.");
+}
+
+function setShippingSort(sort) {
+  if (!["price", "speed", "recommended"].includes(sort)) return;
+  state.shippingSort = sort;
+  persist();
+  renderDrawer();
+}
+
+function calculateCartShipping() {
+  const input = document.querySelector("#cart-zip");
+  const normalized = normalizeZip(input?.value);
+  if (!normalized) { showToast("Digite um CEP válido com 8 números."); return; }
+  const quote = calculateShippingQuote(normalized);
+  if (!quote) { showToast("Não foi possível calcular o frete."); return; }
+  state.cartShipping = quote;
+  persist();
+  renderDrawer();
+  showToast(quote.fromCache ? "Cotação recuperada do cache." : "Opções de frete calculadas.");
 }
 
 function renderDrawer() {
@@ -1117,8 +1445,10 @@ function renderDrawer() {
     return;
   }
   itemsEl.innerHTML = state.cart.map((item) => { const product = findProduct(item.id); return `<div class="cart-item"><img src="${product.image}" alt="${product.name}" /><div><strong>${product.name}</strong><small>${money(product.price)} por unidade</small><div class="cart-item-controls"><div class="cart-qty-control"><button type="button" data-cart-dec="${item.id}" aria-label="Diminuir quantidade">−</button><b>${item.quantity}</b><button type="button" data-cart-inc="${item.id}" aria-label="Aumentar quantidade" ${item.quantity >= product.stockCount ? "disabled" : ""}>+</button></div><button class="cart-item-remove" data-remove-cart="${item.id}">Remover</button></div></div><div class="cart-item-price">${money(product.price * item.quantity)}</div></div>`; }).join("");
-  const total = state.cart.reduce((sum, item) => sum + findProduct(item.id).price * item.quantity, 0);
-  footerEl.innerHTML = `<div class="summary-row"><span>Subtotal</span><strong>${money(total)}</strong></div><div class="summary-row"><span>Frete</span><span>A calcular</span></div><div class="summary-row total"><span>Total estimado</span><strong>${money(total)}</strong></div><button class="quote-button" data-action="quote">Solicitar orçamento</button>`;
+  const total = cartSubtotal();
+  const selected = selectedShippingOption();
+  const freight = selected?.price || 0;
+  footerEl.innerHTML = `${cartShippingMarkup()}<div class="summary-row"><span>Subtotal</span><strong>${moneyDetailed(total)}</strong></div><div class="summary-row"><span>Frete</span><strong>${state.cartShipping ? (freight ? moneyDetailed(freight) : "Grátis") : "Informe seu CEP"}</strong></div><div class="summary-row total"><span>Total estimado</span><strong>${moneyDetailed(total + freight)}</strong></div><button class="quote-button" data-action="quote" ${state.cartShipping ? "" : "disabled"}>Solicitar orçamento</button>`;
 }
 
 function openDrawer() { drawer.classList.add("is-open"); drawerBackdrop.classList.add("is-open"); drawer.setAttribute("aria-hidden", "false"); }
@@ -1127,16 +1457,19 @@ function openModal(content) { modalContent.innerHTML = content; modalLayer.class
 function closeModal() { modalLayer.classList.remove("is-open", "is-command"); modalLayer.setAttribute("aria-hidden", "true"); modalContent.innerHTML = ""; }
 
 function quoteModal() {
-  const total = state.cart.reduce((sum, item) => sum + findProduct(item.id).price * item.quantity, 0);
-  openModal(`<span class="eyebrow">QUOTE / REQUEST</span><h2>Solicite seu<br>orçamento.</h2><p>Deixe seus dados e a equipe ${state.settings.storeName} continua a conversa pelo WhatsApp.</p><form class="form-grid" id="quote-form"><div class="form-row"><label class="form-label">Nome<input name="name" required placeholder="Seu nome" /></label><label class="form-label">WhatsApp<input name="phone" required placeholder="(11) 99999-9999" /></label></div><div class="form-row"><label class="form-label">CEP<input name="zip" placeholder="00000-000" /></label><label class="form-label">Cidade<input name="city" placeholder="São Paulo" /></label></div><label class="form-label">Observação<textarea name="note" placeholder="Algum detalhe sobre seu loadout?"></textarea></label><div class="summary-row total"><span>Total estimado</span><strong>${money(total)}</strong></div><button class="modal-submit" type="submit">Criar orçamento e abrir WhatsApp</button></form>`);
+  const total = cartSubtotal();
+  const selected = selectedShippingOption();
+  const freight = selected?.price || 0;
+  openModal(`<span class="eyebrow">QUOTE / REQUEST</span><h2>Solicite seu<br>orçamento.</h2><p>Deixe seus dados e a equipe ${state.settings.storeName} continua a conversa pelo WhatsApp.</p><form class="form-grid" id="quote-form"><div class="form-row"><label class="form-label">Nome<input name="name" required placeholder="Seu nome" /></label><label class="form-label">WhatsApp<input name="phone" required placeholder="(11) 99999-9999" /></label></div><div class="form-row"><label class="form-label">CEP<input name="zip" value="${state.cartShipping?.zip || ""}" placeholder="00000-000" /></label><label class="form-label">Cidade<input name="city" placeholder="São Paulo" /></label></div><label class="form-label">Endereço de entrega<input name="address" placeholder="Rua, número, complemento" /></label><label class="form-label">Observação<textarea name="note" placeholder="Algum detalhe sobre seu loadout?"></textarea></label><div class="summary-row"><span>Frete${selected ? ` · ${selected.carrier} / ${selected.service}` : ""}</span><strong>${selected ? (freight ? moneyDetailed(freight) : "Grátis") : "Pendente"}</strong></div><div class="summary-row total"><span>Total estimado</span><strong>${moneyDetailed(total + freight)}</strong></div><button class="modal-submit" type="submit">Criar orçamento e abrir WhatsApp</button></form>`);
   document.querySelector("#quote-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const quote = quoteRecord(form);
     const lines = state.cart.map((item) => { const product = findProduct(item.id); return `${item.quantity}x ${product.brand} ${product.name}`; }).join("\n");
-    const message = `Olá, gostaria de solicitar orçamento da ${state.settings.storeName}.\n\nOrçamento ${quote.id}\n\nItens:\n${lines}\n\nNome: ${form.get("name")}\nWhatsApp: ${form.get("phone")}\nCEP: ${form.get("zip") || "Não informado"}\nCidade: ${form.get("city") || "Não informado"}\nObservação: ${form.get("note") || "—"}`;
+    const message = `Olá, gostaria de solicitar orçamento da ${state.settings.storeName}.\n\nOrçamento ${quote.id}\n\nItens:\n${lines}\n\nNome: ${form.get("name")}\nWhatsApp: ${form.get("phone")}\nCEP: ${form.get("zip") || "Não informado"}\nEndereço: ${form.get("address") || "Não informado"}\nCidade: ${form.get("city") || "Não informado"}\nFrete: ${quote.freight ? moneyDetailed(quote.freight) : "Grátis ou pendente"}\nTransportadora: ${quote.shipping?.carrier || "A definir"}\nPrazo: ${quote.shipping?.deadline || "A confirmar"}\nObservação: ${form.get("note") || "—"}`;
     const link = `https://wa.me/${String(state.settings.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(message)}`;
     state.cart = [];
+    invalidateShipping();
     persist();
     updateNav();
     renderDrawer();
@@ -1371,7 +1704,7 @@ function bindViewEvents() {
   const importFile = document.querySelector("#import-file");
   if (importFile) importFile.addEventListener("change", () => analyzeImportFile(importFile.files[0]));
   const settingsForm = document.querySelector("#settings-form");
-  if (settingsForm) settingsForm.addEventListener("submit", (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); state.settings = { storeName: form.get("storeName").toString().trim(), city: form.get("city").toString().trim(), whatsapp: form.get("whatsapp").toString().replace(/\D/g, ""), lowStock: Number(form.get("lowStock")) || 0 }; persist(); render(); showToast("Configurações salvas."); });
+  if (settingsForm) settingsForm.addEventListener("submit", (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const cubingFactor = Math.max(1, Number(form.get("cubingFactor")) || 5000); const quoteValidityHours = Math.max(1, Number(form.get("quoteValidityHours")) || 24); state.settings = { storeName: form.get("storeName").toString().trim(), city: form.get("city").toString().trim(), whatsapp: form.get("whatsapp").toString().replace(/\D/g, ""), lowStock: Number(form.get("lowStock")) || 0 }; state.shipping = { ...state.shipping, originZip: normalizeZip(form.get("originZip")) || state.shipping.originZip, originAddress: form.get("originAddress").toString().trim(), originCity: form.get("originCity").toString().trim(), originState: form.get("originState").toString().trim().toUpperCase(), cubingFactor, quoteValidityHours, freeShippingMin: Math.max(0, Number(form.get("freeShippingMin")) || 0), flatSp: Math.max(0, Number(form.get("flatSp")) || 0), pickupAddress: form.get("pickupAddress").toString().trim(), pickupHours: form.get("pickupHours").toString().trim(), pickupInstructions: form.get("pickupInstructions").toString().trim() }; state.shippingCache = {}; persist(); render(); showToast("Configurações salvas."); });
 }
 
 document.addEventListener("click", (event) => {
@@ -1386,6 +1719,10 @@ document.addEventListener("click", (event) => {
   if (action === "export-quotes") exportQuotes();
   if (action === "cart") { renderDrawer(); openDrawer(); }
   if (action === "close-drawer") closeDrawer();
+  if (action === "calculate-shipping") calculateCartShipping();
+  if (action === "select-shipping") selectShippingOption(event.target.closest("[data-shipping-option]")?.dataset.shippingOption);
+  if (action === "shipping-sort") setShippingSort(event.target.closest("[data-shipping-sort]")?.dataset.shippingSort);
+  if (action === "clear-shipping") { invalidateShipping(); persist(); renderDrawer(); }
   if (action === "close-modal") closeModal();
   if (action === "quote") quoteModal();
   if (action === "compare-open") compareModal();
@@ -1398,7 +1735,7 @@ document.addEventListener("click", (event) => {
   if (action === "commit-import") commitImport();
   if (action === "import-reset") { state.importData = null; render(); }
   if (action === "import-rollback") rollbackImport(event.target.closest("[data-import-id]")?.dataset.importId);
-  if (action === "reset-local-data" && window.confirm("Restaurar os dados demo e apagar os dados salvos neste dispositivo?")) { ["fieldops-products", "fieldops-cart", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme"].forEach((key) => localStorage.removeItem(key)); location.hash = "#admin"; location.reload(); }
+  if (action === "reset-local-data" && window.confirm("Restaurar os dados demo e apagar os dados salvos neste dispositivo?")) { ["fieldops-products", "fieldops-cart", "fieldops-cart-shipping", "fieldops-shipping-cache", "fieldops-shipping", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme"].forEach((key) => localStorage.removeItem(key)); location.hash = "#admin"; location.reload(); }
   if (action === "menu") openModal(`<span class="eyebrow">FIELD OPS / MENU</span><h2>Navegue<br>pelo arsenal.</h2><div class="form-grid"><button class="outline-cta" data-route="catalog">Catálogo</button><button class="outline-cta" data-route="loadout">Monte seu loadout</button><button class="outline-cta" data-route="favorites">Favoritos</button><button class="outline-cta" data-route="admin">Painel operacional</button></div>`);
   if (action === "apply-filter-modal") { closeModal(); render(); }
   const loadoutId = event.target.closest("[data-loadout-select]")?.dataset.loadoutSelect;
@@ -1434,6 +1771,15 @@ document.addEventListener("click", (event) => {
   if (action === "order-print" && orderId) printOrder(orderId);
   if (action === "order-shipping" && orderId) orderShippingModal(orderId);
   if (action === "order-toggle-item" && orderId) toggleOrderItem(orderId, event.target.closest("[data-item-index]")?.dataset.itemIndex);
+  if (action === "shipping-status" && orderId) shippingStatusModal(orderId);
+  if (action === "shipping-label" && orderId) generateShippingLabel(orderId);
+  if (action === "shipping-post" && orderId) markOrderPosted(orderId);
+  if (action === "shipping-track" && orderId) trackingModal(orderId);
+  if (action === "order-package" && orderId) orderPackageModal(orderId);
+  if (action === "select-order-package" && orderId) applyOrderPackage(orderId, event.target.closest("[data-package-id]")?.dataset.packageId);
+  if (action === "package-new") packageModal();
+  const packageId = event.target.closest("[data-package-id]")?.dataset.packageId;
+  if (action === "package-edit" && packageId) packageModal(packageId);
   if (action === "print-now") window.print();
   const stockEditId = event.target.closest("[data-stock-edit]")?.dataset.stockEdit;
   if (stockEditId) stockModal(findProduct(stockEditId));
@@ -1459,12 +1805,12 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) { event.preventDefault(); searchPalette(); }
   if (event.key === "Escape" && modalLayer.classList.contains("is-open")) closeModal();
 });
-window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); const quoteMatch = route.match(/^quote\/(.+)$/); closeModal(); state.route = productMatch ? "product" : quoteMatch ? "quote" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-customers", "admin-import", "admin-settings"].includes(route) ? route : "home"; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; state.selectedQuoteId = quoteMatch ? quoteMatch[1] : null; render(); });
+window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); const quoteMatch = route.match(/^quote\/(.+)$/); closeModal(); state.route = productMatch ? "product" : quoteMatch ? "quote" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-settings"].includes(route) ? route : "home"; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; state.selectedQuoteId = quoteMatch ? quoteMatch[1] : null; render(); });
 
 const initialRoute = location.hash.replace("#", "") || "home";
 const initialProductMatch = initialRoute.match(/^product\/(.+)$/);
 const initialQuoteMatch = initialRoute.match(/^quote\/(.+)$/);
-state.route = initialProductMatch ? "product" : initialQuoteMatch ? "quote" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-customers", "admin-import", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
+state.route = initialProductMatch ? "product" : initialQuoteMatch ? "quote" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
 state.selectedProduct = initialProductMatch ? findProduct(initialProductMatch[1]) : null;
 state.selectedQuoteId = initialQuoteMatch ? initialQuoteMatch[1] : null;
 applyTheme(state.theme);
