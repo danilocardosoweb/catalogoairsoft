@@ -1,4 +1,4 @@
-const products = [
+const seedProducts = [
   {
     id: "neptune-10",
     brand: "ROSSI",
@@ -91,6 +91,12 @@ const products = [
   }
 ];
 
+const products = JSON.parse(localStorage.getItem("fieldops-products") || "null") || seedProducts;
+products.forEach((product, index) => {
+  if (typeof product.stockCount !== "number") product.stockCount = product.id === "hi-capa-5-1" ? 12 : product.id === "bb-bio-025" ? 8 : 38 - index * 3;
+  if (typeof product.active !== "boolean") product.active = true;
+});
+
 const categories = [
   { name: "Rifles", count: "124 itens", image: "https://mirtactical.com/product_images/uploaded_images/gim1.jpg" },
   { name: "Pistolas", count: "58 itens", image: "https://cdn.airsoftbazaar.com/uploads/listings/listing-mcuiii_2_Vm3Qfjev.jpg" },
@@ -108,6 +114,11 @@ const state = {
   sort: "relevance",
   cart: JSON.parse(localStorage.getItem("fieldops-cart") || "[]"),
   favorites: JSON.parse(localStorage.getItem("fieldops-favorites") || "[]"),
+  compare: JSON.parse(localStorage.getItem("fieldops-compare") || "[]"),
+  quotes: JSON.parse(localStorage.getItem("fieldops-quotes") || "[]"),
+  loadout: JSON.parse(localStorage.getItem("fieldops-loadout") || "null") || { Rifle: "neptune-10" },
+  importData: null,
+  adminProductSearch: "",
   account: JSON.parse(localStorage.getItem("fieldops-account") || "null"),
   quantity: 1
 };
@@ -120,15 +131,24 @@ const modalContent = document.querySelector("[data-modal-content]");
 
 const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 const findProduct = (id) => products.find((product) => product.id === id);
+const stockLabel = (product) => product.stockCount <= 0 ? "Indisponível" : product.stockCount <= 10 ? "Poucas unidades" : "Em estoque";
+const activeProducts = () => products.filter((product) => product.active !== false);
+state.cart = state.cart.filter((item) => findProduct(item.id));
+state.favorites = state.favorites.filter((id) => findProduct(id));
+state.compare = state.compare.filter((id) => findProduct(id));
 
 function persist() {
   localStorage.setItem("fieldops-cart", JSON.stringify(state.cart));
   localStorage.setItem("fieldops-favorites", JSON.stringify(state.favorites));
+  localStorage.setItem("fieldops-products", JSON.stringify(products));
+  localStorage.setItem("fieldops-compare", JSON.stringify(state.compare));
+  localStorage.setItem("fieldops-quotes", JSON.stringify(state.quotes));
+  localStorage.setItem("fieldops-loadout", JSON.stringify(state.loadout));
 }
 
 function filteredProducts() {
   const query = state.search.trim().toLowerCase();
-  let result = products.filter((product) => {
+  let result = activeProducts().filter((product) => {
     const haystack = `${product.name} ${product.brand} ${product.category} ${product.system}`.toLowerCase();
     return (!query || haystack.includes(query)) && (!state.category || product.category === state.category);
   });
@@ -159,7 +179,7 @@ function productCard(product) {
       <span class="product-brand">${product.brand}</span>
       <strong class="product-name" data-product="${product.id}">${product.name}</strong>
       <span class="product-meta">${product.type} · ${product.meta}</span>
-      <div class="product-foot"><div><strong class="price">${money(product.price)}</strong><span class="stock">${product.stock}</span></div><button class="product-add" type="button" data-add="${product.id}" aria-label="Adicionar ${product.name}">+</button></div>
+      <div class="product-foot"><div><strong class="price">${money(product.price)}</strong><span class="stock ${product.stockCount <= 0 ? "stock-out" : ""}">${stockLabel(product)}</span></div><button class="product-add" type="button" data-add="${product.id}" aria-label="Adicionar ${product.name}" ${product.stockCount <= 0 ? "disabled" : ""}>+</button></div>
     </div>
   </article>`;
 }
@@ -195,18 +215,31 @@ function catalogPage() {
 }
 
 function productPage(product) {
-  return `<section class="page detail-page"><div class="container"><div class="breadcrumb"><a href="#catalog" data-route="catalog">Catálogo</a><span>/</span><a href="#catalog" data-route="catalog">${product.category}</a><span>/</span><b>${product.name}</b></div><div class="detail-grid"><div><div class="detail-gallery-main"><img src="${product.image}" alt="${product.brand} ${product.name}" /><span class="gallery-index">PRODUCT // ${String(products.indexOf(product) + 231).padStart(5, "0")}</span></div><div class="specs-panel"><div class="specs-title"><h2>Tech specs</h2><small>SYSTEM // ${product.system}</small></div><div class="specs-grid">${Object.entries(product.specs).map(([label, value]) => `<div class="spec-item"><span>${label}</span><strong>${value}</strong></div>`).join("")}</div><div class="accordion"><details open><summary>Descrição</summary><p>${product.description}</p></details><details><summary>Conteúdo da embalagem</summary><p>Produto principal, magazine compatível e manual de operação.</p></details><details><summary>Compatibilidade</summary><p>Consulte o time Field Ops para validar acessórios e peças para o seu loadout.</p></details></div></div></div><div class="detail-info"><span class="detail-brand">${product.brand}</span><h1>${product.name}</h1><span class="detail-type">${product.type} / ${product.meta}</span><div class="detail-price">${money(product.price)}</div><div class="detail-stock"><span class="stock">${product.stock}</span></div><div class="quantity-row"><div class="quantity-control"><button data-quantity="-" aria-label="Diminuir quantidade">−</button><span data-quantity-value>1</span><button data-quantity="+" aria-label="Aumentar quantidade">+</button></div><button class="primary-wide" data-add-detail="${product.id}">Adicionar ao carrinho</button></div><div class="detail-note">Você pode solicitar orçamento pelo WhatsApp no próximo passo.</div></div></div><section class="related-section"><div class="section-label"><div><span class="eyebrow">COMPLETE SEU LOADOUT</span><h2>A próxima<br>peça.</h2></div><a class="text-link" href="#loadout" data-route="loadout">Montar loadout</a></div><div class="product-grid">${products.filter((item) => item.id !== product.id).slice(0, 4).map(productCard).join("")}</div></section></div></section>`;
+  return `<section class="page detail-page"><div class="container"><div class="breadcrumb"><a href="#catalog" data-route="catalog">Catálogo</a><span>/</span><a href="#catalog" data-route="catalog">${product.category}</a><span>/</span><b>${product.name}</b></div><div class="detail-grid"><div><div class="detail-gallery-main"><img src="${product.image}" alt="${product.brand} ${product.name}" /><span class="gallery-index">PRODUCT // ${String(products.indexOf(product) + 231).padStart(5, "0")}</span></div><div class="specs-panel"><div class="specs-title"><h2>Tech specs</h2><small>SYSTEM // ${product.system}</small></div><div class="specs-grid">${Object.entries(product.specs).map(([label, value]) => `<div class="spec-item"><span>${label}</span><strong>${value}</strong></div>`).join("")}</div><div class="accordion"><details open><summary>Descrição</summary><p>${product.description}</p></details><details><summary>Conteúdo da embalagem</summary><p>Produto principal, magazine compatível e manual de operação.</p></details><details><summary>Compatibilidade</summary><p>Consulte o time Field Ops para validar acessórios e peças para o seu loadout.</p></details></div></div></div><div class="detail-info"><span class="detail-brand">${product.brand}</span><h1>${product.name}</h1><span class="detail-type">${product.type} / ${product.meta}</span><div class="detail-price">${money(product.price)}</div><div class="detail-stock"><span class="stock ${product.stockCount <= 0 ? "stock-out" : ""}">${stockLabel(product)}</span></div><div class="quantity-row"><div class="quantity-control"><button data-quantity="-" aria-label="Diminuir quantidade">−</button><span data-quantity-value>1</span><button data-quantity="+" aria-label="Aumentar quantidade">+</button></div><button class="primary-wide" data-add-detail="${product.id}" ${product.stockCount <= 0 ? "disabled" : ""}>${product.stockCount <= 0 ? "Indisponível" : "Adicionar ao carrinho"}</button></div><div class="detail-note">Você pode solicitar orçamento pelo WhatsApp no próximo passo.</div></div></div><section class="related-section"><div class="section-label"><div><span class="eyebrow">COMPLETE SEU LOADOUT</span><h2>A próxima<br>peça.</h2></div><a class="text-link" href="#loadout" data-route="loadout">Montar loadout</a></div><div class="product-grid">${activeProducts().filter((item) => item.id !== product.id).slice(0, 4).map(productCard).join("")}</div></section></div></section>`;
 }
 
 function loadoutPage() {
-  const main = products[0];
-  const slots = [["01", "Rifle", main.name], ["02", "Óptica", "Escolha uma óptica"], ["03", "Magazine", "Escolha um magazine"], ["04", "Munição", "Escolha uma munição"], ["05", "Proteção", "Escolha sua proteção"]];
-  return `<section class="page loadout-page"><div class="container"><div class="loadout-intro"><div><span class="eyebrow">LOADOUT BUILDER / 01</span><h1>Monte seu<br>loadout.</h1></div><p>Comece por uma plataforma. A gente organiza o restante para você entrar em campo preparado.</p></div><div class="loadout-builder"><div class="loadout-visual"><div class="loadout-selected"><div><span class="eyebrow">PRIMARY WEAPON</span><h2>${main.name}</h2></div><div class="loadout-price"><span>Loadout value</span><strong>${money(main.price)}</strong></div></div></div><div class="loadout-form"><div class="loadout-form-header"><div><span class="eyebrow">CONFIGURATION</span><h2>Build your kit.</h2></div><span class="step-count">01/05</span></div>${slots.map(([num, label, value]) => `<div class="loadout-slot"><span class="slot-number">${num}</span><div class="slot-copy"><span>${label}</span><strong>${value}</strong></div><button class="slot-action" data-slot="${label}">${value.startsWith("Escolha") ? "Escolher" : "Editar"}</button></div>`).join("")}<div class="loadout-form-footer"><small>Você pode alterar os itens a qualquer momento.</small><button class="primary-wide" data-action="add-loadout">Adicionar loadout</button></div></div></div></div></section>`;
+  const slotConfig = [["01", "Rifle", "Rifles"], ["02", "Óptica", "Ópticas"], ["03", "Magazine", "Acessórios"], ["04", "Munição", "Munição"], ["05", "Proteção", "Proteção"]];
+  const selected = Object.values(state.loadout).map(findProduct).filter(Boolean);
+  const main = selected[0] || products[0];
+  const total = selected.reduce((sum, product) => sum + product.price, 0);
+  return `<section class="page loadout-page"><div class="container"><div class="loadout-intro"><div><span class="eyebrow">LOADOUT BUILDER / 01</span><h1>Monte seu<br>loadout.</h1></div><p>Comece por uma plataforma. A gente organiza o restante para você entrar em campo preparado.</p></div><div class="loadout-builder"><div class="loadout-visual"><div class="loadout-selected"><div><span class="eyebrow">PRIMARY WEAPON</span><h2>${main.name}</h2></div><div class="loadout-price"><span>Loadout value</span><strong>${money(total)}</strong></div></div></div><div class="loadout-form"><div class="loadout-form-header"><div><span class="eyebrow">CONFIGURATION</span><h2>Build your kit.</h2></div><span class="step-count">${String(selected.length).padStart(2, "0")}/05</span></div>${slotConfig.map(([num, label, category]) => { const product = findProduct(state.loadout[label]); return `<div class="loadout-slot"><span class="slot-number">${num}</span><div class="slot-copy"><span>${label}</span><strong>${product ? product.name : `Escolha ${label.toLowerCase()}`}</strong></div><button class="slot-action" data-slot="${label}">${product ? "Editar" : "Escolher"}</button></div>`; }).join("")}<div class="loadout-form-footer"><small>Você pode alterar os itens a qualquer momento.</small><button class="primary-wide" data-action="add-loadout">Adicionar loadout</button></div></div></div></div></section>`;
 }
 
 function favoritesPage() {
-  const list = products.filter((product) => state.favorites.includes(product.id));
+  const list = activeProducts().filter((product) => state.favorites.includes(product.id));
   return `<section class="page catalog-page"><div class="container"><div class="page-heading"><div><span class="eyebrow">SAVED / FAVORITES</span><h1>Favoritos</h1></div><p>Seu equipamento salvo para revisar depois.</p></div>${list.length ? `<div class="catalog-grid">${list.map(productCard).join("")}</div>` : `<div class="empty-state"><div><div class="empty-mark">♡</div><h2>Seu arsenal está vazio.</h2><p>Salve produtos para comparar opções e voltar quando estiver pronto.</p><button class="outline-cta" data-route="catalog">Explorar catálogo</button></div></div>`}</div></section>`;
+}
+
+function brandsPage() {
+  const brands = [...new Set(activeProducts().map((product) => product.brand))];
+  return `<section class="page catalog-page"><div class="container"><div class="page-heading"><div><span class="eyebrow">ARSENAL / BRANDS</span><h1>Marcas.</h1></div><p>Fabricantes selecionados para diferentes estilos de jogo.</p></div><div class="brand-directory">${brands.map((brand, index) => `<button class="brand-directory-card" data-search-brand="${brand}"><span>0${index + 1}</span><strong>${brand}</strong><small>${activeProducts().filter((product) => product.brand === brand).length} produtos ↗</small></button>`).join("")}</div><div class="section-label brand-results-label"><div><span class="eyebrow">CURATED BRANDS</span><h2>Gear<br>em campo.</h2></div></div><div class="product-grid">${activeProducts().slice(0, 4).map(productCard).join("")}</div></div></section>`;
+}
+
+function compareBar() {
+  if (!state.compare.length) return "";
+  const compareProducts = state.compare.map(findProduct).filter(Boolean);
+  return `<div class="compare-bar"><div><span class="eyebrow">COMPARE // ${compareProducts.length}/3</span><strong>${compareProducts.map((product) => product.name).join(" · ")}</strong></div><div class="compare-bar-actions"><button class="outline-cta" data-action="compare-clear">Limpar</button><button class="hero-cta" data-action="compare-open">Comparar agora</button></div></div>`;
 }
 
 function adminNav(active) {
@@ -238,6 +271,48 @@ function adminImportPage() {
   return adminShell("admin-import", "05 / DATA INTAKE", "Importar.", `<div class="import-steps"><div class="import-step active"><span>01</span><strong>Upload</strong><small>Enviar arquivo</small></div><div class="import-step"><span>02</span><strong>Analisar</strong><small>Detectar colunas</small></div><div class="import-step"><span>03</span><strong>Validar</strong><small>Revisar erros</small></div><div class="import-step"><span>04</span><strong>Importar</strong><small>Publicar registros</small></div></div><section class="admin-panel import-panel"><div class="admin-panel-head"><div><span class="eyebrow">EXCEL / CSV</span><h2>Traga seu inventário.</h2></div><span class="admin-sync">Mapeamento salvo: Produtos Field Ops</span></div><label class="dropzone"><input type="file" accept=".csv,.xlsx,.xls" /><span class="dropzone-mark">↑</span><strong>Solte sua planilha aqui</strong><small>CSV ou Excel até 10 MB</small><span class="outline-cta">Escolher arquivo</span></label><div class="import-preview"><div><span>Última análise</span><strong>1.248 encontrados</strong></div><div><span>Novos</span><strong>1.190</strong></div><div><span>Atualizações</span><strong>43</strong></div><div><span>Erros</span><strong class="import-error-count">15</strong></div></div><button class="hero-cta import-submit" data-action="simulate-import">Analisar arquivo</button></section>`);
 }
 
+function adminNav(active) {
+  const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-customers", "Clientes"], ["admin-import", "Importações"]];
+  return `<aside class="admin-sidebar"><div class="admin-side-brand"><span class="eyebrow">FIELD OPS / OPS</span><strong>Command<br>center.</strong></div><nav class="admin-menu">${items.map(([route, label], index) => `<a href="#${route}" data-route="${route}" class="${active === route ? "active" : ""}"><span class="admin-menu-index">${String(index + 1).padStart(2, "0")}</span>${label}</a>`).join("")}</nav><div class="admin-side-foot"><span class="status-dot"></span><span>OPERATIONAL MODE</span><small>v0.1 / LOCAL-FIRST</small></div></aside>`;
+}
+
+function adminDashboardPage() {
+  const lowStock = activeProducts().filter((product) => product.stockCount <= 10).length;
+  const quoteCount = state.quotes.length + 2;
+  return adminShell("admin", "01 / OVERVIEW", "Operational overview.", `<div class="admin-kpi-grid"><div class="admin-kpi"><span>Produtos ativos</span><strong>${activeProducts().length}</strong><small class="trend-up">Catálogo local</small></div><div class="admin-kpi"><span>Orçamentos novos</span><strong>${quoteCount}</strong><small class="trend-up">salvos neste dispositivo</small></div><div class="admin-kpi"><span>Estoque baixo</span><strong>${String(lowStock).padStart(2, "0")}</strong><small class="trend-warn">Revisar agora</small></div><div class="admin-kpi"><span>Sem estoque</span><strong>${activeProducts().filter((product) => product.stockCount <= 0).length}</strong><small>Disponibilidade atual</small></div></div><div class="admin-content-grid"><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">QUOTE INBOX</span><h2>Orçamentos recentes</h2></div><a href="#admin-quotes" data-route="admin-quotes" class="text-link">Ver todos</a></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Itens</th><th>Status</th></tr></thead><tbody>${(state.quotes.length ? state.quotes : [{ id: "ORC-000128", customer: "Exemplo de cliente", items: [{ quantity: 2 }], status: "Novo", total: 2328, createdAt: new Date().toISOString() }]).slice(0, 3).map((quote) => `<tr><td><strong>#${quote.id}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td>${quote.customer}</td><td>${quote.items.reduce((sum, item) => sum + item.quantity, 0)} itens</td><td><span class="admin-status status-new">${quote.status}</span></td></tr>`).join("")}</tbody></table></div></section><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">STOCK WATCH</span><h2>Atenção no estoque</h2></div><a href="#admin-stock" data-route="admin-stock" class="text-link">Abrir estoque</a></div><div class="stock-watch">${activeProducts().filter((product) => product.stockCount <= 12).slice(0, 3).map((product) => `<div><span class="stock-watch-bar" style="--bar:${Math.max(10, Math.min(100, product.stockCount * 7))}%"></span><strong>${product.name}</strong><small>${product.stockCount} unidades disponíveis</small><b>Baixo</b></div>`).join("") || `<p class="import-help">Nenhum item em nível crítico.</p>`}</div></section></div><section class="admin-panel quick-actions"><div class="admin-panel-head"><div><span class="eyebrow">FAST ACTIONS</span><h2>Próximo movimento</h2></div></div><div class="quick-action-grid"><button data-route="admin-products"><span>01</span><strong>Revisar produtos</strong><small>Editar dados, preço e status.</small></button><button data-route="admin-import"><span>02</span><strong>Importar planilha</strong><small>Mapear e validar novos itens.</small></button><button data-route="admin-prices"><span>03</span><strong>Atualizar preços</strong><small>Revisar varejo e grupos.</small></button></div></section>`);
+}
+
+function adminStockPage() {
+  const physical = activeProducts().reduce((sum, product) => sum + product.stockCount, 0);
+  return adminShell("admin-stock", "03 / INVENTORY", "Estoque.", `<div class="admin-kpi-grid"><div class="admin-kpi"><span>Estoque físico</span><strong>${physical}</strong><small>unidades catalogadas</small></div><div class="admin-kpi"><span>Reservado</span><strong>${state.quotes.length}</strong><small>em orçamentos ativos</small></div><div class="admin-kpi"><span>Disponível</span><strong>${Math.max(0, physical - state.quotes.length)}</strong><small class="trend-up">cálculo local</small></div></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">INVENTORY CONTROL</span><h2>Itens para revisão</h2></div><button class="outline-cta" data-route="admin-import">Atualizar por planilha</button></div><div class="inventory-list">${activeProducts().map((product, index) => `<div class="inventory-row"><img src="${product.image}" alt="" /><div><strong>${product.name}</strong><small>${product.brand} · SKU FO-${String(index + 231).padStart(5, "0")}</small></div><div class="inventory-value"><strong>${product.stockCount}</strong><small>disponíveis</small></div><span class="admin-status ${product.stockCount <= 12 ? "status-low" : "status-live"}">${product.stockCount <= 12 ? "Revisar" : "Estável"}</span></div>`).join("")}</div></section>`);
+}
+
+function adminPricesPage() {
+  return adminShell("admin-prices", "04 / PRICING", "Preços.", `<section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">PRICE TABLES</span><h2>Varejo e grupos.</h2></div><span class="admin-sync"><i class="status-dot"></i> Tabela base ativa</span></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Produto</th><th>Varejo</th><th>Lojista</th><th>Distribuidor</th><th>Atualizado</th></tr></thead><tbody>${activeProducts().map((product) => `<tr><td><strong>${product.name}</strong><small>${product.brand} · ${product.category}</small></td><td><strong>${money(product.price)}</strong></td><td>${money(product.price * .9)}</td><td>${money(product.price * .82)}</td><td>Agora</td></tr>`).join("")}</tbody></table></div></section>`);
+}
+
+function adminCustomersPage() {
+  const customers = state.quotes.map((quote) => ({ name: quote.customer, phone: quote.phone || "Não informado", type: "Consumidor", quotes: 1 }));
+  return adminShell("admin-customers", "06 / RELATIONSHIP", "Clientes.", `<section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">CUSTOMER REGISTER</span><h2>${customers.length || 1} clientes identificados</h2></div><span class="admin-sync">Dados locais do MVP</span></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Cliente</th><th>WhatsApp</th><th>Tipo</th><th>Orçamentos</th></tr></thead><tbody>${customers.length ? customers.map((customer) => `<tr><td><strong>${customer.name}</strong><small>Perfil Field Ops</small></td><td>${customer.phone}</td><td>${customer.type}</td><td>${customer.quotes}</td></tr>`).join("") : `<tr><td colspan="4"><div class="admin-inline-empty">Os clientes aparecerão aqui após o primeiro orçamento.</div></td></tr>`}</tbody></table></div></section>`);
+}
+
+function adminProductsPage() {
+  const query = state.adminProductSearch.trim().toLowerCase();
+  const list = activeProducts().filter((product) => `${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(query));
+  return adminShell("admin-products", "02 / CATALOG", "Produtos.", `<div class="admin-toolbar"><div class="admin-search"><span class="icon icon-search"></span><input id="admin-product-search" value="${state.adminProductSearch}" placeholder="Buscar por produto, marca ou categoria" /></div><button class="hero-cta" data-action="product-new">Novo produto</button></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">PRODUCT REGISTER</span><h2>${list.length} produtos ativos</h2></div><span class="admin-sync"><i class="status-dot"></i> Salvo neste dispositivo</span></div><div class="admin-table-wrap"><table class="admin-table products-table"><thead><tr><th>Produto</th><th>SKU</th><th>Categoria</th><th>Estoque</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead><tbody>${list.length ? list.map((product) => `<tr><td><div class="admin-product-cell"><img src="${product.image}" alt="" /><div><strong>${product.name}</strong><small>${product.brand} · ${product.type}</small></div></div></td><td>FO-${String(products.indexOf(product) + 231).padStart(5, "0")}</td><td>${product.category}</td><td><strong>${product.stockCount}</strong><small>unidades</small></td><td><strong>${money(product.price)}</strong></td><td><span class="admin-status ${product.active === false ? "status-low" : "status-live"}">${product.active === false ? "Desativado" : "Publicado"}</span></td><td><div class="admin-row-actions"><button data-edit-product="${product.id}" aria-label="Editar ${product.name}">Editar</button><button data-delete-product="${product.id}" aria-label="Excluir ${product.name}">Excluir</button></div></td></tr>`).join("") : `<tr><td colspan="7"><div class="admin-inline-empty">Nenhum produto corresponde à busca.</div></td></tr>`}</tbody></table></div></section>`);
+}
+
+function adminQuotesPage() {
+  const demo = [{ id: "ORC-000128", customer: "Lucas Mendes", total: 2328, status: "Novo", createdAt: new Date().toISOString(), items: [{ quantity: 3 }] }, { id: "ORC-000127", customer: "Bruno Azevedo", total: 999, status: "Em análise", createdAt: new Date(Date.now() - 3600000).toISOString(), items: [{ quantity: 1 }] }];
+  const quotes = [...state.quotes, ...demo];
+  return adminShell("admin-quotes", "04 / COMMERCIAL", "Orçamentos.", `<section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">QUOTE PIPELINE</span><h2>${quotes.length} conversas abertas</h2></div><span class="admin-sync"><i class="status-dot"></i> WhatsApp preparado</span></div><div class="admin-quote-cards"><div><span>NOVOS</span><strong>${quotes.filter((quote) => quote.status === "Novo").length}</strong><small>aguardando primeiro contato</small></div><div><span>EM ANÁLISE</span><strong>${quotes.filter((quote) => quote.status === "Em análise").length}</strong><small>time comercial em atendimento</small></div><div><span>RESPONDIDOS</span><strong>${quotes.filter((quote) => quote.status === "Respondido").length}</strong><small>últimas 24 horas</small></div></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Total estimado</th><th>Itens</th><th>Status</th></tr></thead><tbody>${quotes.map((quote) => `<tr><td><strong>#${quote.id.replace("ORC-", "ORC-")}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td>${quote.customer}</td><td>${money(quote.total)}</td><td>${quote.items.reduce((sum, item) => sum + item.quantity, 0)} itens</td><td><span class="admin-status ${quote.status === "Novo" ? "status-new" : quote.status === "Respondido" ? "status-done" : "status-progress"}">${quote.status}</span></td></tr>`).join("")}</tbody></table></div></section>`);
+}
+
+function adminImportPage() {
+  const preview = state.importData;
+  return adminShell("admin-import", "05 / DATA INTAKE", "Importar.", `<div class="import-steps"><div class="import-step ${preview ? "done" : "active"}"><span>01</span><strong>Upload</strong><small>Enviar arquivo</small></div><div class="import-step ${preview ? "active" : ""}"><span>02</span><strong>Analisar</strong><small>Detectar colunas</small></div><div class="import-step"><span>03</span><strong>Validar</strong><small>Revisar erros</small></div><div class="import-step"><span>04</span><strong>Importar</strong><small>Publicar registros</small></div></div><section class="admin-panel import-panel"><div class="admin-panel-head"><div><span class="eyebrow">EXCEL / CSV</span><h2>${preview ? "Revise sua carga." : "Traga seu inventário."}</h2></div><span class="admin-sync">Mapeamento salvo: Produtos Field Ops</span></div>${preview ? `<div class="import-file-banner"><span class="dropzone-mark">✓</span><div><strong>${preview.fileName}</strong><small>${preview.validCount} registros válidos · ${preview.errorCount} erros de linha</small></div><button class="outline-cta" data-action="import-reset">Escolher outro</button></div><div class="import-preview"><div><span>Encontrados</span><strong>${preview.rows.length}</strong></div><div><span>Novos</span><strong>${preview.validCount}</strong></div><div><span>Atualizações</span><strong>0</strong></div><div><span>Erros</span><strong class="import-error-count">${preview.errorCount}</strong></div></div><div class="admin-table-wrap import-table"><table class="admin-table"><thead><tr>${preview.headers.slice(0, 5).map((header) => `<th>${header}</th>`).join("")}</tr></thead><tbody>${preview.rows.slice(0, 5).map((row) => `<tr>${preview.headers.slice(0, 5).map((header) => `<td>${row[header.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_")] || "—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div><div class="import-actions"><button class="outline-cta" data-action="import-reset">Cancelar</button><button class="hero-cta" data-action="commit-import" ${preview.validCount ? "" : "disabled"}>Importar ${preview.validCount} produtos</button></div>` : `<label class="dropzone"><input id="import-file" type="file" accept=".csv,.xlsx,.xls" /><span class="dropzone-mark">↑</span><strong>Solte sua planilha aqui</strong><small>CSV ou Excel até 10 MB</small><span class="outline-cta">Escolher arquivo</span></label><div class="import-preview"><div><span>Última análise</span><strong>—</strong></div><div><span>Novos</span><strong>—</strong></div><div><span>Atualizações</span><strong>—</strong></div><div><span>Erros</span><strong>—</strong></div></div><p class="import-help">O arquivo precisa conter pelo menos uma coluna <strong>Nome Produto</strong> ou <strong>product_name</strong>. Outras colunas aceitas: marca, categoria, preço, estoque, sistema, sku, fps.</p>`}</section>`);
+}
+
 function accountModal() {
   if (state.account) {
     openModal(`<span class="eyebrow">IDENTITY / PROFILE</span><h2>Olá,<br>${state.account.name.split(" ")[0]}.</h2><p>Seu perfil está salvo neste dispositivo. Favoritos, carrinho e loadouts ficam prontos para continuar quando você voltar.</p><div class="account-summary"><div><span>Favoritos</span><strong>${state.favorites.length}</strong></div><div><span>No carrinho</span><strong>${state.cart.reduce((sum, item) => sum + item.quantity, 0)}</strong></div><div><span>Perfil</span><strong>${state.account.segment || "Cliente"}</strong></div></div><div class="form-grid"><button class="modal-submit" data-action="admin-preview">Abrir painel operacional</button><button class="outline-cta" data-action="account-logout">Trocar perfil</button></div>`);
@@ -247,18 +322,106 @@ function accountModal() {
   document.querySelector("#account-form").addEventListener("submit", (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); state.account = { name: form.get("name"), phone: form.get("phone"), segment: form.get("segment") }; localStorage.setItem("fieldops-account", JSON.stringify(state.account)); closeModal(); showToast("Perfil salvo neste dispositivo."); });
 }
 
+function compareModal() {
+  const selected = state.compare.map(findProduct).filter(Boolean);
+  if (selected.length < 2) { showToast("Selecione pelo menos dois produtos para comparar."); return; }
+  const specKeys = ["FPS", "Gearbox", "Peso", "Sistema", "Hop-Up", "Material"];
+  openModal(`<span class="eyebrow">COMPARE // LOADOUT</span><h2>Compare<br>plataformas.</h2><p>Coloque as especificações lado a lado antes de decidir.</p><div class="compare-table-wrap"><table class="compare-table"><thead><tr><th>Specs</th>${selected.map((product) => `<th><span>${product.brand}</span><strong>${product.name}</strong><small>${money(product.price)}</small></th>`).join("")}</tr></thead><tbody>${specKeys.map((key) => `<tr><td>${key}</td>${selected.map((product) => `<td>${product.specs[key] || "—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div><button class="modal-submit" data-action="compare-clear-close">Limpar comparação</button>`);
+}
+
+function productModal(product = null) {
+  const editing = Boolean(product);
+  openModal(`<span class="eyebrow">PRODUCT REGISTER / ${editing ? "EDIT" : "NEW"}</span><h2>${editing ? "Editar produto." : "Novo produto."}</h2><p>Atualize as informações essenciais para manter o catálogo pronto para o campo.</p><form class="form-grid" id="product-form"><div class="form-row"><label class="form-label">Marca<input name="brand" required value="${product?.brand || ""}" placeholder="ROSSI" /></label><label class="form-label">Nome<input name="name" required value="${product?.name || ""}" placeholder="NEPTUNE 10\"" /></label></div><div class="form-row"><label class="form-label">Categoria<select name="category"><option ${product?.category === "Rifles" ? "selected" : ""}>Rifles</option><option ${product?.category === "Pistolas" ? "selected" : ""}>Pistolas</option><option ${product?.category === "Ópticas" ? "selected" : ""}>Ópticas</option><option ${product?.category === "Gear" ? "selected" : ""}>Gear</option><option ${product?.category === "Munição" ? "selected" : ""}>Munição</option><option ${product?.category === "Proteção" ? "selected" : ""}>Proteção</option></select></label><label class="form-label">Sistema<input name="system" value="${product?.system || "AEG"}" placeholder="AEG" /></label></div><div class="form-row"><label class="form-label">Preço<input name="price" type="number" min="0" step="1" required value="${product?.price || ""}" placeholder="1899" /></label><label class="form-label">Estoque<input name="stockCount" type="number" min="0" step="1" required value="${product?.stockCount ?? 0}" placeholder="38" /></label></div><label class="form-label">Imagem<input name="image" value="${product?.image || "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"} /></label><label class="form-label">Descrição<textarea name="description" placeholder="Resumo do produto">${product?.description || ""}</textarea></label><button class="modal-submit" type="submit">${editing ? "Salvar alterações" : "Cadastrar produto"}</button></form>`);
+  document.querySelector("#product-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const data = { brand: form.get("brand").toString().toUpperCase(), name: form.get("name").toString().toUpperCase(), category: form.get("category"), system: form.get("system").toString().toUpperCase(), price: Number(form.get("price")), stockCount: Number(form.get("stockCount")), image: form.get("image"), description: form.get("description") || "Equipamento pronto para completar seu próximo loadout.", type: `${form.get("system")} · FIELD GEAR`, meta: "FIELD READY", stock: stockLabel({ stockCount: Number(form.get("stockCount")) }), specs: { FPS: "—", Gearbox: "—", Peso: "—", Sistema: form.get("system"), "Hop-Up": "—", Material: "—" }, tag: editing ? product.tag : "Novo", active: true };
+    if (editing) Object.assign(product, data);
+    else products.unshift({ id: `${data.brand.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`, ...data });
+    persist(); closeModal(); render(); showToast(editing ? "Produto atualizado." : "Produto cadastrado.");
+  });
+}
+
+function loadoutModal(label) {
+  const categoryMap = { Rifle: "Rifles", Óptica: "Ópticas", Magazine: "Acessórios", Munição: "Munição", Proteção: "Proteção" };
+  const candidates = activeProducts().filter((product) => product.category === categoryMap[label]);
+  const fallback = candidates.length ? candidates : activeProducts().filter((product) => product.id !== state.loadout.Rifle).slice(0, 4);
+  openModal(`<span class="eyebrow">LOADOUT / ${label.toUpperCase()}</span><h2>Escolha sua<br>${label.toLowerCase()}.</h2><p>Selecione uma opção para atualizar seu loadout.</p><div class="loadout-picker">${fallback.map((product) => `<button class="loadout-picker-item" data-loadout-select="${product.id}" data-loadout-slot="${label}"><img src="${product.image}" alt="" /><span><strong>${product.name}</strong><small>${product.brand} · ${money(product.price)}</small></span><b>+</b></button>`).join("")}</div>`);
+}
+
+function quoteRecord(form) {
+  const total = state.cart.reduce((sum, item) => sum + findProduct(item.id).price * item.quantity, 0);
+  const record = { id: `ORC-${String(129 + state.quotes.length).padStart(6, "0")}`, customer: form.get("name").toString(), phone: form.get("phone").toString(), city: form.get("city")?.toString() || "—", note: form.get("note")?.toString() || "—", total, status: "Novo", createdAt: new Date().toISOString(), items: state.cart.map((item) => ({ id: item.id, quantity: item.quantity })) };
+  state.quotes.unshift(record);
+  persist();
+  return record;
+}
+
+function parseCsv(text) {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  if (!lines.length) return { headers: [], rows: [] };
+  const delimiter = lines[0].includes(";") ? ";" : ",";
+  const split = (line) => line.split(delimiter).map((value) => value.trim().replace(/^"|"$/g, ""));
+  const headers = split(lines[0]);
+  return { headers, rows: lines.slice(1).map(split).filter((row) => row.some(Boolean)) };
+}
+
+function analyzeImportFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  const isExcel = /\.xlsx?$/i.test(file.name);
+  reader.onload = () => {
+    let parsed;
+    if (isExcel && window.XLSX) {
+      const workbook = window.XLSX.read(reader.result, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const matrix = window.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: "" });
+      parsed = { headers: (matrix.shift() || []).map(String), rows: matrix };
+    } else if (isExcel) {
+      showToast("O leitor Excel não carregou. Use CSV ou tente novamente.");
+      return;
+    } else parsed = parseCsv(reader.result.toString());
+    const normalized = parsed.headers.map((header) => header.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_"));
+    const rows = parsed.rows.map((values) => Object.fromEntries(normalized.map((header, index) => [header, values[index] || ""])));
+    const valid = rows.filter((row) => row.nome_produto || row.product_name || row.nome || row.name);
+    state.importData = { fileName: file.name, headers: parsed.headers, rows, validCount: valid.length, errorCount: rows.length - valid.length, validRows: valid };
+    render();
+    showToast(`${valid.length} registros prontos para revisão.`);
+  };
+  if (isExcel) reader.readAsArrayBuffer(file);
+  else reader.readAsText(file, "UTF-8");
+}
+
+function commitImport() {
+  if (!state.importData?.validRows?.length) return;
+  state.importData.validRows.forEach((row, index) => {
+    const name = row.nome_produto || row.product_name || row.nome || row.name;
+    const brand = row.marca || row.brand || "IMPORTADO";
+    const category = row.categoria || row.category || "Equipamentos";
+    const price = Number(String(row.preco || row.price || "0").replace(/[^0-9,.-]/g, "").replace(",", ".")) || 0;
+    const stockCount = Number(row.estoque || row.stock || row.quantidade || 0) || 0;
+    products.unshift({ id: `import-${Date.now()}-${index}`, brand: brand.toUpperCase(), name: name.toUpperCase(), type: `${row.sistema || row.system || "FIELD GEAR"} · IMPORTED`, meta: row.sku || "IMPORTED SKU", price, stockCount, stock: stockLabel({ stockCount }), category, system: row.sistema || row.system || "—", image: "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82", specs: { FPS: row.fps || "—", Gearbox: row.gearbox || "—", Peso: row.peso || "—", Sistema: row.sistema || row.system || "—", "Hop-Up": "—", Material: row.material || "—" }, description: row.descricao || row.description || "Produto importado para revisão.", tag: "Importado", active: true });
+  });
+  const count = state.importData.validRows.length;
+  state.importData = null;
+  persist(); render(); showToast(`${count} produtos importados.`);
+}
+
 function render() {
   let view = homePage();
   if (state.route === "catalog") view = catalogPage();
   if (state.route === "product" && state.selectedProduct) view = productPage(state.selectedProduct);
   if (state.route === "loadout") view = loadoutPage();
   if (state.route === "favorites") view = favoritesPage();
+  if (state.route === "brands") view = brandsPage();
   if (state.route === "admin") view = adminDashboardPage();
   if (state.route === "admin-products") view = adminProductsPage();
   if (state.route === "admin-stock") view = adminStockPage();
+  if (state.route === "admin-prices") view = adminPricesPage();
   if (state.route === "admin-quotes") view = adminQuotesPage();
+  if (state.route === "admin-customers") view = adminCustomersPage();
   if (state.route === "admin-import") view = adminImportPage();
-  app.innerHTML = view;
+  app.innerHTML = view + compareBar();
   updateNav();
   bindViewEvents();
   window.scrollTo({ top: 0, behavior: "instant" });
@@ -273,8 +436,9 @@ function updateNav() {
 function go(route, product = null) {
   state.route = route;
   state.selectedProduct = product;
+  if (route === "product" && product) sessionStorage.setItem("fieldops-product", product.id);
   if (route !== "catalog") state.category = route === "home" ? "" : state.category;
-  history.replaceState({}, "", route === "home" ? "#home" : `#${route}`);
+  history.replaceState({}, "", route === "home" ? "#home" : route === "product" && product ? `#product/${product.id}` : `#${route}`);
   render();
 }
 
@@ -285,7 +449,16 @@ function toggleFavorite(id) {
   showToast(state.favorites.includes(id) ? "Item favoritado." : "Item removido dos favoritos.");
 }
 
+function toggleCompare(id) {
+  if (state.compare.includes(id)) state.compare = state.compare.filter((item) => item !== id);
+  else if (state.compare.length >= 3) { showToast("A comparação aceita até 3 produtos."); return; }
+  else state.compare.push(id);
+  persist(); render(); showToast(state.compare.includes(id) ? "Produto adicionado à comparação." : "Produto removido da comparação.");
+}
+
 function addToCart(id, quantity = 1) {
+  const product = findProduct(id);
+  if (!product || product.stockCount <= 0) { showToast("Este item está indisponível."); return; }
   const existing = state.cart.find((item) => item.id === id);
   if (existing) existing.quantity += quantity;
   else state.cart.push({ id, quantity });
@@ -294,6 +467,12 @@ function addToCart(id, quantity = 1) {
   renderDrawer();
   openDrawer();
   showToast("Item adicionado ao carrinho.");
+}
+
+function addLoadoutToCart() {
+  const selected = [...new Set(Object.values(state.loadout).filter(Boolean))];
+  selected.forEach((id) => addToCart(id));
+  showToast("Loadout adicionado ao carrinho.");
 }
 
 function renderDrawer() {
@@ -321,8 +500,9 @@ function quoteModal() {
   document.querySelector("#quote-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const quote = quoteRecord(form);
     const lines = state.cart.map((item) => { const product = findProduct(item.id); return `${item.quantity}x ${product.brand} ${product.name}`; }).join("%0A");
-    const message = `Olá, gostaria de solicitar orçamento.%0A%0AItens:%0A${lines}%0A%0ANome: ${form.get("name")}%0AWhatsApp: ${form.get("phone")}%0ACEP: ${form.get("zip") || "Não informado"}%0ACidade: ${form.get("city") || "Não informado"}%0AObservação: ${form.get("note") || "—"}`;
+    const message = `Olá, gostaria de solicitar orçamento.%0A%0AOrçamento ${quote.id}%0A%0AItens:%0A${lines}%0A%0ANome: ${form.get("name")}%0AWhatsApp: ${form.get("phone")}%0ACEP: ${form.get("zip") || "Não informado"}%0ACidade: ${form.get("city") || "Não informado"}%0AObservação: ${form.get("note") || "—"}`;
     const link = `https://wa.me/5511999999999?text=${message}`;
     modalContent.innerHTML = `<div class="success-box"><div class="success-mark">✓</div><span class="eyebrow">QUOTE // READY</span><h2>Orçamento criado.</h2><p>Seu resumo está pronto. Continue no WhatsApp para falar com o time Field Ops.</p><a class="modal-submit" href="${link}" target="_blank" rel="noreferrer">Abrir WhatsApp ↗</a></div>`;
     showToast("Orçamento criado.");
@@ -346,7 +526,7 @@ function bindSearch() {
     state.search = input.value;
     const query = input.value.trim().toLowerCase();
     if (!query) { results.classList.remove("open"); results.innerHTML = ""; return; }
-    const matches = products.filter((product) => `${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(query)).slice(0, 5);
+    const matches = activeProducts().filter((product) => `${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(query)).slice(0, 5);
     results.innerHTML = matches.length ? `<div class="search-result-group">Produtos</div>${matches.map((product) => `<div class="search-result" data-product="${product.id}"><img src="${product.image}" alt="" /><div><strong>${product.brand} ${product.name}</strong><small>${product.category} · ${money(product.price)}</small></div></div>`).join("")}<div class="search-result-group">Categorias</div><div class="search-result" data-category="${query}"><div><strong>Ver resultados para “${query}”</strong><small>Buscar no catálogo</small></div></div>` : `<div class="search-result-group">Sem correspondência</div><div class="search-result" data-route="catalog"><div><strong>Nenhum equipamento encontrado.</strong><small>Ver catálogo completo</small></div></div>`;
     results.classList.add("open");
   };
@@ -361,6 +541,7 @@ function bindViewEvents() {
   document.querySelectorAll("[data-add]").forEach((el) => el.addEventListener("click", () => addToCart(el.dataset.add)));
   document.querySelectorAll("[data-add-detail]").forEach((el) => el.addEventListener("click", () => addToCart(el.dataset.addDetail, state.quantity)));
   document.querySelectorAll("[data-favorite]").forEach((el) => el.addEventListener("click", (event) => { event.stopPropagation(); toggleFavorite(el.dataset.favorite); }));
+  document.querySelectorAll("[data-compare]").forEach((el) => el.addEventListener("click", (event) => { event.stopPropagation(); toggleCompare(el.dataset.compare); }));
   document.querySelectorAll("[data-category]").forEach((el) => el.addEventListener("click", () => { state.category = el.dataset.category === state.category ? "" : el.dataset.category; state.search = ""; go("catalog"); }));
   document.querySelectorAll("[data-search-brand]").forEach((el) => el.addEventListener("click", () => { state.search = el.dataset.searchBrand; state.category = ""; go("catalog"); }));
   document.querySelectorAll("[data-route]").forEach((el) => el.addEventListener("click", (event) => { event.preventDefault(); go(el.dataset.route); }));
@@ -374,7 +555,15 @@ function bindViewEvents() {
     openModal(`<span class="eyebrow">FILTER // LOADOUT</span><h2>Filtros.</h2><p>Refine o arsenal para encontrar a configuração certa.</p>${filterPanel()}<button class="modal-submit" data-action="apply-filter-modal">Ver resultados</button>`);
     modalContent.querySelectorAll("input[name=category]").forEach((input) => input.addEventListener("change", () => { state.category = input.value; }));
   }));
-  document.querySelectorAll("[data-action=add-loadout]").forEach((el) => el.addEventListener("click", () => addToCart(products[0].id)));
+  document.querySelectorAll("[data-action=add-loadout]").forEach((el) => el.addEventListener("click", addLoadoutToCart));
+  document.querySelectorAll("[data-slot]").forEach((el) => el.addEventListener("click", () => loadoutModal(el.dataset.slot)));
+  document.querySelectorAll("[data-action=product-new]").forEach((el) => el.addEventListener("click", () => productModal()));
+  document.querySelectorAll("[data-edit-product]").forEach((el) => el.addEventListener("click", () => productModal(findProduct(el.dataset.editProduct))));
+  document.querySelectorAll("[data-delete-product]").forEach((el) => el.addEventListener("click", () => { const product = findProduct(el.dataset.deleteProduct); if (product && window.confirm(`Excluir ${product.name}?`)) { product.active = false; persist(); render(); showToast("Produto desativado."); } }));
+  const adminSearch = document.querySelector("#admin-product-search");
+  if (adminSearch) adminSearch.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.adminProductSearch = adminSearch.value; render(); } });
+  const importFile = document.querySelector("#import-file");
+  if (importFile) importFile.addEventListener("change", () => analyzeImportFile(importFile.files[0]));
 }
 
 document.addEventListener("click", (event) => {
@@ -383,12 +572,20 @@ document.addEventListener("click", (event) => {
   if (action === "close-drawer") closeDrawer();
   if (action === "close-modal") closeModal();
   if (action === "quote") quoteModal();
+  if (action === "compare-open") compareModal();
+  if (action === "compare-clear") { state.compare = []; persist(); render(); showToast("Comparação limpa."); }
+  if (action === "compare-clear-close") { state.compare = []; persist(); closeModal(); render(); showToast("Comparação limpa."); }
   if (action === "account") accountModal();
   if (action === "admin-preview") { closeModal(); go("admin"); }
   if (action === "account-logout") { state.account = null; localStorage.removeItem("fieldops-account"); accountModal(); }
   if (action === "simulate-import") { const button = event.target.closest(".import-submit"); if (button) { button.textContent = "Arquivo analisado ✓"; button.disabled = true; showToast("Análise concluída: 15 registros precisam de revisão."); } }
+  if (action === "commit-import") commitImport();
+  if (action === "import-reset") { state.importData = null; render(); }
   if (action === "menu") openModal(`<span class="eyebrow">FIELD OPS / MENU</span><h2>Navegue<br>pelo arsenal.</h2><div class="form-grid"><button class="outline-cta" data-route="catalog">Catálogo</button><button class="outline-cta" data-route="loadout">Monte seu loadout</button><button class="outline-cta" data-route="favorites">Favoritos</button><button class="outline-cta" data-route="admin">Painel operacional</button></div>`);
   if (action === "apply-filter-modal") { closeModal(); render(); }
+  const loadoutId = event.target.closest("[data-loadout-select]")?.dataset.loadoutSelect;
+  const loadoutSlot = event.target.closest("[data-loadout-select]")?.dataset.loadoutSlot;
+  if (loadoutId && loadoutSlot) { state.loadout[loadoutSlot] = loadoutId; persist(); closeModal(); render(); showToast(`${loadoutSlot} atualizado.`); }
   const removeId = event.target.closest("[data-remove-cart]")?.dataset.removeCart;
   if (removeId) { state.cart = state.cart.filter((item) => item.id !== removeId); persist(); renderDrawer(); updateNav(); showToast("Item removido do carrinho."); }
 });
@@ -400,9 +597,11 @@ document.addEventListener("click", (event) => {
 
 modalLayer.addEventListener("click", (event) => { if (event.target === modalLayer) closeModal(); });
 drawerBackdrop.addEventListener("click", closeDrawer);
-window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; state.route = ["home", "catalog", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-quotes", "admin-import"].includes(route) ? route : "home"; render(); });
+window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); state.route = productMatch ? "product" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-customers", "admin-import"].includes(route) ? route : "home"; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; render(); });
 
 const initialRoute = location.hash.replace("#", "") || "home";
- state.route = ["home", "catalog", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-quotes", "admin-import"].includes(initialRoute) ? initialRoute : "home";
+const initialProductMatch = initialRoute.match(/^product\/(.+)$/);
+state.route = initialProductMatch ? "product" : ["home", "catalog", "brands", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-customers", "admin-import"].includes(initialRoute) ? initialRoute : "home";
+state.selectedProduct = initialProductMatch ? findProduct(initialProductMatch[1]) : null;
 render();
 renderDrawer();
