@@ -112,6 +112,7 @@ const state = {
   search: "",
   category: "",
   sort: "relevance",
+  filters: { systems: [], availability: "all", maxPrice: 5000 },
   cart: JSON.parse(localStorage.getItem("fieldops-cart") || "[]"),
   favorites: JSON.parse(localStorage.getItem("fieldops-favorites") || "[]"),
   compare: JSON.parse(localStorage.getItem("fieldops-compare") || "[]"),
@@ -132,6 +133,8 @@ const modalContent = document.querySelector("[data-modal-content]");
 const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 const findProduct = (id) => products.find((product) => product.id === id);
 const stockLabel = (product) => product.stockCount <= 0 ? "Indisponível" : product.stockCount <= 10 ? "Poucas unidades" : "Em estoque";
+const catalogPriceMax = () => Math.max(2500, Math.ceil(Math.max(...activeProducts().map((product) => product.price), 2500) / 500) * 500);
+const productFps = (product) => Number(String(product.specs?.FPS || "").match(/\d+(?:[.,]\d+)?/)?.[0]?.replace(",", ".") || 0);
 const activeProducts = () => products.filter((product) => product.active !== false);
 state.cart = state.cart.filter((item) => findProduct(item.id));
 state.favorites = state.favorites.filter((id) => findProduct(id));
@@ -150,7 +153,10 @@ function filteredProducts() {
   const query = state.search.trim().toLowerCase();
   let result = activeProducts().filter((product) => {
     const haystack = `${product.name} ${product.brand} ${product.category} ${product.system}`.toLowerCase();
-    return (!query || haystack.includes(query)) && (!state.category || product.category === state.category);
+    const matchesSystem = !state.filters.systems.length || state.filters.systems.some((system) => product.system.toUpperCase().includes(system));
+    const matchesAvailability = state.filters.availability === "all" || (state.filters.availability === "available" && product.stockCount > 10) || (state.filters.availability === "low" && product.stockCount > 0 && product.stockCount <= 10) || (state.filters.availability === "out" && product.stockCount <= 0);
+    const matchesPrice = product.price <= Number(state.filters.maxPrice || catalogPriceMax());
+    return (!query || haystack.includes(query)) && (!state.category || product.category === state.category) && matchesSystem && matchesAvailability && matchesPrice;
   });
   if (state.sort === "price-low") result = result.sort((a, b) => a.price - b.price);
   if (state.sort === "price-high") result = result.sort((a, b) => b.price - a.price);
@@ -206,12 +212,23 @@ function homePage() {
 
 function filterPanel() {
   const catOptions = ["Rifles", "Pistolas", "Ópticas", "Gear", "Munição"];
-  return `<aside class="filter-panel"><div class="filter-header"><strong>Filter //</strong><small>LOADOUT</small></div><div class="filter-group"><h3>Categoria</h3>${catOptions.map((cat) => `<label class="filter-option"><input type="radio" name="category" value="${cat}" ${state.category === cat ? "checked" : ""}> ${cat}</label>`).join("")}<label class="filter-option"><input type="radio" name="category" value="" ${!state.category ? "checked" : ""}> Todas</label></div><div class="filter-group"><h3>Sistema</h3><label class="filter-option"><input type="checkbox" checked> AEG</label><label class="filter-option"><input type="checkbox"> GBB</label><label class="filter-option"><input type="checkbox"> HPA</label></div><div class="filter-group"><h3>Disponibilidade</h3><label class="filter-option"><input type="checkbox" checked> Em estoque</label><label class="filter-option"><input type="checkbox"> Poucas unidades</label></div></aside>`;
+  const priceMax = catalogPriceMax();
+  const selectedPrice = Math.min(Number(state.filters.maxPrice || priceMax), priceMax);
+  return `<aside class="filter-panel"><div class="filter-header"><strong>Filter //</strong><small>LOADOUT</small></div><div class="filter-group"><h3>Categoria</h3>${catOptions.map((cat) => `<label class="filter-option"><input type="radio" data-filter-category name="catalog-category" value="${cat}" ${state.category === cat ? "checked" : ""}> ${cat}</label>`).join("")}<label class="filter-option"><input type="radio" data-filter-category name="catalog-category" value="" ${!state.category ? "checked" : ""}> Todas</label></div><div class="filter-group"><h3>Sistema</h3>${["AEG", "GBB", "HPA"].map((system) => `<label class="filter-option"><input type="checkbox" data-filter-system value="${system}" ${state.filters.systems.includes(system) ? "checked" : ""}> ${system}</label>`).join("")}</div><div class="filter-group"><h3>Disponibilidade</h3>${[["all", "Todos"], ["available", "Em estoque"], ["low", "Poucas unidades"], ["out", "Indisponível"]].map(([value, label]) => `<label class="filter-option"><input type="radio" data-filter-availability name="availability" value="${value}" ${state.filters.availability === value ? "checked" : ""}> ${label}</label>`).join("")}</div><div class="filter-group price-filter-group"><div class="filter-group-title"><h3>Preço máximo</h3><output data-price-output>${money(selectedPrice)}</output></div><input class="price-range" type="range" data-filter-price min="0" max="${priceMax}" step="50" value="${selectedPrice}" aria-label="Preço máximo" /></div></aside>`;
+}
+
+function filterSummary() {
+  const chips = [];
+  if (state.category) chips.push(`<button class="active-filter" data-clear-category>${state.category}</button>`);
+  state.filters.systems.forEach((system) => chips.push(`<button class="active-filter" data-clear-system="${system}">${system}</button>`));
+  if (state.filters.availability !== "all") chips.push(`<button class="active-filter" data-clear-availability>${{ available: "Em estoque", low: "Poucas unidades", out: "Indisponível" }[state.filters.availability]}</button>`);
+  if (Number(state.filters.maxPrice) < catalogPriceMax()) chips.push(`<button class="active-filter" data-clear-price>Até ${money(state.filters.maxPrice)}</button>`);
+  return chips.length ? `<div class="active-filters">${chips.join("")}<button class="active-filter active-filter-clear" data-clear-filters>Limpar tudo</button></div>` : "";
 }
 
 function catalogPage() {
   const list = filteredProducts();
-  return `<section class="page catalog-page"><div class="container"><div class="page-heading"><div><span class="eyebrow">ARSENAL / CATALOG</span><h1>${state.category || "Equipamentos"}</h1></div><p>Itens selecionados para performance real em campo.</p></div><div class="catalog-layout">${filterPanel()}<div><div class="catalog-toolbar"><div class="result-count"><strong>${list.length} equipamentos</strong> encontrados</div><div style="display:flex;gap:8px;align-items:center"><button class="mobile-filter-button" data-action="filters"><span class="icon icon-filter"></span> Filtros</button><select class="sort-select" id="sort-products" aria-label="Ordenar produtos"><option value="relevance" ${state.sort === "relevance" ? "selected" : ""}>Relevância</option><option value="price-low" ${state.sort === "price-low" ? "selected" : ""}>Menor preço</option><option value="price-high" ${state.sort === "price-high" ? "selected" : ""}>Maior preço</option><option value="new" ${state.sort === "new" ? "selected" : ""}>Novidades</option></select></div></div>${state.category ? `<div class="active-filters"><button class="active-filter" data-clear-category>${state.category}</button></div>` : ""}<div class="catalog-grid">${list.length ? list.map(productCard).join("") : `<div class="empty-state" style="grid-column:1/-1"><div><div class="empty-mark">⌖</div><h2>Nenhum equipamento encontrado.</h2><p>Tente remover os filtros ou buscar outra marca.</p><button class="outline-cta" data-clear-search>Limpar busca</button></div></div>`}</div></div></div></div></section>`;
+  return `<section class="page catalog-page"><div class="container"><div class="page-heading"><div><span class="eyebrow">ARSENAL / CATALOG</span><h1>${state.category || "Equipamentos"}</h1></div><p>Itens selecionados para performance real em campo.</p></div><div class="catalog-layout">${filterPanel()}<div><div class="catalog-toolbar"><div class="result-count"><strong>${list.length} equipamentos</strong> encontrados</div><div style="display:flex;gap:8px;align-items:center"><button class="mobile-filter-button" data-action="filters"><span class="icon icon-filter"></span> Filtros</button><select class="sort-select" id="sort-products" aria-label="Ordenar produtos"><option value="relevance" ${state.sort === "relevance" ? "selected" : ""}>Relevância</option><option value="price-low" ${state.sort === "price-low" ? "selected" : ""}>Menor preço</option><option value="price-high" ${state.sort === "price-high" ? "selected" : ""}>Maior preço</option><option value="new" ${state.sort === "new" ? "selected" : ""}>Novidades</option></select></div></div>${filterSummary()}<div class="catalog-grid">${list.length ? list.map(productCard).join("") : `<div class="empty-state" style="grid-column:1/-1"><div><div class="empty-mark">⌖</div><h2>Nenhum equipamento encontrado.</h2><p>Tente remover os filtros ou buscar outra marca.</p><button class="outline-cta" data-clear-filters>Limpar filtros</button></div></div>`}</div></div></div></div></section>`;
 }
 
 function productPage(product) {
@@ -299,13 +316,13 @@ function adminCustomersPage() {
 function adminProductsPage() {
   const query = state.adminProductSearch.trim().toLowerCase();
   const list = activeProducts().filter((product) => `${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(query));
-  return adminShell("admin-products", "02 / CATALOG", "Produtos.", `<div class="admin-toolbar"><div class="admin-search"><span class="icon icon-search"></span><input id="admin-product-search" value="${state.adminProductSearch}" placeholder="Buscar por produto, marca ou categoria" /></div><button class="hero-cta" data-action="product-new">Novo produto</button></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">PRODUCT REGISTER</span><h2>${list.length} produtos ativos</h2></div><span class="admin-sync"><i class="status-dot"></i> Salvo neste dispositivo</span></div><div class="admin-table-wrap"><table class="admin-table products-table"><thead><tr><th>Produto</th><th>SKU</th><th>Categoria</th><th>Estoque</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead><tbody>${list.length ? list.map((product) => `<tr><td><div class="admin-product-cell"><img src="${product.image}" alt="" /><div><strong>${product.name}</strong><small>${product.brand} · ${product.type}</small></div></div></td><td>FO-${String(products.indexOf(product) + 231).padStart(5, "0")}</td><td>${product.category}</td><td><strong>${product.stockCount}</strong><small>unidades</small></td><td><strong>${money(product.price)}</strong></td><td><span class="admin-status ${product.active === false ? "status-low" : "status-live"}">${product.active === false ? "Desativado" : "Publicado"}</span></td><td><div class="admin-row-actions"><button data-edit-product="${product.id}" aria-label="Editar ${product.name}">Editar</button><button data-delete-product="${product.id}" aria-label="Excluir ${product.name}">Excluir</button></div></td></tr>`).join("") : `<tr><td colspan="7"><div class="admin-inline-empty">Nenhum produto corresponde à busca.</div></td></tr>`}</tbody></table></div></section>`);
+  return adminShell("admin-products", "02 / CATALOG", "Produtos.", `<div class="admin-toolbar"><div class="admin-search"><span class="icon icon-search"></span><input id="admin-product-search" value="${state.adminProductSearch}" placeholder="Buscar por produto, marca ou categoria" /></div><button class="hero-cta" data-action="product-new">Novo produto</button></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">PRODUCT REGISTER</span><h2>${list.length} produtos ativos</h2></div><span class="admin-sync"><i class="status-dot"></i> Salvo neste dispositivo</span></div><div class="admin-table-wrap"><table class="admin-table products-table"><thead><tr><th>Produto</th><th>SKU</th><th>Categoria</th><th>Estoque</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead><tbody>${list.length ? list.map((product) => `<tr><td><div class="admin-product-cell"><img src="${product.image}" alt="" /><div><strong>${product.name}</strong><small>${product.brand} · ${product.type}</small></div></div></td><td>FO-${String(products.indexOf(product) + 231).padStart(5, "0")}</td><td>${product.category}</td><td><strong>${product.stockCount}</strong><small>unidades</small></td><td><strong>${money(product.price)}</strong></td><td><span class="admin-status ${product.active === false ? "status-low" : "status-live"}">${product.active === false ? "Desativado" : "Publicado"}</span></td><td><div class="admin-row-actions"><button data-edit-product="${product.id}" aria-label="Editar ${product.name}">Editar</button><button data-duplicate-product="${product.id}" aria-label="Duplicar ${product.name}">Duplicar</button><button data-delete-product="${product.id}" aria-label="Excluir ${product.name}">Excluir</button></div></td></tr>`).join("") : `<tr><td colspan="7"><div class="admin-inline-empty">Nenhum produto corresponde à busca.</div></td></tr>`}</tbody></table></div></section>`);
 }
 
 function adminQuotesPage() {
   const demo = [{ id: "ORC-000128", customer: "Lucas Mendes", total: 2328, status: "Novo", createdAt: new Date().toISOString(), items: [{ quantity: 3 }] }, { id: "ORC-000127", customer: "Bruno Azevedo", total: 999, status: "Em análise", createdAt: new Date(Date.now() - 3600000).toISOString(), items: [{ quantity: 1 }] }];
   const quotes = [...state.quotes, ...demo];
-  return adminShell("admin-quotes", "04 / COMMERCIAL", "Orçamentos.", `<section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">QUOTE PIPELINE</span><h2>${quotes.length} conversas abertas</h2></div><span class="admin-sync"><i class="status-dot"></i> WhatsApp preparado</span></div><div class="admin-quote-cards"><div><span>NOVOS</span><strong>${quotes.filter((quote) => quote.status === "Novo").length}</strong><small>aguardando primeiro contato</small></div><div><span>EM ANÁLISE</span><strong>${quotes.filter((quote) => quote.status === "Em análise").length}</strong><small>time comercial em atendimento</small></div><div><span>RESPONDIDOS</span><strong>${quotes.filter((quote) => quote.status === "Respondido").length}</strong><small>últimas 24 horas</small></div></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Total estimado</th><th>Itens</th><th>Status</th></tr></thead><tbody>${quotes.map((quote) => `<tr><td><strong>#${quote.id.replace("ORC-", "ORC-")}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td>${quote.customer}</td><td>${money(quote.total)}</td><td>${quote.items.reduce((sum, item) => sum + item.quantity, 0)} itens</td><td><span class="admin-status ${quote.status === "Novo" ? "status-new" : quote.status === "Respondido" ? "status-done" : "status-progress"}">${quote.status}</span></td></tr>`).join("")}</tbody></table></div></section>`);
+  return adminShell("admin-quotes", "04 / COMMERCIAL", "Orçamentos.", `<section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">QUOTE PIPELINE</span><h2>${quotes.length} conversas abertas</h2></div><span class="admin-sync"><i class="status-dot"></i> WhatsApp preparado</span></div><div class="admin-quote-cards"><div><span>NOVOS</span><strong>${quotes.filter((quote) => quote.status === "Novo").length}</strong><small>aguardando primeiro contato</small></div><div><span>EM ANÁLISE</span><strong>${quotes.filter((quote) => quote.status === "Em análise").length}</strong><small>time comercial em atendimento</small></div><div><span>RESPONDIDOS</span><strong>${quotes.filter((quote) => quote.status === "Respondido").length}</strong><small>últimas 24 horas</small></div></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Total estimado</th><th>Itens</th><th>Status</th><th>Ação</th></tr></thead><tbody>${quotes.map((quote) => `<tr><td><strong>#${quote.id.replace("ORC-", "ORC-")}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td>${quote.customer}</td><td>${money(quote.total)}</td><td>${quote.items.reduce((sum, item) => sum + item.quantity, 0)} itens</td><td><span class="admin-status ${quote.status === "Novo" ? "status-new" : quote.status === "Respondido" ? "status-done" : "status-progress"}">${quote.status}</span></td><td>${state.quotes.some((saved) => saved.id === quote.id) ? `<button class="status-action" data-quote-status="${quote.id}">Avançar</button>` : `<span class="admin-table-muted">Demo</span>`}</td></tr>`).join("")}</tbody></table></div></section>`);
 }
 
 function adminImportPage() {
@@ -340,6 +357,26 @@ function productModal(product = null) {
     else products.unshift({ id: `${data.brand.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`, ...data });
     persist(); closeModal(); render(); showToast(editing ? "Produto atualizado." : "Produto cadastrado.");
   });
+}
+
+function duplicateProduct(id) {
+  const product = findProduct(id);
+  if (!product) return;
+  const copy = { ...product, specs: { ...product.specs }, id: `${product.id}-copy-${Date.now()}`, name: `${product.name} COPY`, tag: "Cópia", active: true };
+  products.unshift(copy);
+  persist();
+  render();
+  showToast("Produto duplicado para edição.");
+}
+
+function advanceQuoteStatus(id) {
+  const quote = state.quotes.find((item) => item.id === id);
+  if (!quote) return;
+  const statuses = ["Novo", "Em análise", "Respondido"];
+  quote.status = statuses[(statuses.indexOf(quote.status) + 1) % statuses.length];
+  persist();
+  render();
+  showToast(`Orçamento ${quote.id}: ${quote.status}.`);
 }
 
 function loadoutModal(label) {
@@ -460,19 +497,41 @@ function addToCart(id, quantity = 1) {
   const product = findProduct(id);
   if (!product || product.stockCount <= 0) { showToast("Este item está indisponível."); return; }
   const existing = state.cart.find((item) => item.id === id);
-  if (existing) existing.quantity += quantity;
-  else state.cart.push({ id, quantity });
+  const nextQuantity = Math.min(product.stockCount, Math.max(1, Number(quantity) || 1) + (existing?.quantity || 0));
+  if (existing) existing.quantity = nextQuantity;
+  else state.cart.push({ id, quantity: nextQuantity });
   persist();
   updateNav();
   renderDrawer();
   openDrawer();
-  showToast("Item adicionado ao carrinho.");
+  showToast(nextQuantity === product.stockCount ? "Limite de estoque aplicado." : "Item adicionado ao carrinho.");
 }
 
 function addLoadoutToCart() {
   const selected = [...new Set(Object.values(state.loadout).filter(Boolean))];
-  selected.forEach((id) => addToCart(id));
+  selected.forEach((id) => {
+    const product = findProduct(id);
+    if (!product || product.stockCount <= 0) return;
+    const existing = state.cart.find((item) => item.id === id);
+    if (existing) existing.quantity = Math.min(product.stockCount, existing.quantity + 1);
+    else state.cart.push({ id, quantity: 1 });
+  });
+  persist();
+  updateNav();
+  renderDrawer();
+  openDrawer();
   showToast("Loadout adicionado ao carrinho.");
+}
+
+function changeCartQuantity(id, delta) {
+  const item = state.cart.find((entry) => entry.id === id);
+  const product = findProduct(id);
+  if (!item || !product) return;
+  item.quantity = Math.min(product.stockCount, item.quantity + delta);
+  if (item.quantity <= 0) state.cart = state.cart.filter((entry) => entry.id !== id);
+  persist();
+  updateNav();
+  renderDrawer();
 }
 
 function renderDrawer() {
@@ -484,7 +543,7 @@ function renderDrawer() {
     footerEl.innerHTML = "";
     return;
   }
-  itemsEl.innerHTML = state.cart.map((item) => { const product = findProduct(item.id); return `<div class="cart-item"><img src="${product.image}" alt="${product.name}" /><div><strong>${product.name}</strong><small>${item.quantity} × ${money(product.price)}</small><button class="cart-item-remove" data-remove-cart="${item.id}">Remover</button></div><div class="cart-item-price">${money(product.price * item.quantity)}</div></div>`; }).join("");
+  itemsEl.innerHTML = state.cart.map((item) => { const product = findProduct(item.id); return `<div class="cart-item"><img src="${product.image}" alt="${product.name}" /><div><strong>${product.name}</strong><small>${money(product.price)} por unidade</small><div class="cart-item-controls"><div class="cart-qty-control"><button type="button" data-cart-dec="${item.id}" aria-label="Diminuir quantidade">−</button><b>${item.quantity}</b><button type="button" data-cart-inc="${item.id}" aria-label="Aumentar quantidade" ${item.quantity >= product.stockCount ? "disabled" : ""}>+</button></div><button class="cart-item-remove" data-remove-cart="${item.id}">Remover</button></div></div><div class="cart-item-price">${money(product.price * item.quantity)}</div></div>`; }).join("");
   const total = state.cart.reduce((sum, item) => sum + findProduct(item.id).price * item.quantity, 0);
   footerEl.innerHTML = `<div class="summary-row"><span>Subtotal</span><strong>${money(total)}</strong></div><div class="summary-row"><span>Frete</span><span>A calcular</span></div><div class="summary-row total"><span>Total estimado</span><strong>${money(total)}</strong></div><button class="quote-button" data-action="quote">Solicitar orçamento</button>`;
 }
@@ -501,9 +560,13 @@ function quoteModal() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const quote = quoteRecord(form);
-    const lines = state.cart.map((item) => { const product = findProduct(item.id); return `${item.quantity}x ${product.brand} ${product.name}`; }).join("%0A");
-    const message = `Olá, gostaria de solicitar orçamento.%0A%0AOrçamento ${quote.id}%0A%0AItens:%0A${lines}%0A%0ANome: ${form.get("name")}%0AWhatsApp: ${form.get("phone")}%0ACEP: ${form.get("zip") || "Não informado"}%0ACidade: ${form.get("city") || "Não informado"}%0AObservação: ${form.get("note") || "—"}`;
-    const link = `https://wa.me/5511999999999?text=${message}`;
+    const lines = state.cart.map((item) => { const product = findProduct(item.id); return `${item.quantity}x ${product.brand} ${product.name}`; }).join("\n");
+    const message = `Olá, gostaria de solicitar orçamento.\n\nOrçamento ${quote.id}\n\nItens:\n${lines}\n\nNome: ${form.get("name")}\nWhatsApp: ${form.get("phone")}\nCEP: ${form.get("zip") || "Não informado"}\nCidade: ${form.get("city") || "Não informado"}\nObservação: ${form.get("note") || "—"}`;
+    const link = `https://wa.me/5511999999999?text=${encodeURIComponent(message)}`;
+    state.cart = [];
+    persist();
+    updateNav();
+    renderDrawer();
     modalContent.innerHTML = `<div class="success-box"><div class="success-mark">✓</div><span class="eyebrow">QUOTE // READY</span><h2>Orçamento criado.</h2><p>Seu resumo está pronto. Continue no WhatsApp para falar com o time Field Ops.</p><a class="modal-submit" href="${link}" target="_blank" rel="noreferrer">Abrir WhatsApp ↗</a></div>`;
     showToast("Orçamento criado.");
   });
@@ -516,6 +579,27 @@ function showToast(message) {
   toast.textContent = message;
   region.appendChild(toast);
   setTimeout(() => toast.remove(), 2600);
+}
+
+function bindFilterControls(root, immediateRender = true) {
+  root.querySelectorAll("[data-filter-category]").forEach((input) => input.addEventListener("change", () => {
+    state.category = input.value;
+    if (immediateRender) render();
+  }));
+  root.querySelectorAll("[data-filter-system]").forEach((input) => input.addEventListener("change", () => {
+    state.filters.systems = [...root.querySelectorAll("[data-filter-system]:checked")].map((item) => item.value);
+    if (immediateRender) render();
+  }));
+  root.querySelectorAll("[data-filter-availability]").forEach((input) => input.addEventListener("change", () => {
+    state.filters.availability = root.querySelector("[data-filter-availability]:checked")?.value || "all";
+    if (immediateRender) render();
+  }));
+  root.querySelectorAll("[data-filter-price]").forEach((input) => {
+    const output = input.closest(".filter-group")?.querySelector("[data-price-output]");
+    const updatePrice = () => { state.filters.maxPrice = Number(input.value); if (output) output.value = money(input.value); if (output) output.textContent = money(input.value); };
+    input.addEventListener("input", updatePrice);
+    input.addEventListener("change", () => { updatePrice(); if (immediateRender) render(); });
+  });
 }
 
 function bindSearch() {
@@ -547,18 +631,19 @@ function bindViewEvents() {
   document.querySelectorAll("[data-route]").forEach((el) => el.addEventListener("click", (event) => { event.preventDefault(); go(el.dataset.route); }));
   document.querySelectorAll("[data-clear-category]").forEach((el) => el.addEventListener("click", () => { state.category = ""; render(); }));
   document.querySelectorAll("[data-clear-search]").forEach((el) => el.addEventListener("click", () => { state.search = ""; state.category = ""; render(); }));
-  document.querySelectorAll("input[name=category]").forEach((el) => el.addEventListener("change", () => { state.category = el.value; render(); }));
+  bindFilterControls(document, true);
   const sort = document.querySelector("#sort-products");
   if (sort) sort.addEventListener("change", () => { state.sort = sort.value; render(); });
   document.querySelectorAll("[data-quantity]").forEach((el) => el.addEventListener("click", () => { state.quantity = Math.max(1, state.quantity + (el.dataset.quantity === "+" ? 1 : -1)); document.querySelector("[data-quantity-value]").textContent = state.quantity; }));
   document.querySelectorAll("[data-action=filters]").forEach((el) => el.addEventListener("click", () => {
     openModal(`<span class="eyebrow">FILTER // LOADOUT</span><h2>Filtros.</h2><p>Refine o arsenal para encontrar a configuração certa.</p>${filterPanel()}<button class="modal-submit" data-action="apply-filter-modal">Ver resultados</button>`);
-    modalContent.querySelectorAll("input[name=category]").forEach((input) => input.addEventListener("change", () => { state.category = input.value; }));
+    bindFilterControls(modalContent, false);
   }));
   document.querySelectorAll("[data-action=add-loadout]").forEach((el) => el.addEventListener("click", addLoadoutToCart));
   document.querySelectorAll("[data-slot]").forEach((el) => el.addEventListener("click", () => loadoutModal(el.dataset.slot)));
   document.querySelectorAll("[data-action=product-new]").forEach((el) => el.addEventListener("click", () => productModal()));
   document.querySelectorAll("[data-edit-product]").forEach((el) => el.addEventListener("click", () => productModal(findProduct(el.dataset.editProduct))));
+  document.querySelectorAll("[data-duplicate-product]").forEach((el) => el.addEventListener("click", () => duplicateProduct(el.dataset.duplicateProduct)));
   document.querySelectorAll("[data-delete-product]").forEach((el) => el.addEventListener("click", () => { const product = findProduct(el.dataset.deleteProduct); if (product && window.confirm(`Excluir ${product.name}?`)) { product.active = false; persist(); render(); showToast("Produto desativado."); } }));
   const adminSearch = document.querySelector("#admin-product-search");
   if (adminSearch) adminSearch.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.adminProductSearch = adminSearch.value; render(); } });
@@ -588,6 +673,17 @@ document.addEventListener("click", (event) => {
   if (loadoutId && loadoutSlot) { state.loadout[loadoutSlot] = loadoutId; persist(); closeModal(); render(); showToast(`${loadoutSlot} atualizado.`); }
   const removeId = event.target.closest("[data-remove-cart]")?.dataset.removeCart;
   if (removeId) { state.cart = state.cart.filter((item) => item.id !== removeId); persist(); renderDrawer(); updateNav(); showToast("Item removido do carrinho."); }
+  const decreaseId = event.target.closest("[data-cart-dec]")?.dataset.cartDec;
+  if (decreaseId) changeCartQuantity(decreaseId, -1);
+  const increaseId = event.target.closest("[data-cart-inc]")?.dataset.cartInc;
+  if (increaseId) changeCartQuantity(increaseId, 1);
+  const clearSystem = event.target.closest("[data-clear-system]")?.dataset.clearSystem;
+  if (clearSystem) { state.filters.systems = state.filters.systems.filter((system) => system !== clearSystem); render(); }
+  if (event.target.closest("[data-clear-availability]")) { state.filters.availability = "all"; render(); }
+  if (event.target.closest("[data-clear-price]")) { state.filters.maxPrice = catalogPriceMax(); render(); }
+  if (event.target.closest("[data-clear-filters]")) { state.category = ""; state.search = ""; state.filters = { systems: [], availability: "all", maxPrice: catalogPriceMax() }; render(); }
+  const quoteStatusId = event.target.closest("[data-quote-status]")?.dataset.quoteStatus;
+  if (quoteStatusId) advanceQuoteStatus(quoteStatusId);
 });
 
 document.addEventListener("click", (event) => {
