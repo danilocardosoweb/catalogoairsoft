@@ -1051,14 +1051,23 @@ function bindHeroVideo() {
   let targetProgress = 0.5;
   let currentProgress = 0.5;
   let lastFrameTime = 0;
+  let lastSeekAt = 0;
+  let renderedTime = 0;
+  let initialFrameSyncId = 0;
 
   const clampProgress = (value) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0.5));
   const reducedMotion = () => Boolean(reducedMotionQuery?.matches);
   const setCenterFrame = () => {
     if (!metadataReady || !Number.isFinite(video.duration) || video.duration <= 0) return;
     const centerTime = Math.max(0, Math.min(video.duration - 0.001, video.duration * 0.5));
-    video.pause();
-    video.currentTime = Number.isFinite(centerTime) ? centerTime : 0;
+    const applyCenterFrame = () => {
+      if (hasPointer || !metadataReady) return;
+      video.pause();
+      video.currentTime = Number.isFinite(centerTime) ? centerTime : 0;
+      renderedTime = centerTime;
+    };
+    applyCenterFrame();
+    requestAnimationFrame(applyCenterFrame);
     currentProgress = 0.5;
     targetProgress = 0.5;
   };
@@ -1066,19 +1075,28 @@ function bindHeroVideo() {
     if (frameId) cancelAnimationFrame(frameId);
     frameId = 0;
     lastFrameTime = 0;
+    lastSeekAt = 0;
   };
   const frameLoop = (timestamp) => {
     frameId = 0;
     if (!metadataReady || reducedMotion() || !Number.isFinite(video.duration) || video.duration <= 0) return;
     const elapsed = lastFrameTime ? Math.min(64, timestamp - lastFrameTime) : 16;
     lastFrameTime = timestamp;
-    const smoothing = 1 - Math.exp(-elapsed / 115);
+    const smoothing = 1 - Math.exp(-elapsed / 78);
     currentProgress += (targetProgress - currentProgress) * smoothing;
     if (Math.abs(targetProgress - currentProgress) < 0.001) currentProgress = targetProgress;
     const desiredTime = clampProgress(currentProgress) * video.duration;
     const safeTime = Math.max(0, Math.min(video.duration - 0.001, desiredTime));
-    if (Number.isFinite(safeTime) && Math.abs(video.currentTime - safeTime) > 0.004) video.currentTime = safeTime;
-    if (Math.abs(targetProgress - currentProgress) > 0.001) frameId = requestAnimationFrame(frameLoop);
+    const targetTime = Math.max(0, Math.min(video.duration - 0.001, clampProgress(targetProgress) * video.duration));
+    const seekInterval = 1000 / 30;
+    const isSettling = Math.abs(targetProgress - currentProgress) < 0.001;
+    const needsSeek = Number.isFinite(safeTime) && Math.abs(renderedTime - safeTime) > (isSettling ? 0.006 : 0.025);
+    if (needsSeek && !video.seeking && timestamp - lastSeekAt >= seekInterval) {
+      video.currentTime = safeTime;
+      renderedTime = safeTime;
+      lastSeekAt = timestamp;
+    }
+    if (Math.abs(targetProgress - currentProgress) > 0.001 || Math.abs(renderedTime - targetTime) > 0.006) frameId = requestAnimationFrame(frameLoop);
     else lastFrameTime = 0;
   };
   const startFrameLoop = () => {
@@ -1122,17 +1140,23 @@ function bindHeroVideo() {
 
   video.pause();
   video.addEventListener("loadedmetadata", onMetadata);
+  video.addEventListener("loadeddata", onMetadata);
+  video.addEventListener("durationchange", onMetadata);
   video.addEventListener("error", onVideoError);
   hero.addEventListener("pointermove", onPointerMove, { passive: true });
   hero.addEventListener("pointerleave", onPointerLeave, { passive: true });
   reducedMotionQuery?.addEventListener?.("change", onMotionPreferenceChange);
   if (reducedMotionQuery && !reducedMotionQuery.addEventListener) reducedMotionQuery.addListener(onMotionPreferenceChange);
   if (video.readyState >= 1) onMetadata();
+  initialFrameSyncId = window.setTimeout(onMetadata, 120);
 
   heroInteractionCleanup = () => {
     stopFrameLoop();
+    window.clearTimeout(initialFrameSyncId);
     video.pause();
     video.removeEventListener("loadedmetadata", onMetadata);
+    video.removeEventListener("loadeddata", onMetadata);
+    video.removeEventListener("durationchange", onMetadata);
     video.removeEventListener("error", onVideoError);
     hero.removeEventListener("pointermove", onPointerMove);
     hero.removeEventListener("pointerleave", onPointerLeave);
