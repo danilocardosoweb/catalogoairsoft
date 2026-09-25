@@ -95,6 +95,7 @@ const products = JSON.parse(localStorage.getItem("fieldops-products") || "null")
 products.forEach((product, index) => {
   if (typeof product.stockCount !== "number") product.stockCount = product.id === "hi-capa-5-1" ? 12 : product.id === "bb-bio-025" ? 8 : 38 - index * 3;
   if (typeof product.active !== "boolean") product.active = true;
+  if (!product.sku) product.sku = `FO-${String(index + 231).padStart(5, "0")}`;
 });
 
 const categories = [
@@ -124,6 +125,7 @@ const state = {
   orders: JSON.parse(localStorage.getItem("fieldops-orders") || "[]"),
   loadout: JSON.parse(localStorage.getItem("fieldops-loadout") || "null") || { Rifle: "neptune-10" },
   importData: null,
+  importHistory: JSON.parse(localStorage.getItem("fieldops-import-history") || "[]"),
   adminProductSearch: "",
   account: JSON.parse(localStorage.getItem("fieldops-account") || "null"),
   profile: JSON.parse(localStorage.getItem("fieldops-profile") || "null"),
@@ -151,7 +153,7 @@ function ensureQuoteShape(quote) {
 }
 
 function ensureOrderShape(order) {
-  return { ...order, status: orderStatuses.includes(order.status) ? order.status : "Novo pedido", history: Array.isArray(order.history) && order.history.length ? order.history : [{ at: order.createdAt || new Date().toISOString(), actor: "Sistema", from: null, to: order.status || "Novo pedido", note: "Pedido criado" }], shipping: { carrier: "", method: "", deadline: "", volumes: 1, tracking: "", ...order.shipping } };
+  return { ...order, status: orderStatuses.includes(order.status) ? order.status : "Novo pedido", items: (order.items || []).map((item) => ({ ...item, picked: Boolean(item.picked), location: item.location || "A definir" })), history: Array.isArray(order.history) && order.history.length ? order.history : [{ at: order.createdAt || new Date().toISOString(), actor: "Sistema", from: null, to: order.status || "Novo pedido", note: "Pedido criado" }], shipping: { carrier: "", method: "", deadline: "", volumes: 1, tracking: "", ...order.shipping } };
 }
 
 state.quotes = state.quotes.map(ensureQuoteShape);
@@ -217,6 +219,7 @@ function persist() {
   localStorage.setItem("fieldops-quotes", JSON.stringify(state.quotes));
   localStorage.setItem("fieldops-orders", JSON.stringify(state.orders));
   localStorage.setItem("fieldops-loadout", JSON.stringify(state.loadout));
+  localStorage.setItem("fieldops-import-history", JSON.stringify(state.importHistory));
   localStorage.setItem("fieldops-profile", JSON.stringify(state.profile));
   localStorage.setItem("fieldops-recent-searches", JSON.stringify(state.recentSearches));
   localStorage.setItem("fieldops-recent-products", JSON.stringify(state.recentProducts));
@@ -456,7 +459,7 @@ function adminDashboardPage() {
 
 function adminStockPage() {
   const physical = activeProducts().reduce((sum, product) => sum + product.stockCount, 0);
-  return adminShell("admin-stock", "03 / INVENTORY", "Estoque.", `<div class="admin-kpi-grid"><div class="admin-kpi"><span>Estoque físico</span><strong>${physical}</strong><small>unidades catalogadas</small></div><div class="admin-kpi"><span>Reservado</span><strong>${state.quotes.length}</strong><small>em orçamentos ativos</small></div><div class="admin-kpi"><span>Disponível</span><strong>${Math.max(0, physical - state.quotes.length)}</strong><small class="trend-up">cálculo local</small></div></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">INVENTORY CONTROL</span><h2>Itens para revisão</h2></div><button class="outline-cta" data-route="admin-import">Atualizar por planilha</button></div><div class="inventory-list">${activeProducts().map((product, index) => `<div class="inventory-row"><img src="${product.image}" alt="" /><div><strong>${product.name}</strong><small>${product.brand} · SKU FO-${String(index + 231).padStart(5, "0")}</small></div><div class="inventory-value"><strong>${product.stockCount}</strong><small>disponíveis</small></div><span class="admin-status ${product.stockCount <= state.settings.lowStock ? "status-low" : "status-live"}">${product.stockCount <= state.settings.lowStock ? "Revisar" : "Estável"}</span><button class="status-action" data-stock-edit="${product.id}">Ajustar</button></div>`).join("")}</div></section>`);
+  return adminShell("admin-stock", "03 / INVENTORY", "Estoque.", `<div class="admin-kpi-grid"><div class="admin-kpi"><span>Estoque físico</span><strong>${physical}</strong><small>unidades catalogadas</small></div><div class="admin-kpi"><span>Reservado</span><strong>${state.quotes.length}</strong><small>em orçamentos ativos</small></div><div class="admin-kpi"><span>Disponível</span><strong>${Math.max(0, physical - state.quotes.length)}</strong><small class="trend-up">cálculo local</small></div></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">INVENTORY CONTROL</span><h2>Itens para revisão</h2></div><button class="outline-cta" data-route="admin-import">Atualizar por planilha</button></div><div class="inventory-list">${activeProducts().map((product) => `<div class="inventory-row"><img src="${product.image}" alt="" /><div><strong>${product.name}</strong><small>${product.brand} · SKU ${product.sku}</small></div><div class="inventory-value"><strong>${product.stockCount}</strong><small>disponíveis</small></div><span class="admin-status ${product.stockCount <= state.settings.lowStock ? "status-low" : "status-live"}">${product.stockCount <= state.settings.lowStock ? "Revisar" : "Estável"}</span><button class="status-action" data-stock-edit="${product.id}">Ajustar</button></div>`).join("")}</div></section>`);
 }
 
 function adminPricesPage() {
@@ -475,7 +478,7 @@ function adminSettingsPage() {
 function adminProductsPage() {
   const query = state.adminProductSearch.trim().toLowerCase();
   const list = activeProducts().filter((product) => `${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(query));
-  return adminShell("admin-products", "02 / CATALOG", "Produtos.", `<div class="admin-toolbar"><div class="admin-search"><span class="icon icon-search"></span><input id="admin-product-search" value="${state.adminProductSearch}" placeholder="Buscar por produto, marca ou categoria" /></div><button class="hero-cta" data-action="product-new">Novo produto</button></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">PRODUCT REGISTER</span><h2>${list.length} produtos ativos</h2></div><span class="admin-sync"><i class="status-dot"></i> Salvo neste dispositivo</span></div><div class="admin-table-wrap"><table class="admin-table products-table"><thead><tr><th>Produto</th><th>SKU</th><th>Categoria</th><th>Estoque</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead><tbody>${list.length ? list.map((product) => `<tr><td><div class="admin-product-cell"><img src="${product.image}" alt="" /><div><strong>${product.name}</strong><small>${product.brand} · ${product.type}</small></div></div></td><td>FO-${String(products.indexOf(product) + 231).padStart(5, "0")}</td><td>${product.category}</td><td><strong>${product.stockCount}</strong><small>unidades</small></td><td><strong>${money(product.price)}</strong></td><td><span class="admin-status ${product.active === false ? "status-low" : "status-live"}">${product.active === false ? "Desativado" : "Publicado"}</span></td><td><div class="admin-row-actions"><button data-edit-product="${product.id}" aria-label="Editar ${product.name}">Editar</button><button data-duplicate-product="${product.id}" aria-label="Duplicar ${product.name}">Duplicar</button><button data-delete-product="${product.id}" aria-label="Excluir ${product.name}">Excluir</button></div></td></tr>`).join("") : `<tr><td colspan="7"><div class="admin-inline-empty">Nenhum produto corresponde à busca.</div></td></tr>`}</tbody></table></div></section>`);
+  return adminShell("admin-products", "02 / CATALOG", "Produtos.", `<div class="admin-toolbar"><div class="admin-search"><span class="icon icon-search"></span><input id="admin-product-search" value="${state.adminProductSearch}" placeholder="Buscar por produto, marca ou categoria" /></div><button class="hero-cta" data-action="product-new">Novo produto</button></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">PRODUCT REGISTER</span><h2>${list.length} produtos ativos</h2></div><span class="admin-sync"><i class="status-dot"></i> Salvo neste dispositivo</span></div><div class="admin-table-wrap"><table class="admin-table products-table"><thead><tr><th>Produto</th><th>SKU</th><th>Categoria</th><th>Estoque</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead><tbody>${list.length ? list.map((product) => `<tr><td><div class="admin-product-cell"><img src="${product.image}" alt="" /><div><strong>${product.name}</strong><small>${product.brand} · ${product.type}</small></div></div></td><td>${product.sku}</td><td>${product.category}</td><td><strong>${product.stockCount}</strong><small>unidades</small></td><td><strong>${money(product.price)}</strong></td><td><span class="admin-status ${product.active === false ? "status-low" : "status-live"}">${product.active === false ? "Desativado" : "Publicado"}</span></td><td><div class="admin-row-actions"><button data-edit-product="${product.id}" aria-label="Editar ${product.name}">Editar</button><button data-duplicate-product="${product.id}" aria-label="Duplicar ${product.name}">Duplicar</button><button data-delete-product="${product.id}" aria-label="Excluir ${product.name}">Excluir</button></div></td></tr>`).join("") : `<tr><td colspan="7"><div class="admin-inline-empty">Nenhum produto corresponde à busca.</div></td></tr>`}</tbody></table></div></section>`);
 }
 
 function adminQuotesPage() {
@@ -486,7 +489,11 @@ function adminQuotesPage() {
 
 function adminImportPage() {
   const preview = state.importData;
-  return adminShell("admin-import", "05 / DATA INTAKE", "Importar.", `<div class="import-steps"><div class="import-step ${preview ? "done" : "active"}"><span>01</span><strong>Upload</strong><small>Enviar arquivo</small></div><div class="import-step ${preview ? "active" : ""}"><span>02</span><strong>Analisar</strong><small>Detectar colunas</small></div><div class="import-step"><span>03</span><strong>Validar</strong><small>Revisar erros</small></div><div class="import-step"><span>04</span><strong>Importar</strong><small>Publicar registros</small></div></div><section class="admin-panel import-panel"><div class="admin-panel-head"><div><span class="eyebrow">EXCEL / CSV</span><h2>${preview ? "Revise sua carga." : "Traga seu inventário."}</h2></div><span class="admin-sync">Mapeamento salvo: Produtos Field Ops</span></div>${preview ? `<div class="import-file-banner"><span class="dropzone-mark">✓</span><div><strong>${preview.fileName}</strong><small>${preview.validCount} registros válidos · ${preview.errorCount} erros de linha</small></div><button class="outline-cta" data-action="import-reset">Escolher outro</button></div><div class="import-preview"><div><span>Encontrados</span><strong>${preview.rows.length}</strong></div><div><span>Novos</span><strong>${preview.validCount}</strong></div><div><span>Atualizações</span><strong>0</strong></div><div><span>Erros</span><strong class="import-error-count">${preview.errorCount}</strong></div></div><div class="admin-table-wrap import-table"><table class="admin-table"><thead><tr>${preview.headers.slice(0, 5).map((header) => `<th>${header}</th>`).join("")}</tr></thead><tbody>${preview.rows.slice(0, 5).map((row) => `<tr>${preview.headers.slice(0, 5).map((header) => `<td>${row[header.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_")] || "—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div><div class="import-actions"><button class="outline-cta" data-action="import-reset">Cancelar</button><button class="hero-cta" data-action="commit-import" ${preview.validCount ? "" : "disabled"}>Importar ${preview.validCount} produtos</button></div>` : `<label class="dropzone"><input id="import-file" type="file" accept=".csv,.xlsx,.xls" /><span class="dropzone-mark">↑</span><strong>Solte sua planilha aqui</strong><small>CSV ou Excel até 10 MB</small><span class="outline-cta">Escolher arquivo</span></label><div class="import-preview"><div><span>Última análise</span><strong>—</strong></div><div><span>Novos</span><strong>—</strong></div><div><span>Atualizações</span><strong>—</strong></div><div><span>Erros</span><strong>—</strong></div></div><p class="import-help">O arquivo precisa conter pelo menos uma coluna <strong>Nome Produto</strong> ou <strong>product_name</strong>. Outras colunas aceitas: marca, categoria, preço, estoque, sistema, sku, fps.</p>`}</section>`);
+  const summary = preview ? summarizeImportRows(preview.validRows) : null;
+  const lastImport = state.importHistory[0];
+  const historyBlock = !preview && lastImport ? `<div class="import-file-banner"><span class="dropzone-mark">↶</span><div><strong>Última carga: ${lastImport.fileName}</strong><small>${lastImport.added} novos · ${lastImport.updated} atualizados · ${new Date(lastImport.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></div><button class="outline-cta" data-action="import-rollback" data-import-id="${lastImport.id}">Desfazer carga</button></div>` : "";
+  const body = preview ? `<div class="import-file-banner"><span class="dropzone-mark">✓</span><div><strong>${preview.fileName}</strong><small>${preview.validCount} registros válidos · ${preview.errorCount} erros de linha</small></div><button class="outline-cta" data-action="import-reset">Escolher outro</button></div><div class="import-preview"><div><span>Encontrados</span><strong>${preview.rows.length}</strong></div><div><span>Novos</span><strong>${summary.added}</strong></div><div><span>Atualizações</span><strong>${summary.updated}</strong></div><div><span>Erros</span><strong class="import-error-count">${preview.errorCount}</strong></div></div><div class="admin-table-wrap import-table"><table class="admin-table"><thead><tr>${preview.headers.slice(0, 6).map((header) => `<th>${header}</th>`).join("")}</tr></thead><tbody>${preview.rows.slice(0, 6).map((row) => `<tr>${preview.headers.slice(0, 6).map((header) => `<td>${row[header.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_")] || "—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div><div class="import-actions"><button class="outline-cta" data-action="import-reset">Cancelar</button><button class="hero-cta" data-action="commit-import" ${preview.validCount ? "" : "disabled"}>Aplicar ${preview.validCount} registros</button></div>` : `<label class="dropzone"><input id="import-file" type="file" accept=".csv,.xlsx,.xls" /><span class="dropzone-mark">↑</span><strong>Solte sua planilha aqui</strong><small>CSV ou Excel até 10 MB</small><span class="outline-cta">Escolher arquivo</span></label><div class="import-preview"><div><span>Última análise</span><strong>—</strong></div><div><span>Novos</span><strong>—</strong></div><div><span>Atualizações</span><strong>—</strong></div><div><span>Erros</span><strong>—</strong></div></div><p class="import-help">O arquivo precisa conter pelo menos uma coluna <strong>Nome Produto</strong> ou <strong>product_name</strong>. Outras colunas aceitas: marca, categoria, preço, estoque, sistema, sku, fps.</p>${historyBlock}`;
+  return adminShell("admin-import", "05 / DATA INTAKE", "Importar.", `<div class="import-steps"><div class="import-step ${preview ? "done" : "active"}"><span>01</span><strong>Upload</strong><small>Enviar arquivo</small></div><div class="import-step ${preview ? "active" : ""}"><span>02</span><strong>Analisar</strong><small>Detectar colunas</small></div><div class="import-step"><span>03</span><strong>Validar</strong><small>Revisar erros</small></div><div class="import-step"><span>04</span><strong>Importar</strong><small>Publicar registros</small></div></div><section class="admin-panel import-panel"><div class="admin-panel-head"><div><span class="eyebrow">EXCEL / CSV</span><h2>${preview ? "Revise sua carga." : "Traga seu inventário."}</h2></div><span class="admin-sync">SKU é usado para atualizar itens existentes</span></div>${body}</section>`);
 }
 
 function quoteDemoData() {
@@ -629,7 +636,7 @@ function convertQuoteToOrder(id) {
   const quote = state.quotes.find((item) => item.id === id);
   if (!quote || quote.status !== "Aprovado") return;
   if (quote.orderId) { showToast(`Este orçamento já virou o pedido ${quote.orderId}.`); return; }
-  const order = { id: `PED-${String(154 + state.orders.length).padStart(6, "0")}`, quoteId: quote.id, customer: quote.customer, phone: quote.phone, document: quote.document || "", zip: quote.zip || "", city: quote.city || "", seller: quote.seller, items: quote.items.map((item) => ({ ...item })), subtotal: quote.subtotal, discount: quote.discount, freight: quote.freight, total: quote.total, status: "Novo pedido", createdAt: new Date().toISOString(), shipping: { ...quote.shipping }, history: [{ at: new Date().toISOString(), actor: quote.seller || "Operação local", from: null, to: "Novo pedido", note: `Convertido do orçamento ${quote.id}.` }], note: quote.note || "—" };
+  const order = { id: `PED-${String(154 + state.orders.length).padStart(6, "0")}`, quoteId: quote.id, customer: quote.customer, phone: quote.phone, document: quote.document || "", zip: quote.zip || "", city: quote.city || "", seller: quote.seller, items: quote.items.map((item) => ({ ...item, picked: false, location: "A definir" })), subtotal: quote.subtotal, discount: quote.discount, freight: quote.freight, total: quote.total, status: "Novo pedido", createdAt: new Date().toISOString(), shipping: { ...quote.shipping }, history: [{ at: new Date().toISOString(), actor: quote.seller || "Operação local", from: null, to: "Novo pedido", note: `Convertido do orçamento ${quote.id}.` }], note: quote.note || "—" };
   state.orders.unshift(order);
   quote.orderId = order.id;
   addQuoteHistory(quote, "Convertido em pedido", `Pedido ${order.id} criado.`);
@@ -707,9 +714,38 @@ function adminOrdersPage() {
 function orderDetailModal(id) {
   const order = state.orders.find((item) => item.id === id);
   if (!order) return;
-  const items = quoteItems(order);
+  const items = (order.items || []).map((item, index) => ({ ...item, index, product: findProduct(item.id) }));
   const history = [...(order.history || [])].reverse();
-  openModal(`<span class="eyebrow">ORDER / ${order.id}</span><h2>Detalhes do<br>pedido.</h2><div class="quote-detail-head"><div><strong>${order.customer}</strong><small>${order.phone || "WhatsApp não informado"} · ${order.city || "Cidade não informada"}</small></div><span class="admin-status ${orderStatusClass(order.status)}">${order.status}</span></div><div class="quote-detail-section"><div class="quote-section-title"><span class="eyebrow">PRODUCTS / PRODUTOS</span><strong>${items.length} item(ns)</strong></div><div class="quote-detail-items">${items.map((item) => `<div class="quote-detail-item"><div><strong>${item.product?.name || item.name || item.id}</strong><small>SKU ${item.product?.id || item.id || "—"} · ${item.quantity} unidade(s)</small></div><b>${item.product ? money(item.product.price * item.quantity) : "—"}</b></div>`).join("")}</div></div><div class="quote-detail-section"><div class="quote-section-title"><span class="eyebrow">SHIPMENT / EXPEDIÇÃO</span><strong>Preparação logística</strong></div><div class="quote-info-grid"><div><span>Transportadora</span><strong>${order.shipping?.carrier || "A definir"}</strong></div><div><span>Modalidade</span><strong>${order.shipping?.method || "A definir"}</strong></div><div><span>Volumes</span><strong>${order.shipping?.volumes || 1}</strong></div><div><span>Rastreamento</span><strong>${order.shipping?.tracking || "A definir"}</strong></div></div></div><div class="quote-financial"><div><span>Subtotal</span><strong>${money(order.subtotal)}</strong></div><div><span>Desconto</span><strong>− ${money(order.discount)}</strong></div><div><span>Frete</span><strong>${money(order.freight)}</strong></div><div class="quote-total"><span>Total final</span><strong>${money(order.total)}</strong></div></div><div class="quote-history"><div class="quote-section-title"><span class="eyebrow">TRACE / HISTÓRICO</span><strong>Rastreabilidade</strong></div><div class="quote-timeline">${history.map((entry) => `<div class="quote-timeline-item"><i></i><div><strong>${entry.from ? `${entry.from} → ` : ""}${entry.to}</strong><small>${new Date(entry.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · ${entry.actor}</small><p>${entry.note || "Atualização registrada."}</p></div></div>`).join("")}</div></div><div class="quote-detail-actions"><button class="hero-cta" data-action="order-advance" data-order-id="${order.id}">Avançar pedido</button><button class="outline-cta" data-action="order-print" data-order-id="${order.id}">Imprimir pedido</button></div>`);
+  const picked = items.filter((item) => item.picked).length;
+  openModal(`<span class="eyebrow">ORDER / ${order.id}</span><h2>Detalhes do<br>pedido.</h2><div class="quote-detail-head"><div><strong>${order.customer}</strong><small>${order.phone || "WhatsApp não informado"} · ${order.city || "Cidade não informada"}</small></div><span class="admin-status ${orderStatusClass(order.status)}">${order.status}</span></div><div class="quote-detail-section"><div class="quote-section-title"><span class="eyebrow">PICKING / SEPARAÇÃO</span><strong>${picked}/${items.length} linhas separadas</strong></div><div class="quote-detail-items">${items.map((item) => `<div class="quote-detail-item order-item-row"><div><strong>${item.product?.name || item.name || item.id}</strong><small>SKU ${item.product?.sku || item.product?.id || item.id || "—"} · ${item.quantity} unidade(s) · ${item.location || "A definir"}</small></div><div class="order-item-actions"><b>${item.product ? money(item.product.price * item.quantity) : "—"}</b><button class="status-action ${item.picked ? "is-picked" : ""}" data-action="order-toggle-item" data-order-id="${order.id}" data-item-index="${item.index}">${item.picked ? "Separado ✓" : "Separar"}</button></div></div>`).join("")}</div></div><div class="quote-detail-section"><div class="quote-section-title"><span class="eyebrow">SHIPMENT / EXPEDIÇÃO</span><strong>Preparação logística</strong></div><div class="quote-info-grid"><div><span>Transportadora</span><strong>${order.shipping?.carrier || "A definir"}</strong></div><div><span>Modalidade</span><strong>${order.shipping?.method || "A definir"}</strong></div><div><span>Volumes</span><strong>${order.shipping?.volumes || 1}</strong></div><div><span>Rastreamento</span><strong>${order.shipping?.tracking || "A definir"}</strong></div></div><button class="outline-cta order-edit-shipping" data-action="order-shipping" data-order-id="${order.id}">Editar logística</button></div><div class="quote-financial"><div><span>Subtotal</span><strong>${money(order.subtotal)}</strong></div><div><span>Desconto</span><strong>− ${money(order.discount)}</strong></div><div><span>Frete</span><strong>${money(order.freight)}</strong></div><div class="quote-total"><span>Total final</span><strong>${money(order.total)}</strong></div></div><div class="quote-history"><div class="quote-section-title"><span class="eyebrow">TRACE / HISTÓRICO</span><strong>Rastreabilidade</strong></div><div class="quote-timeline">${history.map((entry) => `<div class="quote-timeline-item"><i></i><div><strong>${entry.from ? `${entry.from} → ` : ""}${entry.to}</strong><small>${new Date(entry.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · ${entry.actor}</small><p>${entry.note || "Atualização registrada."}</p></div></div>`).join("")}</div></div><div class="quote-detail-actions"><button class="hero-cta" data-action="order-advance" data-order-id="${order.id}">Avançar pedido</button><button class="outline-cta" data-action="order-print" data-order-id="${order.id}">Imprimir pedido</button></div>`);
+}
+
+function toggleOrderItem(id, index) {
+  const order = state.orders.find((item) => item.id === id);
+  const item = order?.items?.[Number(index)];
+  if (!item) return;
+  item.picked = !item.picked;
+  order.history = [...(order.history || []), { at: new Date().toISOString(), actor: "Operação local", from: order.status, to: order.status, note: `${item.picked ? "Item separado" : "Item devolvido à fila"}: ${findProduct(item.id)?.name || item.name || item.id}.` }];
+  persist();
+  orderDetailModal(id);
+  showToast(item.picked ? "Item marcado como separado." : "Item voltou para a fila.");
+}
+
+function orderShippingModal(id) {
+  const order = state.orders.find((item) => item.id === id);
+  if (!order) return;
+  const shipping = order.shipping || {};
+  openModal(`<span class="eyebrow">ORDER / ${order.id} / LOGISTICS</span><h2>Preparar<br>expedição.</h2><p>Registre os dados usados pela equipe no despacho e no rastreio.</p><form class="form-grid" id="order-shipping-form"><div class="form-row"><label class="form-label">Transportadora<input name="carrier" value="${shipping.carrier || ""}" placeholder="Correios, Jadlog..." /></label><label class="form-label">Modalidade<input name="method" value="${shipping.method || ""}" placeholder="PAC, Sedex, retirada..." /></label></div><div class="form-row"><label class="form-label">Prazo<input name="deadline" value="${shipping.deadline || ""}" placeholder="Até 3 dias úteis" /></label><label class="form-label">Volumes<input name="volumes" type="number" min="1" step="1" value="${shipping.volumes || 1}" /></label></div><label class="form-label">Rastreamento<input name="tracking" value="${shipping.tracking || ""}" placeholder="Código ou link de acompanhamento" /></label><button class="modal-submit" type="submit">Salvar logística</button></form>`);
+  document.querySelector("#order-shipping-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    order.shipping = { ...order.shipping, carrier: form.get("carrier")?.toString().trim() || "", method: form.get("method")?.toString().trim() || "", deadline: form.get("deadline")?.toString().trim() || "", volumes: Math.max(1, Number(form.get("volumes")) || 1), tracking: form.get("tracking")?.toString().trim() || "" };
+    order.history = [...(order.history || []), { at: new Date().toISOString(), actor: "Operação local", from: order.status, to: order.status, note: "Dados de logística atualizados." }];
+    persist();
+    closeModal();
+    orderDetailModal(id);
+    showToast("Logística do pedido atualizada.");
+  });
 }
 
 function advanceOrderStatus(id) {
@@ -790,11 +826,11 @@ function compareModal() {
 
 function productModal(product = null) {
   const editing = Boolean(product);
-  openModal(`<span class="eyebrow">PRODUCT REGISTER / ${editing ? "EDIT" : "NEW"}</span><h2>${editing ? "Editar produto." : "Novo produto."}</h2><p>Atualize as informações essenciais para manter o catálogo pronto para o campo.</p><form class="form-grid" id="product-form"><div class="form-row"><label class="form-label">Marca<input name="brand" required value="${product?.brand || ""}" placeholder="ROSSI" /></label><label class="form-label">Nome<input name="name" required value="${product?.name || ""}" placeholder="NEPTUNE 10\"" /></label></div><div class="form-row"><label class="form-label">Categoria<select name="category"><option ${product?.category === "Rifles" ? "selected" : ""}>Rifles</option><option ${product?.category === "Pistolas" ? "selected" : ""}>Pistolas</option><option ${product?.category === "Ópticas" ? "selected" : ""}>Ópticas</option><option ${product?.category === "Gear" ? "selected" : ""}>Gear</option><option ${product?.category === "Munição" ? "selected" : ""}>Munição</option><option ${product?.category === "Proteção" ? "selected" : ""}>Proteção</option></select></label><label class="form-label">Sistema<input name="system" value="${product?.system || "AEG"}" placeholder="AEG" /></label></div><div class="form-row"><label class="form-label">Preço<input name="price" type="number" min="0" step="1" required value="${product?.price || ""}" placeholder="1899" /></label><label class="form-label">Estoque<input name="stockCount" type="number" min="0" step="1" required value="${product?.stockCount ?? 0}" placeholder="38" /></label></div><label class="form-label">Imagem<input name="image" value="${product?.image || "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"} /></label><label class="form-label">Descrição<textarea name="description" placeholder="Resumo do produto">${product?.description || ""}</textarea></label><button class="modal-submit" type="submit">${editing ? "Salvar alterações" : "Cadastrar produto"}</button></form>`);
+  openModal(`<span class="eyebrow">PRODUCT REGISTER / ${editing ? "EDIT" : "NEW"}</span><h2>${editing ? "Editar produto." : "Novo produto."}</h2><p>Atualize as informações essenciais para manter o catálogo pronto para o campo.</p><form class="form-grid" id="product-form"><div class="form-row"><label class="form-label">Marca<input name="brand" required value="${product?.brand || ""}" placeholder="ROSSI" /></label><label class="form-label">Nome<input name="name" required value="${product?.name || ""}" placeholder="NEPTUNE 10\"" /></label></div><div class="form-row"><label class="form-label">SKU<input name="sku" required value="${product?.sku || ""}" placeholder="FO-00231" /></label><label class="form-label">Sistema<input name="system" value="${product?.system || "AEG"}" placeholder="AEG" /></label></div><div class="form-row"><label class="form-label">Categoria<select name="category"><option ${product?.category === "Rifles" ? "selected" : ""}>Rifles</option><option ${product?.category === "Pistolas" ? "selected" : ""}>Pistolas</option><option ${product?.category === "Ópticas" ? "selected" : ""}>Ópticas</option><option ${product?.category === "Gear" ? "selected" : ""}>Gear</option><option ${product?.category === "Munição" ? "selected" : ""}>Munição</option><option ${product?.category === "Proteção" ? "selected" : ""}>Proteção</option></select></label><label class="form-label">Preço<input name="price" type="number" min="0" step="1" required value="${product?.price || ""}" placeholder="1899" /></label></div><label class="form-label">Estoque<input name="stockCount" type="number" min="0" step="1" required value="${product?.stockCount ?? 0}" placeholder="38" /></label><label class="form-label">Imagem<input name="image" value="${product?.image || "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"} /></label><label class="form-label">Descrição<textarea name="description" placeholder="Resumo do produto">${product?.description || ""}</textarea></label><button class="modal-submit" type="submit">${editing ? "Salvar alterações" : "Cadastrar produto"}</button></form>`);
   document.querySelector("#product-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const data = { brand: form.get("brand").toString().toUpperCase(), name: form.get("name").toString().toUpperCase(), category: form.get("category"), system: form.get("system").toString().toUpperCase(), price: Number(form.get("price")), stockCount: Number(form.get("stockCount")), image: form.get("image"), description: form.get("description") || "Equipamento pronto para completar seu próximo loadout.", type: `${form.get("system")} · FIELD GEAR`, meta: "FIELD READY", stock: stockLabel({ stockCount: Number(form.get("stockCount")) }), specs: { FPS: "—", Gearbox: "—", Peso: "—", Sistema: form.get("system"), "Hop-Up": "—", Material: "—" }, tag: editing ? product.tag : "Novo", active: true };
+    const data = { brand: form.get("brand").toString().toUpperCase(), name: form.get("name").toString().toUpperCase(), sku: form.get("sku").toString().trim().toUpperCase(), category: form.get("category"), system: form.get("system").toString().toUpperCase(), price: Number(form.get("price")), stockCount: Number(form.get("stockCount")), image: form.get("image"), description: form.get("description") || "Equipamento pronto para completar seu próximo loadout.", type: `${form.get("system")} · FIELD GEAR`, meta: "FIELD READY", stock: stockLabel({ stockCount: Number(form.get("stockCount")) }), specs: { FPS: "—", Gearbox: "—", Peso: "—", Sistema: form.get("system"), "Hop-Up": "—", Material: "—" }, tag: editing ? product.tag : "Novo", active: true };
     if (editing) Object.assign(product, data);
     else products.unshift({ id: `${data.brand.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`, ...data });
     persist(); closeModal(); render(); showToast(editing ? "Produto atualizado." : "Produto cadastrado.");
@@ -903,19 +939,75 @@ function analyzeImportFile(file) {
   else reader.readAsText(file, "UTF-8");
 }
 
+function importValue(row, aliases, fallback = "") {
+  const key = aliases.find((alias) => row[alias] !== undefined && String(row[alias]).trim() !== "");
+  return key ? String(row[key]).trim() : fallback;
+}
+
+function normalizeCatalogSku(value) {
+  return String(value || "").trim().toUpperCase().replace(/\s+/g, "-");
+}
+
+function importNumber(value) {
+  const raw = String(value ?? "").trim().replace(/[^0-9,.-]/g, "");
+  if (!raw) return 0;
+  const normalized = raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw.replace(/,/g, "");
+  return Number(normalized) || 0;
+}
+
+function importedProductData(row, index, batchId) {
+  const name = importValue(row, ["nome_produto", "product_name", "nome", "name"]);
+  const brand = importValue(row, ["marca", "brand"], "IMPORTADO");
+  const category = importValue(row, ["categoria", "category"], "Equipamentos");
+  const system = importValue(row, ["sistema", "system"], "FIELD GEAR");
+  const sku = normalizeCatalogSku(importValue(row, ["sku", "codigo", "codigo_produto", "product_sku"])) || `IMP-${batchId}-${String(index + 1).padStart(3, "0")}`;
+  const price = importNumber(importValue(row, ["preco", "price"]));
+  const stockCount = Math.max(0, Math.round(importNumber(importValue(row, ["estoque", "stock", "quantidade"]))));
+  return { sku, brand: brand.toUpperCase(), name: name.toUpperCase(), type: `${system} · IMPORTED`, meta: importValue(row, ["meta", "modelo"], "FIELD READY"), price, stockCount, stock: stockLabel({ stockCount }), category, system, image: importValue(row, ["imagem", "image"], "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"), specs: { FPS: importValue(row, ["fps"], "—"), Gearbox: importValue(row, ["gearbox", "gearbox_type"], "—"), Peso: importValue(row, ["peso", "weight"], "—"), Sistema: system, "Hop-Up": importValue(row, ["hop_up", "hopup"], "—"), Material: importValue(row, ["material"], "—") }, description: importValue(row, ["descricao", "description"], "Produto importado para revisão."), tag: "Importado", active: true };
+}
+
+function summarizeImportRows(rows) {
+  const existingSkus = new Set(products.map((product) => normalizeCatalogSku(product.sku)).filter(Boolean));
+  return (rows || []).reduce((summary, row) => {
+    const sku = normalizeCatalogSku(importValue(row, ["sku", "codigo", "codigo_produto", "product_sku"]));
+    if (sku && existingSkus.has(sku)) summary.updated += 1;
+    else summary.added += 1;
+    return summary;
+  }, { added: 0, updated: 0 });
+}
+
 function commitImport() {
   if (!state.importData?.validRows?.length) return;
+  const batchId = String(Date.now());
+  const snapshot = JSON.parse(JSON.stringify(products));
+  const summary = { added: 0, updated: 0 };
   state.importData.validRows.forEach((row, index) => {
-    const name = row.nome_produto || row.product_name || row.nome || row.name;
-    const brand = row.marca || row.brand || "IMPORTADO";
-    const category = row.categoria || row.category || "Equipamentos";
-    const price = Number(String(row.preco || row.price || "0").replace(/[^0-9,.-]/g, "").replace(",", ".")) || 0;
-    const stockCount = Number(row.estoque || row.stock || row.quantidade || 0) || 0;
-    products.unshift({ id: `import-${Date.now()}-${index}`, brand: brand.toUpperCase(), name: name.toUpperCase(), type: `${row.sistema || row.system || "FIELD GEAR"} · IMPORTED`, meta: row.sku || "IMPORTED SKU", price, stockCount, stock: stockLabel({ stockCount }), category, system: row.sistema || row.system || "—", image: "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82", specs: { FPS: row.fps || "—", Gearbox: row.gearbox || "—", Peso: row.peso || "—", Sistema: row.sistema || row.system || "—", "Hop-Up": "—", Material: row.material || "—" }, description: row.descricao || row.description || "Produto importado para revisão.", tag: "Importado", active: true });
+    const data = importedProductData(row, index, batchId);
+    const existing = products.find((product) => normalizeCatalogSku(product.sku) === data.sku);
+    if (existing) {
+      Object.assign(existing, data, { id: existing.id, tag: existing.tag || "Importado" });
+      existing.stock = stockLabel(existing);
+      summary.updated += 1;
+    } else {
+      products.unshift({ id: `import-${batchId}-${index}`, ...data });
+      summary.added += 1;
+    }
   });
-  const count = state.importData.validRows.length;
+  state.importHistory.unshift({ id: `import-${batchId}`, at: new Date().toISOString(), fileName: state.importData.fileName, added: summary.added, updated: summary.updated, snapshot });
+  state.importHistory = state.importHistory.slice(0, 10);
   state.importData = null;
-  persist(); render(); showToast(`${count} produtos importados.`);
+  persist(); render(); showToast(`Carga aplicada: ${summary.added} novos · ${summary.updated} atualizados.`);
+}
+
+function rollbackImport(id) {
+  const entry = state.importHistory.find((item) => item.id === id) || state.importHistory[0];
+  if (!entry?.snapshot) return;
+  if (!window.confirm(`Desfazer a carga ${entry.fileName}? Os produtos voltarão ao estado anterior.`)) return;
+  products.splice(0, products.length, ...JSON.parse(JSON.stringify(entry.snapshot)));
+  state.importHistory = state.importHistory.filter((item) => item.id !== entry.id);
+  persist();
+  render();
+  showToast("Última carga desfeita.");
 }
 
 function render() {
@@ -1305,7 +1397,8 @@ document.addEventListener("click", (event) => {
   if (action === "simulate-import") { const button = event.target.closest(".import-submit"); if (button) { button.textContent = "Arquivo analisado ✓"; button.disabled = true; showToast("Análise concluída: 15 registros precisam de revisão."); } }
   if (action === "commit-import") commitImport();
   if (action === "import-reset") { state.importData = null; render(); }
-  if (action === "reset-local-data" && window.confirm("Restaurar os dados demo e apagar os dados salvos neste dispositivo?")) { ["fieldops-products", "fieldops-cart", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-settings", "fieldops-account", "fieldops-theme"].forEach((key) => localStorage.removeItem(key)); location.hash = "#admin"; location.reload(); }
+  if (action === "import-rollback") rollbackImport(event.target.closest("[data-import-id]")?.dataset.importId);
+  if (action === "reset-local-data" && window.confirm("Restaurar os dados demo e apagar os dados salvos neste dispositivo?")) { ["fieldops-products", "fieldops-cart", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme"].forEach((key) => localStorage.removeItem(key)); location.hash = "#admin"; location.reload(); }
   if (action === "menu") openModal(`<span class="eyebrow">FIELD OPS / MENU</span><h2>Navegue<br>pelo arsenal.</h2><div class="form-grid"><button class="outline-cta" data-route="catalog">Catálogo</button><button class="outline-cta" data-route="loadout">Monte seu loadout</button><button class="outline-cta" data-route="favorites">Favoritos</button><button class="outline-cta" data-route="admin">Painel operacional</button></div>`);
   if (action === "apply-filter-modal") { closeModal(); render(); }
   const loadoutId = event.target.closest("[data-loadout-select]")?.dataset.loadoutSelect;
@@ -1339,6 +1432,8 @@ document.addEventListener("click", (event) => {
   if (action === "order-view" && orderId) orderDetailModal(orderId);
   if (action === "order-advance" && orderId) advanceOrderStatus(orderId);
   if (action === "order-print" && orderId) printOrder(orderId);
+  if (action === "order-shipping" && orderId) orderShippingModal(orderId);
+  if (action === "order-toggle-item" && orderId) toggleOrderItem(orderId, event.target.closest("[data-item-index]")?.dataset.itemIndex);
   if (action === "print-now") window.print();
   const stockEditId = event.target.closest("[data-stock-edit]")?.dataset.stockEdit;
   if (stockEditId) stockModal(findProduct(stockEditId));

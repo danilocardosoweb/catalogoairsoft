@@ -56,8 +56,12 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Página de proposta para o cliente com aceite local e contato do vendedor.
 - Conversão de orçamento aprovado em pedido relacionado, sem duplicar a origem.
 - Central inicial de Pedidos com filtros, timeline, avanço de status e folha de separação para impressão.
+- Operação de separação por item no pedido, com marcação de item separado, contagem de linhas concluídas e registro no histórico.
+- Edição local de logística do pedido: transportadora, modalidade, prazo, volumes e rastreamento.
 - Lista de clientes derivada dos orçamentos locais.
-- Importação de CSV e XLSX com análise, pré-visualização, validação básica e confirmação da carga.
+- Importação de CSV e XLSX com análise, pré-visualização, validação básica, atualização por SKU, criação de novos itens e confirmação da carga.
+- Histórico local das últimas cargas de catálogo com resumo de novos/atualizados e ação para desfazer a carga anterior.
+- Cadastro de produtos com SKU editável e SKU exibido de forma consistente no catálogo operacional e no estoque.
 - Configurações da operação: nome da loja, cidade, WhatsApp e limite de estoque baixo.
 - Restauração dos dados demo salvos no dispositivo.
 - Persistência local de produtos, carrinho, favoritos, comparação, loadout, perfil, briefing, buscas recentes, produtos recentes, orçamentos e configurações.
@@ -93,11 +97,11 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 ### Prioridade P1 — operação comercial e conteúdo
 
 - Criar módulo de fornecedores, conforme previsto no escopo inicial.
-- Melhorar a importação em lote com mapeamento persistente de colunas, atualização por SKU, relatório de erros e rollback.
+- Melhorar a importação em lote com mapeamento persistente de colunas, relatório detalhado de erros por linha e rollback de múltiplas cargas.
 - Criar catálogos personalizados por link, com seleção de produtos, preço e validade.
 - Adicionar compartilhamento de loadout e orçamento por link.
 - Integrar o pipeline de orçamento a um atendimento real, com webhook ou CRM/WhatsApp Business quando disponível; as ações atuais ainda operam localmente.
-- Completar a operação de pedidos com separação por item, localização de estoque, etiquetas, QR Code, impressão em lote e romaneio.
+- Completar a operação de pedidos com localização de estoque editável por item, etiquetas, QR Code, impressão em lote e romaneio.
 - Criar permissões reais para vendedor, supervisor e administrador; o painel atual ainda não aplica perfis no servidor.
 - Integrar pagamento, aprovação remota persistente e atualização de status entre dispositivos.
 - Permitir regras de preço por grupo: varejo, lojista e distribuidor, em vez de percentuais fixos.

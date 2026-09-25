@@ -397,6 +397,10 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
 .quote-detail-item strong { font-size: 11px; }
 .quote-detail-item small { margin-top: 4px; color: var(--muted); font-size: 10px; }
 .quote-detail-item b { color: var(--ink); font-size: 11px; white-space: nowrap; }
+.order-item-row { align-items: center; }
+.order-item-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.order-item-actions .status-action.is-picked { border-color: var(--accent); color: var(--accent); background: rgba(216,255,89,.08); }
+.order-edit-shipping { min-height: 36px; margin-top: 10px; }
 .quote-note { margin: 15px 0; padding: 12px; border-left: 2px solid var(--sand); background: var(--bg-elevated); }
 .quote-note span { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .12em; }
 .quote-note p { margin: 6px 0 0; color: var(--ink-soft); font-size: 11px; line-height: 1.5; }
