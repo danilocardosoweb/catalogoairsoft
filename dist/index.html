@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b0e0c" />
+    <meta name="description" content="Catálogo tático premium para Airsoft — equipamento, performance e loadouts." />
+    <title>FIELD OPS — Catálogo Airsoft</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="scanline" aria-hidden="true"></div>
+    <div class="app-shell">
+      <div class="utility-bar">
+        <span><i class="status-dot"></i> SYSTEM ONLINE</span>
+        <span>CATALOG <b>428</b> ITEMS</span>
+        <span class="utility-spacer"></span>
+        <span>CURATED FIELD GEAR <span class="utility-mark">//</span> SÃO PAULO</span>
+      </div>
+
+      <header class="site-header">
+        <button class="mobile-menu icon-button" aria-label="Abrir menu" data-action="menu"><span class="icon icon-menu"></span></button>
+        <a class="brand" href="#home" data-route="home" aria-label="Field Ops início">
+          <span class="brand-mark"><span></span><span></span><span></span></span>
+          <span class="brand-copy"><strong>FIELD<span>OPS</span></strong><small>TACTICAL EQUIPMENT / 01</small></span>
+        </a>
+        <nav class="main-nav" aria-label="Navegação principal">
+          <a href="#home" data-route="home" class="nav-link active">Início</a>
+          <a href="#catalog" data-route="catalog" class="nav-link">Catálogo</a>
+          <a href="#loadout" data-route="loadout" class="nav-link">Monte seu Loadout</a>
+          <a href="#brands" data-route="brands" class="nav-link">Marcas</a>
+        </nav>
+        <div class="header-actions">
+          <button class="icon-button" data-route="favorites" aria-label="Favoritos"><span class="icon icon-heart"></span><em data-favorite-count>0</em></button>
+          <button class="cart-trigger" data-action="cart" aria-label="Abrir carrinho"><span class="icon icon-bag"></span><span class="cart-label">Carrinho</span><b data-cart-count>0</b></button>
+          <button class="icon-button profile-button" data-action="account" aria-label="Conta"><span class="icon icon-user"></span></button>
+        </div>
+      </header>
+
+      <main id="app" tabindex="-1"></main>
+
+      <nav class="bottom-nav" aria-label="Navegação mobile">
+        <a href="#home" data-route="home" class="bottom-link active"><span class="icon icon-home"></span><small>Início</small></a>
+        <a href="#catalog" data-route="catalog" class="bottom-link"><span class="icon icon-search"></span><small>Buscar</small></a>
+        <button class="bottom-link" data-action="cart"><span class="icon icon-bag"></span><small>Carrinho</small><b data-cart-count>0</b></button>
+        <a href="#favorites" data-route="favorites" class="bottom-link"><span class="icon icon-heart"></span><small>Favoritos</small></a>
+        <button class="bottom-link" data-action="account"><span class="icon icon-user"></span><small>Conta</small></button>
+      </nav>
+    </div>
+
+    <div class="drawer-backdrop" data-action="close-drawer"></div>
+    <aside class="cart-drawer" aria-label="Carrinho" aria-hidden="true">
+      <div class="drawer-header">
+        <div><span class="eyebrow">LOADOUT // CART</span><h2>Seu carrinho</h2></div>
+        <button class="icon-button" data-action="close-drawer" aria-label="Fechar carrinho"><span class="icon icon-close"></span></button>
+      </div>
+      <div class="drawer-content" data-cart-items></div>
+      <div class="drawer-footer" data-cart-footer></div>
+    </aside>
+
+    <div class="modal-layer" data-modal-layer aria-hidden="true">
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <button class="modal-close icon-button" data-action="close-modal" aria-label="Fechar"><span class="icon icon-close"></span></button>
+        <div data-modal-content></div>
+      </div>
+    </div>
+
+    <div class="toast-region" aria-live="polite" aria-atomic="true"></div>
+    <script src="/app.js" defer></script>
+  </body>
+</html>
