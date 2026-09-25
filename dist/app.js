@@ -1559,6 +1559,7 @@ function bindHeroVideo() {
   let lastFrameTime = 0;
   let lastSeekAt = 0;
   let renderedTime = 0;
+  let seekInFlight = false;
   let initialFrameSyncId = 0;
 
   const clampProgress = (value) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0.5));
@@ -1569,6 +1570,7 @@ function bindHeroVideo() {
     const applyCenterFrame = () => {
       if (hasPointer || !metadataReady) return;
       video.pause();
+      seekInFlight = false;
       video.currentTime = Number.isFinite(centerTime) ? centerTime : 0;
       renderedTime = centerTime;
     };
@@ -1582,25 +1584,29 @@ function bindHeroVideo() {
     frameId = 0;
     lastFrameTime = 0;
     lastSeekAt = 0;
+    seekInFlight = false;
   };
   const frameLoop = (timestamp) => {
     frameId = 0;
     if (!metadataReady || reducedMotion() || !Number.isFinite(video.duration) || video.duration <= 0) return;
+    if (seekInFlight) return;
     const elapsed = lastFrameTime ? Math.min(64, timestamp - lastFrameTime) : 16;
     lastFrameTime = timestamp;
-    const smoothing = 1 - Math.exp(-elapsed / 78);
+    const smoothing = 1 - Math.exp(-elapsed / 92);
     currentProgress += (targetProgress - currentProgress) * smoothing;
     if (Math.abs(targetProgress - currentProgress) < 0.001) currentProgress = targetProgress;
     const desiredTime = clampProgress(currentProgress) * video.duration;
     const safeTime = Math.max(0, Math.min(video.duration - 0.001, desiredTime));
     const targetTime = Math.max(0, Math.min(video.duration - 0.001, clampProgress(targetProgress) * video.duration));
-    const seekInterval = 1000 / 30;
+    const seekInterval = 1000 / 24;
     const isSettling = Math.abs(targetProgress - currentProgress) < 0.001;
-    const needsSeek = Number.isFinite(safeTime) && Math.abs(renderedTime - safeTime) > (isSettling ? 0.006 : 0.025);
+    const needsSeek = Number.isFinite(safeTime) && Math.abs(renderedTime - safeTime) > (isSettling ? 0.003 : 0.012);
     if (needsSeek && !video.seeking && timestamp - lastSeekAt >= seekInterval) {
+      seekInFlight = true;
       video.currentTime = safeTime;
       renderedTime = safeTime;
       lastSeekAt = timestamp;
+      return;
     }
     if (Math.abs(targetProgress - currentProgress) > 0.001 || Math.abs(renderedTime - targetTime) > 0.006) frameId = requestAnimationFrame(frameLoop);
     else lastFrameTime = 0;
@@ -1635,6 +1641,10 @@ function bindHeroVideo() {
     hero.classList.add("is-video-fallback");
     video.hidden = true;
   };
+  const onSeeked = () => {
+    seekInFlight = false;
+    if (!reducedMotion() && metadataReady && (hasPointer || Math.abs(targetProgress - 0.5) > 0.001)) startFrameLoop();
+  };
   const onMotionPreferenceChange = () => {
     if (reducedMotion()) {
       stopFrameLoop();
@@ -1649,6 +1659,7 @@ function bindHeroVideo() {
   video.addEventListener("loadeddata", onMetadata);
   video.addEventListener("durationchange", onMetadata);
   video.addEventListener("error", onVideoError);
+  video.addEventListener("seeked", onSeeked);
   hero.addEventListener("pointermove", onPointerMove, { passive: true });
   hero.addEventListener("pointerleave", onPointerLeave, { passive: true });
   reducedMotionQuery?.addEventListener?.("change", onMotionPreferenceChange);
@@ -1664,6 +1675,7 @@ function bindHeroVideo() {
     video.removeEventListener("loadeddata", onMetadata);
     video.removeEventListener("durationchange", onMetadata);
     video.removeEventListener("error", onVideoError);
+    video.removeEventListener("seeked", onSeeked);
     hero.removeEventListener("pointermove", onPointerMove);
     hero.removeEventListener("pointerleave", onPointerLeave);
     reducedMotionQuery?.removeEventListener?.("change", onMotionPreferenceChange);

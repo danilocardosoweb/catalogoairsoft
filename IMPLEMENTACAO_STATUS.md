@@ -17,7 +17,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 
 - Home com hero tático, busca, categorias, marcas, destaques, briefing personalizado e itens recentemente visualizados.
 - Hero com vídeo pausado de operador Airsoft controlado horizontalmente pelo mouse, interpolação via `requestAnimationFrame`, retorno suave ao frame central, fallback visual e suporte a movimento reduzido/mobile.
-- Hero ajustado para usar somente o vídeo do operador, removendo a imagem anterior sobreposta; MP4 reprocessado com pontos de busca frequentes e seeks limitados para uma movimentação mais fluida.
+- Hero ajustado para usar somente o vídeo do operador, removendo a imagem anterior sobreposta; MP4 reprocessado a 24 fps com quadro-chave em todos os frames e seeks serializados para uma movimentação mais fluida.
 - Sistema visual com modo noturno `NVG / NIGHT` e modo claro `DAY OPS / LIGHT`, preferência persistida no dispositivo e transição radial inspirada em troca de visor/HUD.
 - Contraste revisado em textos de filtro, metadados, descrições, cabeçalho e superfícies claras para melhorar leitura em telas menores.
 - Catálogo com busca por produto, marca ou categoria.
