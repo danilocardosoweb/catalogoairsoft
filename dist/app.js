@@ -2193,7 +2193,7 @@ function renderDrawer() {
   const footerEl = document.querySelector("[data-cart-footer]");
   if (!itemsEl || !footerEl) return;
   if (!state.cart.length) {
-    itemsEl.innerHTML = `<div class="drawer-empty"><div><div class="empty-mark">+</div><p>Seu carrinho está esperando o próximo item.</p><button class="outline-cta" data-route="catalog">Explorar catálogo</button></div></div>`;
+    itemsEl.innerHTML = `<div class="drawer-empty"><div><div class="empty-mark">+</div><p>Seu carrinho está esperando o próximo item.</p><button class="outline-cta" data-action="cart-catalog">Explorar catálogo</button></div></div>`;
     footerEl.innerHTML = "";
     return;
   }
@@ -2852,6 +2852,7 @@ document.addEventListener("click", (event) => {
   if (action === "backup-cancel") { state.pendingBackupRestore = null; exportDataModal(); }
   if (action === "backup-apply") applyBackupRestore();
   if (action === "cart") { renderDrawer(); openDrawer(); }
+  if (action === "cart-catalog") { closeDrawer(); go("catalog"); }
   if (action === "close-drawer") closeDrawer();
   if (action === "calculate-shipping") calculateCartShipping();
   if (action === "select-shipping") selectShippingOption(event.target.closest("[data-shipping-option]")?.dataset.shippingOption);
