@@ -612,16 +612,16 @@ function radarDetailModal(id) {
 }
 
 function heroRadarMarkup() {
-  return `<button class="hero-radar" data-hero-radar data-action="hero-radar" type="button" aria-label="Ativar varredura manual do radar">
+  return `<button class="hero-radar" data-hero-radar data-action="hero-radar" type="button" aria-label="Radar tático: clique em um hostil para guiar o operador">
     <div class="hero-radar-heading"><span>LIVE / PLAYSPACE</span><b><i></i>TRACKING</b></div>
     <div class="hero-radar-scope" aria-hidden="true">
       <div class="hero-radar-grid"></div><div class="hero-radar-sweep"></div><div class="hero-radar-crosshair"></div>
       <span class="hero-radar-axis axis-n">N</span><span class="hero-radar-axis axis-e">E</span><span class="hero-radar-axis axis-s">S</span><span class="hero-radar-axis axis-w">W</span>
       <span class="hero-radar-enemy enemy-one" data-radar-enemy="0"><i></i></span><span class="hero-radar-enemy enemy-two" data-radar-enemy="1"><i></i></span>
-      <span class="hero-radar-player" data-radar-player><i></i><b></b><strong data-radar-player-name>${escapeHtml(radarPlayerName())}</strong></span>
+      <span class="hero-radar-command" data-radar-command aria-hidden="true"><i></i></span><span class="hero-radar-player" data-radar-player><i></i><b></b><strong data-radar-player-name>${escapeHtml(radarPlayerName())}</strong></span>
       <span class="hero-radar-ping" data-radar-ping></span>
     </div>
-    <div class="hero-radar-readout"><span><strong data-radar-readout>02 HOSTIS</strong><small data-radar-mode>SECTOR MOVING</small></span><em data-radar-coordinates>GRID 04 / 17</em></div>
+    <div class="hero-radar-readout"><span><strong data-radar-readout>02 HOSTIS</strong><small data-radar-mode>AUTO / CLICK TO GUIDE</small></span><em data-radar-coordinates>GRID 04 / 17</em></div>
   </button>`;
 }
 
@@ -2142,7 +2142,7 @@ function bindHeroRadar() {
     [[.69, .2], [.8, .31], [.72, .43], [.55, .23]]
   ];
   const random = (min, max) => min + Math.random() * (max - min);
-  const makeActor = (x, y, pool, isPlayer = false) => ({ x, y, target: { x, y }, origin: { x, y }, pool, isPlayer, duration: isPlayer ? random(42000, 56000) : random(32000, 46000), startedAt: 0, switchAt: 0, downUntil: 0, lastClearedAt: 0 });
+  const makeActor = (x, y, pool, isPlayer = false) => ({ x, y, target: { x, y }, origin: { x, y }, pool, isPlayer, duration: isPlayer ? random(14000, 19000) : random(10500, 15500), startedAt: 0, switchAt: 0, downUntil: 0, lastClearedAt: 0, command: null });
   const player = makeActor(.64, .59, playerWaypoints, true);
   const enemies = enemyEls.map((_, index) => {
     const starts = [[.24, .28], [.72, .24]];
@@ -2155,22 +2155,25 @@ function bindHeroRadar() {
   let manualScanUntil = 0;
   const playerName = radarPlayerName();
   const playerNameEl = radar.querySelector("[data-radar-player-name]");
+  const commandEl = radar.querySelector("[data-radar-command]");
   if (playerNameEl) playerNameEl.textContent = playerName;
   let active = true;
 
   const reducedMotion = () => Boolean(reducedMotionQuery?.matches);
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const clampRadarPoint = (point) => ({ x: Math.min(.9, Math.max(.1, point.x)), y: Math.min(.88, Math.max(.12, point.y)) });
+  const setTrajectory = (actor, target, now, duration, pause = 0) => {
+    actor.target = clampRadarPoint(target);
+    actor.origin = { x: actor.x, y: actor.y };
+    actor.startedAt = now;
+    actor.duration = Math.max(1, duration);
+    actor.switchAt = now + actor.duration + pause;
+  };
   const chooseTarget = (actor, now) => {
     const candidates = actor.pool.filter((point) => distance({ x: point[0], y: point[1] }, actor.target) > .08).sort(() => Math.random() - .5);
     const next = actor.isPlayer ? candidates.find((point) => enemies.every((enemy) => distance({ x: point[0], y: point[1] }, enemy) > .13)) : candidates[0];
     const point = next || actor.pool[0];
-    actor.target = { x: point[0] + random(-.012, .012), y: point[1] + random(-.012, .012) };
-    actor.target.x = Math.min(.88, Math.max(.12, actor.target.x));
-    actor.target.y = Math.min(.86, Math.max(.14, actor.target.y));
-    actor.origin = { x: actor.x, y: actor.y };
-    actor.startedAt = now;
-    actor.duration = random(actor.isPlayer ? 42000 : 32000, actor.isPlayer ? 56000 : 46000);
-    actor.switchAt = now + actor.duration + random(12000, actor.isPlayer ? 24000 : 20000);
+    setTrajectory(actor, { x: point[0] + random(-.012, .012), y: point[1] + random(-.012, .012) }, now, random(actor.isPlayer ? 14000 : 10500, actor.isPlayer ? 19000 : 15500), random(actor.isPlayer ? 4000 : 3500, actor.isPlayer ? 8000 : 7000));
   };
   const updateMarker = (element, actor, width, height) => {
     element.style.setProperty("--radar-dx", `${actor.x * width - width / 2}px`);
@@ -2186,8 +2189,9 @@ function bindHeroRadar() {
     const mode = radar.querySelector("[data-radar-mode]");
     const coordinates = radar.querySelector("[data-radar-coordinates]");
     const clearing = enemies.some((enemy) => enemy.downUntil > now);
-    if (readout) readout.textContent = clearing ? `${playerName} / CLEAR` : manualScan ? "SCAN LOCK" : contacts ? `${contacts} HOSTIS` : "SECTOR CLEAR";
-    if (mode) mode.textContent = clearing ? "CONTACT NEUTRALIZED" : modes[Math.floor(now / 8000) % modes.length];
+    const commandLabel = player.command?.type === "attack" ? `${playerName} / HUNT` : player.command?.type === "move" ? `${playerName} / MOVE` : "";
+    if (readout) readout.textContent = commandLabel || (clearing ? `${playerName} / CLEAR` : manualScan ? "SCAN LOCK" : contacts ? `${contacts} HOSTIS` : "SECTOR CLEAR");
+    if (mode) mode.textContent = player.command?.type === "attack" ? "TARGET LOCK / ENGAGE" : player.command?.type === "move" ? "ROUTE ASSIGNED" : clearing ? "CONTACT NEUTRALIZED" : modes[Math.floor(now / 8000) % modes.length];
     if (coordinates) coordinates.textContent = `GRID ${String(Math.round(player.x * 9)).padStart(2, "0")} / ${String(Math.round(player.y * 9)).padStart(2, "0")}`;
     if ((contacts || manualScan) && now > nextPingAt) {
       const contact = enemies.find((enemy) => distance(player, enemy) < .24) || enemies[0];
@@ -2203,6 +2207,19 @@ function bindHeroRadar() {
       }
       nextPingAt = now + random(12000, 18000);
     }
+  };
+  const updateCommandMarker = () => {
+    if (!commandEl) return;
+    const command = player.command;
+    const target = command?.type === "attack" ? command.enemy : command;
+    if (!target) {
+      commandEl.classList.remove("is-active", "is-attack");
+      return;
+    }
+    commandEl.style.setProperty("--radar-command-x", `${target.x * 100}%`);
+    commandEl.style.setProperty("--radar-command-y", `${target.y * 100}%`);
+    commandEl.classList.toggle("is-attack", command.type === "attack");
+    commandEl.classList.add("is-active");
   };
   const triggerManualScan = (now = performance.now()) => {
     manualScanUntil = now + 10000;
@@ -2220,9 +2237,33 @@ function bindHeroRadar() {
       triggerManualScan();
     }
   };
+  const issueRadarCommand = (event) => {
+    const bounds = scope.getBoundingClientRect();
+    if (!bounds.width || !bounds.height || !Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return triggerManualScan();
+    const now = performance.now();
+    const point = clampRadarPoint({ x: (event.clientX - bounds.left) / bounds.width, y: (event.clientY - bounds.top) / bounds.height });
+    const nearest = enemies.filter((enemy) => enemy.downUntil <= now).sort((a, b) => distance(point, a) - distance(point, b))[0];
+    const targetDistance = nearest ? distance(point, nearest) : Infinity;
+    if (nearest && targetDistance <= .16) {
+      player.command = { type: "attack", enemy: nearest, retargetAt: now };
+      radar.classList.add("is-commanding", "is-focus");
+      window.setTimeout(() => radar.classList.remove("is-focus"), 2200);
+      nextPingAt = now;
+    } else {
+      player.command = { type: "move", x: point.x, y: point.y };
+      setTrajectory(player, point, now, Math.max(1800, Math.min(8500, distance(player, point) * 7800)));
+      radar.classList.add("is-commanding", "is-focus");
+      window.setTimeout(() => radar.classList.remove("is-focus"), 1800);
+    }
+    lastReadout = 0;
+    manualScanUntil = now + 5000;
+    updateCommandMarker();
+    updateReadout(now);
+  };
   const onRadarClick = (event) => {
     event.stopPropagation();
-    triggerManualScan();
+    if (event.target.closest(".hero-radar-scope")) issueRadarCommand(event);
+    else triggerManualScan();
   };
   const moveActor = (actor, now) => {
     const progress = Math.min(1, Math.max(0, (now - actor.startedAt) / Math.max(1, actor.duration)));
@@ -2230,11 +2271,47 @@ function bindHeroRadar() {
     actor.x = actor.origin.x + (actor.target.x - actor.origin.x) * eased;
     actor.y = actor.origin.y + (actor.target.y - actor.origin.y) * eased;
   };
+  const moveCommandedPlayer = (now) => {
+    const command = player.command;
+    if (!command) return false;
+    if (command.type === "attack") {
+      const enemy = command.enemy;
+      if (!enemy || enemy.downUntil > now) {
+        player.command = null;
+        radar.classList.remove("is-commanding");
+        updateCommandMarker();
+        return false;
+      }
+      if (now >= (command.retargetAt || 0) || now >= player.switchAt) {
+        const chaseDistance = distance(player, enemy);
+        setTrajectory(player, { x: enemy.x, y: enemy.y }, now, Math.max(1500, Math.min(6200, chaseDistance * 6800)));
+        command.retargetAt = now + 650;
+      }
+      moveActor(player, now);
+      return true;
+    }
+    if (now >= player.switchAt) {
+      const nearbyEnemy = enemies.filter((enemy) => enemy.downUntil <= now).sort((a, b) => distance(player, a) - distance(player, b))[0];
+      if (nearbyEnemy && distance(player, nearbyEnemy) < .16) {
+        player.command = { type: "attack", enemy: nearbyEnemy, retargetAt: now };
+        updateCommandMarker();
+        return moveCommandedPlayer(now);
+      }
+      player.command = null;
+      radar.classList.remove("is-commanding");
+      updateCommandMarker();
+      return false;
+    }
+    moveActor(player, now);
+    return true;
+  };
   const tick = (now) => {
     frameId = 0;
     if (!active || reducedMotion()) return;
-    if (!player.switchAt || now > player.switchAt) chooseTarget(player, now);
-    moveActor(player, now);
+    if (!moveCommandedPlayer(now)) {
+      if (!player.switchAt || now > player.switchAt) chooseTarget(player, now);
+      moveActor(player, now);
+    }
     enemies.forEach((actor, index) => {
       const element = enemyEls[index];
       if (actor.downUntil > now) {
@@ -2262,6 +2339,7 @@ function bindHeroRadar() {
     const bounds = scope.getBoundingClientRect();
     updateMarker(playerEl, player, bounds.width, bounds.height);
     enemies.forEach((actor, index) => updateMarker(enemyEls[index], actor, bounds.width, bounds.height));
+    updateCommandMarker();
     updateReadout(now);
     frameId = window.requestAnimationFrame(tick);
   };
