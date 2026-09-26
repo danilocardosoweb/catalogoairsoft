@@ -97,7 +97,8 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Contraste do hero reforçado com texto branco/lima, gradiente lateral dedicado e sombras de leitura nos modos noturno, claro e mobile.
 - Versão atual publicada em produção com o hero interativo, o fluxo comercial de Orçamentos, importação operacional e a Central de Pedidos ampliada.
 - Radar Airsoft validado localmente no feed, mapa tático, detalhe, localização manual, filtros e Central de Conteúdo.
-- Radar do hero validado no navegador local com jogador, três hostis, sweep, leitura de contato, atualização de coordenadas e varredura manual; o círculo decorativo anterior foi removido para evitar sobreposição visual.
+- Radar do hero validado no navegador local com jogador, dois hostis, sweep, leitura de contato, atualização de coordenadas e varredura manual; o círculo decorativo anterior foi removido para evitar sobreposição visual.
+- Mini mapa do hero ficou translúcido no desktop e é ocultado em telas pequenas para preservar a leitura do operador, título e CTA.
 - Hero mobile recebeu acionamento opcional de mira por giroscópio, com pedido de permissão quando necessário e fallback de visão fixa centralizada/levemente orientada para a direita.
 - Acesso privado preservado conforme a configuração atual do projeto.
 

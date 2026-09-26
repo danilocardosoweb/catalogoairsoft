@@ -538,11 +538,11 @@ function heroRadarMarkup() {
     <div class="hero-radar-scope" aria-hidden="true">
       <div class="hero-radar-grid"></div><div class="hero-radar-sweep"></div><div class="hero-radar-crosshair"></div>
       <span class="hero-radar-axis axis-n">N</span><span class="hero-radar-axis axis-e">E</span><span class="hero-radar-axis axis-s">S</span><span class="hero-radar-axis axis-w">W</span>
-      <span class="hero-radar-enemy enemy-one" data-radar-enemy="0"><i></i></span><span class="hero-radar-enemy enemy-two" data-radar-enemy="1"><i></i></span><span class="hero-radar-enemy enemy-three" data-radar-enemy="2"><i></i></span>
+      <span class="hero-radar-enemy enemy-one" data-radar-enemy="0"><i></i></span><span class="hero-radar-enemy enemy-two" data-radar-enemy="1"><i></i></span>
       <span class="hero-radar-player" data-radar-player><i></i><b></b></span>
       <span class="hero-radar-ping" data-radar-ping></span>
     </div>
-    <div class="hero-radar-readout"><span><strong data-radar-readout>03 HOSTIS</strong><small data-radar-mode>SECTOR MOVING</small></span><em data-radar-coordinates>GRID 04 / 17</em></div>
+    <div class="hero-radar-readout"><span><strong data-radar-readout>02 HOSTIS</strong><small data-radar-mode>SECTOR MOVING</small></span><em data-radar-coordinates>GRID 04 / 17</em></div>
   </button>`;
 }
 
@@ -1803,14 +1803,13 @@ function bindHeroRadar() {
   const playerWaypoints = [[.69, .62], [.77, .45], [.67, .28], [.47, .25], [.32, .42], [.38, .68], [.56, .78], [.78, .73]];
   const enemyWaypoints = [
     [[.23, .25], [.31, .39], [.24, .55], [.42, .31]],
-    [[.69, .2], [.8, .31], [.72, .43], [.55, .23]],
-    [[.28, .72], [.43, .78], [.5, .65], [.3, .57]]
+    [[.69, .2], [.8, .31], [.72, .43], [.55, .23]]
   ];
   const random = (min, max) => min + Math.random() * (max - min);
   const makeActor = (x, y, pool, isPlayer = false) => ({ x, y, target: { x, y }, pool, isPlayer, duration: isPlayer ? random(6800, 9000) : random(5200, 7600), switchAt: 0 });
   const player = makeActor(.64, .59, playerWaypoints, true);
   const enemies = enemyEls.map((_, index) => {
-    const starts = [[.24, .28], [.72, .24], [.32, .72]];
+    const starts = [[.24, .28], [.72, .24]];
     return makeActor(starts[index][0], starts[index][1], enemyWaypoints[index]);
   });
   let frameId = 0;

@@ -158,8 +158,8 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
 .hero-index { position: absolute; z-index: 3; right: clamp(24px, 7vw, 110px); bottom: 25px; color: rgba(242,243,237,.62); font: 700 10px var(--display); letter-spacing: .16em; }
 .hero-index strong { color: var(--accent); font-size: 16px; }
 
-.hero-radar { position: absolute; z-index: 3; right: clamp(28px, 8vw, 128px); bottom: clamp(28px, 8vw, 70px); width: min(27vw, 286px); aspect-ratio: 1; display: grid; grid-template-rows: 22px minmax(0, 1fr) 25px; padding: 0 6px; border: 0; margin: 0; appearance: none; background: transparent; color: rgba(229,255,133,.92); font: inherit; text-align: initial; pointer-events: auto; cursor: crosshair; filter: drop-shadow(0 12px 25px rgba(0,0,0,.28)); transition: filter .35s ease, opacity .35s ease; }
-.hero-radar.is-focus { filter: drop-shadow(0 0 24px rgba(216,255,89,.55)); }
+.hero-radar { position: absolute; z-index: 3; right: clamp(28px, 8vw, 128px); bottom: clamp(28px, 8vw, 70px); width: min(27vw, 286px); aspect-ratio: 1; display: grid; grid-template-rows: 22px minmax(0, 1fr) 25px; padding: 0 6px; border: 0; margin: 0; appearance: none; background: transparent; color: rgba(229,255,133,.92); font: inherit; text-align: initial; pointer-events: auto; cursor: crosshair; opacity: .68; filter: drop-shadow(0 12px 25px rgba(0,0,0,.22)); transition: filter .35s ease, opacity .35s ease; }
+.hero-radar:hover, .hero-radar:focus-visible, .hero-radar.is-focus { opacity: .92; filter: drop-shadow(0 0 24px rgba(216,255,89,.48)); }
 .hero-radar-heading, .hero-radar-readout { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 8px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; text-shadow: 0 1px 8px rgba(0,0,0,.8); }
 .hero-radar-heading b { display: inline-flex; align-items: center; gap: 5px; color: rgba(245,248,239,.7); font-size: 7px; }
 .hero-radar-heading i { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px rgba(216,255,89,.13), 0 0 10px rgba(216,255,89,.65); animation: radar-status-blink 1.8s ease-in-out infinite; }
@@ -186,7 +186,7 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
 .hero-radar-enemy::before { content: ""; position: absolute; inset: 2px; background: #ff7659; transform: rotate(45deg); box-shadow: 0 0 12px rgba(255,88,62,.72); }
 .hero-radar-enemy::after { content: ""; position: absolute; inset: -5px; border: 1px solid rgba(255,118,89,.28); border-radius: 50%; animation: enemy-pulse 7.2s ease-out infinite; }
 .hero-radar-enemy i { position: absolute; z-index: 1; top: -7px; left: 4px; width: 3px; height: 3px; border-radius: 50%; background: #ffbd84; box-shadow: 0 0 8px #ff7659; }
-.hero-radar-enemy.enemy-two::after { animation-delay: -.7s; }.hero-radar-enemy.enemy-three::after { animation-delay: -1.35s; }
+.hero-radar-enemy.enemy-two::after { animation-delay: -.7s; }
 .hero-radar-ping { position: absolute; z-index: 5; top: var(--radar-dy, 50%); left: var(--radar-dx, 50%); width: 12px; height: 12px; border: 1px solid #ffbd84; border-radius: 50%; opacity: 0; transform: translate(-50%, -50%) scale(.35); pointer-events: none; }
 .hero-radar-ping.is-active { animation: radar-ping 1s cubic-bezier(.2,.8,.2,1) forwards; }
 .hero-radar-readout { color: rgba(245,248,239,.62); }
@@ -958,7 +958,7 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
   .hero-subtitle { max-width: 290px; font-size: 13px; }
   .hero-coordinates { display: none; }
   .hero-index { right: 20px; bottom: 20px; }
-  .hero-radar { width: 178px; right: 9px; bottom: 19px; opacity: .7; }
+  .hero-radar { display: none; }
   .hero-sensor-button { display: inline-flex; left: 20px; bottom: 19px; }
   .search-zone { margin-top: -26px; }
   .search-bar { min-height: 60px; padding: 0 16px; }
@@ -1134,7 +1134,6 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
   .hero-video { object-position: 49% center; opacity: .58; }
   .hero-title { font-size: clamp(62px, 18vw, 78px); }
   .hero-subtitle { max-width: 255px; }
-  .hero-radar { width: 156px; right: 7px; bottom: 18px; opacity: .62; }
 }
 
 @media (prefers-reduced-motion: reduce) {
