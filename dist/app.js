@@ -142,6 +142,9 @@ const categories = [
 
 const defaultSettings = { whatsapp: "5511999999999", storeName: "Field Ops", city: "São Paulo", lowStock: 10 };
 const storedSettings = JSON.parse(localStorage.getItem("fieldops-settings") || "null");
+const airdropStatuses = { draft: "Em preparo", scheduled: "Agendado", active: "No ar", ended: "Encerrado", archived: "Arquivado" };
+const airdropSeedStart = new Date(Date.now() + 86400000);
+const seedAirdrops = [{ id: "airdrop-nightfall", name: "OPERAÇÃO NIGHTFALL", code: "DROP10", discountType: "percent", discountValue: 10, minSubtotal: 450, maxUses: 80, redeemed: 0, startsAt: airdropSeedStart.toISOString(), expiresAt: new Date(airdropSeedStart.getTime() + 3 * 86400000).toISOString(), status: "scheduled", message: "Siga as redes da loja para saber quando o código entrar no ar." }];
 
 const seedRadarContent = [
   { id: "radar-event-arena-sp", type: "event", title: "OPERAÇÃO LINHA VERDE", summary: "Partida aberta para equipes de todos os níveis, com briefing, cronograma e divisão por missões.", description: "Uma operação de sábado com missões curtas, área urbana controlada e espaço para testar seu loadout completo.", image: "https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=1200&q=82", city: "São Paulo", state: "SP", country: "Brasil", date: "2026-10-03", time: "08:00", organizer: "Arena Tático SP", field: "Arena Tático Leste", category: "Partida", tags: ["AEG", "iniciante", "CQB"], productIds: ["cm16-raider", "bb-bio-025"], status: "published", popularity: 96, distanceKm: 18, source: "Field Ops editorial" },
@@ -186,7 +189,9 @@ const state = {
   quantity: 1,
   radar: JSON.parse(localStorage.getItem("fieldops-radar") || "null") || { location: { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual" }, scope: "nearby", type: "all", radius: 100, sort: "relevance", view: "feed" },
   radarFollowing: JSON.parse(localStorage.getItem("fieldops-radar-following") || "[]"),
-  radarContents: JSON.parse(localStorage.getItem("fieldops-radar-content") || "null") || seedRadarContent
+  radarContents: JSON.parse(localStorage.getItem("fieldops-radar-content") || "null") || seedRadarContent,
+  airdrops: JSON.parse(localStorage.getItem("fieldops-airdrops") || "null") || seedAirdrops,
+  appliedAirdropCode: localStorage.getItem("fieldops-airdrop-code") || ""
 };
 
 const radarTypes = { event: "Eventos", field: "Campos", store: "Lojas", news: "Notícias", release: "Lançamentos" };
@@ -205,6 +210,71 @@ state.radar = { location: { city: defaultSettings.city, state: "SP", country: "B
 state.radar.location = { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual", ...(state.radar.location || {}) };
 state.radarContents = (Array.isArray(state.radarContents) ? state.radarContents : seedRadarContent).map(ensureRadarContentShape).map((content) => content.country !== "Brasil" ? { ...content, state: "" } : content);
 state.radarFollowing = Array.isArray(state.radarFollowing) ? state.radarFollowing : [];
+state.airdrops = (Array.isArray(state.airdrops) ? state.airdrops : seedAirdrops).map((campaign) => ({
+  id: campaign.id || `airdrop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+  name: campaign.name || "AIRDROP FIELD OPS",
+  code: String(campaign.code || "DROP").trim().toUpperCase(),
+  discountType: campaign.discountType === "fixed" ? "fixed" : "percent",
+  discountValue: Math.max(0, Number(campaign.discountValue) || 0),
+  minSubtotal: Math.max(0, Number(campaign.minSubtotal) || 0),
+  maxUses: Math.max(0, Number(campaign.maxUses) || 0),
+  redeemed: Math.max(0, Number(campaign.redeemed) || 0),
+  startsAt: campaign.startsAt || new Date().toISOString(),
+  expiresAt: campaign.expiresAt || "",
+  status: airdropStatuses[campaign.status] ? campaign.status : "draft",
+  message: campaign.message || "Acompanhe as redes da loja para descobrir o próximo drop."
+}));
+
+function airdropPhase(campaign) {
+  if (!campaign) return "ended";
+  if (["ended", "archived"].includes(campaign.status)) return campaign.status;
+  const now = Date.now();
+  if (campaign.maxUses > 0 && campaign.redeemed >= campaign.maxUses) return "ended";
+  if (campaign.expiresAt && new Date(campaign.expiresAt).getTime() <= now) return "ended";
+  if (campaign.startsAt && new Date(campaign.startsAt).getTime() > now) return "scheduled";
+  return campaign.status === "draft" ? "draft" : "active";
+}
+
+function activeAirdrop() {
+  return state.airdrops.find((campaign) => airdropPhase(campaign) === "active") || null;
+}
+
+function nextAirdrop() {
+  return state.airdrops.filter((campaign) => airdropPhase(campaign) === "scheduled").sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))[0] || null;
+}
+
+function airdropDiscount(campaign, subtotal) {
+  if (!campaign || subtotal < campaign.minSubtotal) return 0;
+  const raw = campaign.discountType === "fixed" ? campaign.discountValue : subtotal * (campaign.discountValue / 100);
+  return Math.min(subtotal, Math.max(0, Number(raw) || 0));
+}
+
+function appliedAirdrop() {
+  const code = String(state.appliedAirdropCode || "").trim().toUpperCase();
+  if (!code) return null;
+  const campaign = state.airdrops.find((item) => item.code === code);
+  return airdropPhase(campaign) === "active" ? campaign : null;
+}
+
+function airdropDate(value, includeDate = true) {
+  if (!value) return "sem horário definido";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "sem horário definido";
+  return date.toLocaleString("pt-BR", includeDate ? { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" } : { hour: "2-digit", minute: "2-digit" });
+}
+
+function airdropDiscountLabel(campaign) {
+  return campaign.discountType === "fixed" ? `${moneyDetailed(campaign.discountValue)} OFF` : `${campaign.discountValue}% OFF`;
+}
+
+function cartTotals() {
+  const subtotal = cartSubtotal();
+  const selected = selectedShippingOption();
+  const freight = selected?.price || 0;
+  const airdrop = appliedAirdrop();
+  const discount = airdropDiscount(airdrop, subtotal);
+  return { subtotal, discount, freight, total: Math.max(0, subtotal - discount + freight), selected, airdrop };
+}
 
 const quoteStatuses = ["Novo", "Em análise", "Proposta enviada", "Aguardando cliente", "Aprovado", "Rejeitado", "Expirado", "Convertido em pedido", "Cancelado"];
 const orderStatuses = ["Novo pedido", "Pagamento pendente", "Pagamento confirmado", "Preparando pedido", "Separação", "Pronto para envio", "Enviado", "Entregue", "Cancelado"];
@@ -301,6 +371,8 @@ function persist() {
   localStorage.setItem("fieldops-radar", JSON.stringify(state.radar));
   localStorage.setItem("fieldops-radar-following", JSON.stringify(state.radarFollowing));
   localStorage.setItem("fieldops-radar-content", JSON.stringify(state.radarContents));
+  localStorage.setItem("fieldops-airdrops", JSON.stringify(state.airdrops));
+  localStorage.setItem("fieldops-airdrop-code", state.appliedAirdropCode || "");
 }
 
 function filteredProducts() {
@@ -546,6 +618,15 @@ function heroRadarMarkup() {
   </button>`;
 }
 
+function airdropHomeSection() {
+  const current = activeAirdrop();
+  const upcoming = nextAirdrop();
+  const campaign = current || upcoming;
+  if (!campaign) return "";
+  const live = Boolean(current);
+  return `<section class="airdrop-home-card ${live ? "is-live" : "is-upcoming"}"><div class="airdrop-home-signal"><span class="airdrop-signal-core">✦</span><span class="status-dot"></span><small>${live ? "AIRDROP / NO AR" : "AIRDROP / INCOMING"}</small></div><div class="airdrop-home-copy"><span class="eyebrow">SOCIAL DROP / FIELD OPS</span><h2>${live ? "Um drop caiu no mapa." : "O próximo drop está em rota."}</h2><p>${escapeHtml(campaign.message)}</p></div><div class="airdrop-home-meta"><strong>${live ? airdropDiscountLabel(campaign) : airdropDate(campaign.startsAt)}</strong><small>${live ? "Código liberado nas redes" : "Siga as redes para saber primeiro"}</small><button class="outline-cta" data-action="cart">${live ? "Resgatar no carrinho" : "Abrir central Airdrop"}</button></div></section>`;
+}
+
 function homePage() {
   const feature = recommendedProducts().slice(0, 4);
   return `<section class="page home-page">
@@ -559,6 +640,7 @@ function homePage() {
     ${searchBar()}
     <div class="container">
       ${radarHomeSection()}
+      ${airdropHomeSection()}
       ${missionDeck()}
       ${resumeStrip()}
       <section class="home-section"><div class="section-label"><div><span class="eyebrow">01 / ARSENAL</span><h2>Escolha sua<br>plataforma.</h2></div><p>O essencial para entrar em campo com o setup certo, do primeiro jogo ao próximo upgrade.</p></div><div class="category-grid">${categories.map((category) => `<button class="category-card" type="button" data-category="${category.name}" style="--category-image: url('${category.image}')"><span class="category-card-content"><strong>${category.name}</strong><small>${activeProducts().filter((product) => product.category === category.name).length} itens ↗</small></span></button>`).join("")}</div></section>
@@ -651,7 +733,7 @@ function exportDataModal() {
 
 function exportBackup() {
   closeModal();
-  const payload = { exportedAt: new Date().toISOString(), source: "FIELD OPS", products, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, loadout: state.loadout, settings: state.settings, profile: state.profile, radar: state.radar, radarFollowing: state.radarFollowing, radarContents: state.radarContents };
+  const payload = { exportedAt: new Date().toISOString(), source: "FIELD OPS", products, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, loadout: state.loadout, settings: state.settings, profile: state.profile, radar: state.radar, radarFollowing: state.radarFollowing, radarContents: state.radarContents, airdrops: state.airdrops };
   downloadLocalFile(`field-ops-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
   showToast("Backup completo exportado.");
 }
@@ -756,8 +838,62 @@ function adminCustomersPage() {
   return adminShell("admin-customers", "06 / RELATIONSHIP", "Clientes.", `<section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">CUSTOMER REGISTER</span><h2>${customers.length || 1} clientes identificados</h2></div><span class="admin-sync">Dados locais do MVP</span></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Cliente</th><th>WhatsApp</th><th>Tipo</th><th>Orçamentos</th></tr></thead><tbody>${customers.length ? customers.map((customer) => `<tr><td><strong>${customer.name}</strong><small>Perfil Field Ops</small></td><td>${customer.phone}</td><td>${customer.type}</td><td>${customer.quotes}</td></tr>`).join("") : `<tr><td colspan="4"><div class="admin-inline-empty">Os clientes aparecerão aqui após o primeiro orçamento.</div></td></tr>`}</tbody></table></div></section>`);
 }
 
+function airdropDatetimeLocal(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (number) => String(number).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function airdropControlMarkup() {
+  const active = activeAirdrop();
+  const upcoming = nextAirdrop();
+  const campaigns = [...state.airdrops].sort((a, b) => new Date(b.startsAt) - new Date(a.startsAt));
+  return `<section class="admin-panel airdrop-admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">AIRDROP CONTROL / SOCIAL DROP</span><h2>Soltar Airdrop.</h2></div><span class="admin-sync"><i class="status-dot"></i> ${active ? "Drop ativo no ar" : upcoming ? `Próximo: ${airdropDate(upcoming.startsAt)}` : "Nenhum drop ativo"}</span></div><p class="settings-intro">Crie uma janela de desconto para anunciar nas redes. O código só funciona quando o drop está no ar, respeita o valor mínimo e para automaticamente ao atingir o limite.</p><form class="airdrop-form" id="airdrop-form"><div class="form-row"><label class="form-label">Nome da operação<input name="name" required value="OPERAÇÃO NIGHTFALL" placeholder="Ex.: OPERAÇÃO NIGHTFALL" /></label><label class="form-label">Código secreto<input name="code" required value="DROP${String(Date.now()).slice(-2)}" maxlength="24" placeholder="DROP10" /></label></div><div class="form-row"><label class="form-label">Tipo de vantagem<select name="discountType"><option value="percent">Percentual (%)</option><option value="fixed">Valor fixo (R$)</option></select></label><label class="form-label">Desconto<input name="discountValue" required type="number" min="1" step="0.01" value="10" /></label></div><div class="form-row"><label class="form-label">Mínimo do carrinho<input name="minSubtotal" type="number" min="0" step="0.01" value="450" /></label><label class="form-label">Limite de resgates<input name="maxUses" type="number" min="0" step="1" value="80" /><small class="form-help">Use 0 para ilimitado.</small></label></div><div class="form-row"><label class="form-label">Começa em<input name="startsAt" type="datetime-local" value="${airdropDatetimeLocal(upcoming?.startsAt || new Date(Date.now() + 86400000).toISOString())}" /></label><label class="form-label">Termina em<input name="expiresAt" type="datetime-local" value="${airdropDatetimeLocal(upcoming?.expiresAt || new Date(Date.now() + 4 * 86400000).toISOString())}" /></label></div><label class="form-label">Mensagem para a comunidade<textarea name="message" rows="2" placeholder="Siga as redes para saber quando o drop cair.">Siga as redes da loja para saber quando o código entrar no ar.</textarea></label><div class="airdrop-form-actions"><button class="outline-cta" type="submit" name="airdrop-action" value="schedule">Agendar Airdrop</button><button class="hero-cta" type="submit" name="airdrop-action" value="launch">Soltar Airdrop agora</button></div></form><div class="airdrop-admin-list"><div class="admin-panel-head"><div><span class="eyebrow">DROP LOG / ${campaigns.length}</span><h3>Operações cadastradas.</h3></div><small>Local-first · pronto para conectar às redes</small></div>${campaigns.length ? campaigns.map((campaign) => { const phase = airdropPhase(campaign); return `<article class="airdrop-admin-card ${phase === "active" ? "is-live" : ""}"><div class="airdrop-admin-card-main"><div class="airdrop-card-title"><span class="airdrop-signal-core">✦</span><div><strong>${escapeHtml(campaign.name)}</strong><small>${escapeHtml(campaign.code)} · ${airdropDiscountLabel(campaign)}</small></div></div><span class="admin-status ${phase === "active" ? "status-live" : phase === "scheduled" ? "status-progress" : phase === "ended" ? "status-low" : "status-wait"}">${airdropStatuses[phase]}</span></div><div class="airdrop-admin-card-meta"><span>${phase === "scheduled" ? `Entra no ar ${airdropDate(campaign.startsAt)}` : phase === "active" ? `Até ${campaign.expiresAt ? airdropDate(campaign.expiresAt) : "sem prazo"}` : `Criado para ${airdropDate(campaign.startsAt)}`}</span><span>${campaign.redeemed}/${campaign.maxUses || "∞"} resgates</span></div><div class="airdrop-admin-card-actions">${phase === "active" ? `<button class="status-action" data-action="airdrop-end" data-airdrop-id="${campaign.id}">Encerrar drop</button>` : phase === "scheduled" || phase === "draft" ? `<button class="status-action" data-action="airdrop-launch" data-airdrop-id="${campaign.id}">Soltar agora</button>` : ""}</div></article>`; }).join("") : `<div class="admin-inline-empty">Nenhum Airdrop cadastrado. Prepare o primeiro drop para a comunidade.</div>`}</div></section>`;
+}
+
+function saveAirdrop(event) {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const action = event.submitter?.value || "schedule";
+  const code = String(form.get("code") || "").trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+  if (!code) { showToast("Defina um código Airdrop."); return; }
+  if (state.airdrops.some((campaign) => campaign.code === code && airdropPhase(campaign) === "active")) { showToast("Já existe um Airdrop ativo com esse código."); return; }
+  const now = new Date();
+  const startsAt = action === "launch" ? now.toISOString() : (form.get("startsAt") ? new Date(form.get("startsAt")).toISOString() : now.toISOString());
+  const expiresAt = form.get("expiresAt") ? new Date(form.get("expiresAt")).toISOString() : new Date(now.getTime() + 72 * 3600000).toISOString();
+  if (new Date(expiresAt).getTime() <= new Date(startsAt).getTime()) { showToast("O término precisa ser depois do início."); return; }
+  if (action === "launch") state.airdrops.filter((campaign) => airdropPhase(campaign) === "active").forEach((campaign) => { campaign.status = "ended"; });
+  state.airdrops.unshift({ id: `airdrop-${Date.now()}`, name: String(form.get("name") || "AIRDROP FIELD OPS").trim(), code, discountType: form.get("discountType") === "fixed" ? "fixed" : "percent", discountValue: Math.max(1, Number(form.get("discountValue")) || 0), minSubtotal: Math.max(0, Number(form.get("minSubtotal")) || 0), maxUses: Math.max(0, Number(form.get("maxUses")) || 0), redeemed: 0, startsAt, expiresAt, status: action === "launch" ? "active" : "scheduled", message: String(form.get("message") || "Siga as redes da loja para descobrir o próximo drop.").trim() });
+  persist();
+  render();
+  showToast(action === "launch" ? "Airdrop solto no mapa." : "Airdrop agendado.");
+}
+
+function launchAirdrop(id) {
+  const campaign = state.airdrops.find((item) => item.id === id);
+  if (!campaign) return;
+  state.airdrops.filter((item) => airdropPhase(item) === "active" && item.id !== id).forEach((item) => { item.status = "ended"; });
+  campaign.status = "active";
+  campaign.startsAt = new Date().toISOString();
+  if (campaign.expiresAt && new Date(campaign.expiresAt).getTime() <= Date.now()) campaign.expiresAt = new Date(Date.now() + 72 * 3600000).toISOString();
+  persist();
+  render();
+  showToast("Airdrop solto no mapa.");
+}
+
+function endAirdrop(id) {
+  const campaign = state.airdrops.find((item) => item.id === id);
+  if (!campaign) return;
+  campaign.status = "ended";
+  persist();
+  render();
+  showToast("Airdrop encerrado.");
+}
+
 function adminSettingsPage() {
-  return adminShell("admin-settings", "09 / SYSTEM", "Configurações.", `<section class="admin-panel settings-panel"><div class="admin-panel-head"><div><span class="eyebrow">STORE CONTROL</span><h2>Dados da operação.</h2></div><span class="admin-sync"><i class="status-dot"></i> Salvo neste dispositivo</span></div><p class="settings-intro">Ajuste atendimento, origem logística e regras simples de frete para o MVP local.</p><form class="settings-form" id="settings-form"><div class="form-row"><label class="form-label">Nome da operação<input name="storeName" required value="${state.settings.storeName}" /></label><label class="form-label">Cidade<input name="city" required value="${state.settings.city}" /></label></div><div class="form-row"><label class="form-label">WhatsApp do atendimento<input name="whatsapp" required inputmode="tel" value="${state.settings.whatsapp}" placeholder="5511999999999" /></label><label class="form-label">Alerta de estoque baixo<input name="lowStock" required type="number" min="0" step="1" value="${state.settings.lowStock}" /></label></div><fieldset class="shipping-fieldset"><legend>Logística</legend><div class="form-row"><label class="form-label">CEP de origem<input name="originZip" required value="${state.shipping.originZip}" placeholder="01310-100" /></label><label class="form-label">Endereço de origem<input name="originAddress" required value="${state.shipping.originAddress}" /></label></div><div class="form-row"><label class="form-label">Cidade de origem<input name="originCity" required value="${state.shipping.originCity}" /></label><label class="form-label">Estado<input name="originState" required maxlength="2" value="${state.shipping.originState}" /></label></div><div class="form-row"><label class="form-label">Fator de cubagem<input name="cubingFactor" type="number" min="1" step="1" value="${state.shipping.cubingFactor}" /><small class="form-help">Fórmula: C × L × A ÷ fator.</small></label><label class="form-label">Validade da cotação (horas)<input name="quoteValidityHours" type="number" min="1" step="1" value="${state.shipping.quoteValidityHours}" /></label></div><div class="form-row"><label class="form-label">Frete grátis acima de<input name="freeShippingMin" type="number" min="0" step="0.01" value="${state.shipping.freeShippingMin}" /></label><label class="form-label">Frete base SP<input name="flatSp" type="number" min="0" step="0.01" value="${state.shipping.flatSp}" /></label></div></fieldset><fieldset class="shipping-fieldset"><legend>Retirada no local</legend><label class="form-label">Endereço<input name="pickupAddress" required value="${state.shipping.pickupAddress}" /></label><div class="form-row"><label class="form-label">Horário<input name="pickupHours" required value="${state.shipping.pickupHours}" /></label><label class="form-label">Instruções<input name="pickupInstructions" required value="${state.shipping.pickupInstructions}" /></label></div></fieldset><div class="settings-preview"><span class="eyebrow">ATENDIMENTO</span><strong>${state.settings.storeName} · ${state.settings.city}</strong><small>Frete grátis a partir de ${moneyDetailed(state.shipping.freeShippingMin)} · cubagem ${state.shipping.cubingFactor}.</small></div><div class="settings-actions"><button class="hero-cta" type="submit">Salvar configurações</button><button class="outline-cta" type="button" data-action="reset-local-data">Restaurar dados demo</button></div></form></section>`);
+  return adminShell("admin-settings", "09 / SYSTEM", "Configurações.", `<section class="admin-panel settings-panel"><div class="admin-panel-head"><div><span class="eyebrow">STORE CONTROL</span><h2>Dados da operação.</h2></div><span class="admin-sync"><i class="status-dot"></i> Salvo neste dispositivo</span></div><p class="settings-intro">Ajuste atendimento, origem logística e regras simples de frete para o MVP local.</p><form class="settings-form" id="settings-form"><div class="form-row"><label class="form-label">Nome da operação<input name="storeName" required value="${state.settings.storeName}" /></label><label class="form-label">Cidade<input name="city" required value="${state.settings.city}" /></label></div><div class="form-row"><label class="form-label">WhatsApp do atendimento<input name="whatsapp" required inputmode="tel" value="${state.settings.whatsapp}" placeholder="5511999999999" /></label><label class="form-label">Alerta de estoque baixo<input name="lowStock" required type="number" min="0" step="1" value="${state.settings.lowStock}" /></label></div><fieldset class="shipping-fieldset"><legend>Logística</legend><div class="form-row"><label class="form-label">CEP de origem<input name="originZip" required value="${state.shipping.originZip}" placeholder="01310-100" /></label><label class="form-label">Endereço de origem<input name="originAddress" required value="${state.shipping.originAddress}" /></label></div><div class="form-row"><label class="form-label">Cidade de origem<input name="originCity" required value="${state.shipping.originCity}" /></label><label class="form-label">Estado<input name="originState" required maxlength="2" value="${state.shipping.originState}" /></label></div><div class="form-row"><label class="form-label">Fator de cubagem<input name="cubingFactor" type="number" min="1" step="1" value="${state.shipping.cubingFactor}" /><small class="form-help">Fórmula: C × L × A ÷ fator.</small></label><label class="form-label">Validade da cotação (horas)<input name="quoteValidityHours" type="number" min="1" step="1" value="${state.shipping.quoteValidityHours}" /></label></div><div class="form-row"><label class="form-label">Frete grátis acima de<input name="freeShippingMin" type="number" min="0" step="0.01" value="${state.shipping.freeShippingMin}" /></label><label class="form-label">Frete base SP<input name="flatSp" type="number" min="0" step="0.01" value="${state.shipping.flatSp}" /></label></div></fieldset><fieldset class="shipping-fieldset"><legend>Retirada no local</legend><label class="form-label">Endereço<input name="pickupAddress" required value="${state.shipping.pickupAddress}" /></label><div class="form-row"><label class="form-label">Horário<input name="pickupHours" required value="${state.shipping.pickupHours}" /></label><label class="form-label">Instruções<input name="pickupInstructions" required value="${state.shipping.pickupInstructions}" /></label></div></fieldset><div class="settings-preview"><span class="eyebrow">ATENDIMENTO</span><strong>${state.settings.storeName} · ${state.settings.city}</strong><small>Frete grátis a partir de ${moneyDetailed(state.shipping.freeShippingMin)} · cubagem ${state.shipping.cubingFactor}.</small></div><div class="settings-actions"><button class="hero-cta" type="submit">Salvar configurações</button><button class="outline-cta" type="button" data-action="reset-local-data">Restaurar dados demo</button></div></form></section>${airdropControlMarkup()}`);
 }
 
 function adminProductsPage() {
@@ -1324,12 +1460,11 @@ function loadoutModal(label) {
 }
 
 function quoteRecord(form) {
+  const totals = cartTotals();
   const selected = selectedShippingOption();
-  const subtotal = cartSubtotal();
-  const freight = selected?.price || 0;
-  const total = subtotal + freight;
+  const { subtotal, discount, freight, total, airdrop } = totals;
   const createdAt = new Date().toISOString();
-  const record = ensureQuoteShape({ id: nextQuoteId(), customer: form.get("name").toString(), phone: form.get("phone").toString(), zip: state.cartShipping?.zip || normalizeZip(form.get("zip")), address: form.get("address")?.toString().trim() || "", city: form.get("city")?.toString() || "—", note: form.get("note")?.toString() || "—", subtotal, discount: 0, freight, total, status: "Novo", createdAt, items: state.cart.map((item) => ({ id: item.id, quantity: item.quantity })), shipping: { ...(state.cartShipping || {}), carrier: selected?.carrier || "", service: selected?.service || "", method: selected?.service || "", packages: state.cartShipping?.volumes || [], volumes: selected?.volumes || 0, weight: state.cartShipping?.volumes?.reduce((sum, volume) => sum + volume.realWeight, 0) || "", cubedWeight: state.cartShipping?.volumes?.reduce((sum, volume) => sum + volume.cubedWeight, 0) || "", quoteId: state.cartShipping?.id || "", quotedAt: state.cartShipping?.quotedAt || "", expiresAt: state.cartShipping?.expiresAt || "" }, history: [{ at: createdAt, actor: "Cliente", from: null, to: "Novo", note: "Orçamento criado pelo catálogo com frete cotado." }] });
+  const record = ensureQuoteShape({ id: nextQuoteId(), customer: form.get("name").toString(), phone: form.get("phone").toString(), zip: state.cartShipping?.zip || normalizeZip(form.get("zip")), address: form.get("address")?.toString().trim() || "", city: form.get("city")?.toString() || "—", note: form.get("note")?.toString() || "—", subtotal, discount, freight, total, airdropCode: airdrop?.code || "", airdropName: airdrop?.name || "", status: "Novo", createdAt, items: state.cart.map((item) => ({ id: item.id, quantity: item.quantity })), shipping: { ...(state.cartShipping || {}), carrier: selected?.carrier || "", service: selected?.service || "", method: selected?.service || "", packages: state.cartShipping?.volumes || [], volumes: selected?.volumes || 0, weight: state.cartShipping?.volumes?.reduce((sum, volume) => sum + volume.realWeight, 0) || "", cubedWeight: state.cartShipping?.volumes?.reduce((sum, volume) => sum + volume.cubedWeight, 0) || "", quoteId: state.cartShipping?.id || "", quotedAt: state.cartShipping?.quotedAt || "", expiresAt: state.cartShipping?.expiresAt || "" }, history: [{ at: createdAt, actor: "Cliente", from: null, to: "Novo", note: "Orçamento criado pelo catálogo com frete cotado." }] });
   state.quotes.unshift(record);
   persist();
   return record;
@@ -1686,6 +1821,35 @@ function cartShippingMarkup() {
   return `<div class="shipping-calc shipping-ready"><div class="shipping-calc-head"><div><span class="eyebrow">DELIVERY / ${quote.zip}</span><strong>Escolha como receber.</strong></div><button class="text-link" data-action="clear-shipping">Trocar CEP</button></div><div class="shipping-sort" role="group" aria-label="Ordenar opções de frete"><button class="${state.shippingSort === "price" ? "active" : ""}" data-action="shipping-sort" data-shipping-sort="price">Menor preço</button><button class="${state.shippingSort === "speed" ? "active" : ""}" data-action="shipping-sort" data-shipping-sort="speed">Mais rápido</button><button class="${state.shippingSort === "recommended" ? "active" : ""}" data-action="shipping-sort" data-shipping-sort="recommended">Recomendado</button></div><div class="shipping-options">${orderedShippingOptions(quote.options).map((option) => `<button class="shipping-option ${selected?.id === option.id ? "selected" : ""}" data-action="select-shipping" data-shipping-option="${option.id}"><span><strong>${option.carrier}</strong><small>${option.service} · ${option.days}${option.pickup ? ` · ${state.shipping.pickupAddress}` : ""}</small></span><b>${option.price ? moneyDetailed(option.price) : "Grátis"}</b><i>${selected?.id === option.id ? "✓" : ""}</i></button>`).join("")}</div><small class="shipping-meta">${quote.volumes.length} volume(s) · validade até ${new Date(quote.expiresAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></div>`;
 }
 
+function airdropCartMarkup() {
+  const live = activeAirdrop();
+  const applied = appliedAirdrop();
+  const appliedDiscount = airdropDiscount(applied, cartSubtotal());
+  const upcoming = nextAirdrop();
+  if (applied && appliedDiscount > 0) return `<section class="airdrop-cart is-applied"><div class="airdrop-cart-head"><div><span class="eyebrow">AIRDROP / RESGATADO</span><strong>${escapeHtml(applied.name)}</strong></div><span class="airdrop-live-badge">− ${moneyDetailed(appliedDiscount)}</span></div><div class="airdrop-applied-row"><span><b>${escapeHtml(applied.code)}</b> aplicado ao carrinho</span><button class="text-link" data-action="airdrop-clear">Remover</button></div></section>`;
+  return `<section class="airdrop-cart"><div class="airdrop-cart-head"><div><span class="eyebrow">AIRDROP / ${live ? "NO AR" : "RADAR"}</span><strong>${live ? "Código liberado." : "Caixa de resgate."}</strong></div><span class="airdrop-live-badge">${live ? airdropDiscountLabel(live) : "OFFLINE"}</span></div><form class="airdrop-claim-form" id="airdrop-claim-form"><input name="airdropCode" autocomplete="off" maxlength="24" placeholder="Digite o código Airdrop" aria-label="Código Airdrop" /><button class="outline-cta" type="submit">Ativar</button></form><small class="airdrop-cart-help">${live ? `Drop ativo até ${live.expiresAt ? airdropDate(live.expiresAt) : "encerrar"}.` : upcoming ? `Próximo drop ${airdropDate(upcoming.startsAt)} · ${escapeHtml(upcoming.message)}` : "Acompanhe as redes da loja para descobrir o próximo drop."}</small></section>`;
+}
+
+function applyAirdropCode(codeValue = null) {
+  const input = document.querySelector("#airdrop-claim-form input[name=airdropCode]");
+  const code = String(codeValue ?? input?.value ?? "").trim().toUpperCase();
+  const campaign = state.airdrops.find((item) => item.code === code);
+  if (!campaign || airdropPhase(campaign) !== "active") { showToast("Airdrop indisponível ou ainda não liberado."); return; }
+  const subtotal = cartSubtotal();
+  if (subtotal < campaign.minSubtotal) { showToast(`Este drop pede um carrinho mínimo de ${moneyDetailed(campaign.minSubtotal)}.`); return; }
+  state.appliedAirdropCode = campaign.code;
+  persist();
+  renderDrawer();
+  showToast(`Airdrop ativado: ${airdropDiscountLabel(campaign)}.`);
+}
+
+function clearAirdrop() {
+  state.appliedAirdropCode = "";
+  persist();
+  renderDrawer();
+  showToast("Airdrop removido do carrinho.");
+}
+
 function invalidateShipping() {
   state.cartShipping = null;
 }
@@ -1727,10 +1891,8 @@ function renderDrawer() {
     return;
   }
   itemsEl.innerHTML = state.cart.map((item) => { const product = findProduct(item.id); return `<div class="cart-item"><img src="${product.image}" alt="${product.name}" /><div><strong>${product.name}</strong><small>${money(product.price)} por unidade</small><div class="cart-item-controls"><div class="cart-qty-control"><button type="button" data-cart-dec="${item.id}" aria-label="Diminuir quantidade">−</button><b>${item.quantity}</b><button type="button" data-cart-inc="${item.id}" aria-label="Aumentar quantidade" ${item.quantity >= product.stockCount ? "disabled" : ""}>+</button></div><button class="cart-item-remove" data-remove-cart="${item.id}">Remover</button></div></div><div class="cart-item-price">${money(product.price * item.quantity)}</div></div>`; }).join("");
-  const total = cartSubtotal();
-  const selected = selectedShippingOption();
-  const freight = selected?.price || 0;
-  footerEl.innerHTML = `${cartShippingMarkup()}<div class="summary-row"><span>Subtotal</span><strong>${moneyDetailed(total)}</strong></div><div class="summary-row"><span>Frete</span><strong>${state.cartShipping ? (freight ? moneyDetailed(freight) : "Grátis") : "Informe seu CEP"}</strong></div><div class="summary-row total"><span>Total estimado</span><strong>${moneyDetailed(total + freight)}</strong></div><button class="quote-button" data-action="quote" ${state.cartShipping ? "" : "disabled"}>Solicitar orçamento</button>`;
+  const totals = cartTotals();
+  footerEl.innerHTML = `${cartShippingMarkup()}${airdropCartMarkup()}<div class="summary-row"><span>Subtotal</span><strong>${moneyDetailed(totals.subtotal)}</strong></div>${totals.discount ? `<div class="summary-row airdrop-discount-row"><span>Desconto Airdrop</span><strong>− ${moneyDetailed(totals.discount)}</strong></div>` : ""}<div class="summary-row"><span>Frete</span><strong>${state.cartShipping ? (totals.freight ? moneyDetailed(totals.freight) : "Grátis") : "Informe seu CEP"}</strong></div><div class="summary-row total"><span>Total estimado</span><strong>${moneyDetailed(totals.total)}</strong></div><button class="quote-button" data-action="quote" ${state.cartShipping ? "" : "disabled"}>Solicitar orçamento</button>`;
 }
 
 function openDrawer() { drawer.classList.add("is-open"); drawerBackdrop.classList.add("is-open"); drawer.setAttribute("aria-hidden", "false"); }
@@ -1739,18 +1901,23 @@ function openModal(content) { modalContent.innerHTML = content; modalLayer.class
 function closeModal() { modalLayer.classList.remove("is-open", "is-command"); modalLayer.setAttribute("aria-hidden", "true"); modalContent.innerHTML = ""; }
 
 function quoteModal() {
-  const total = cartSubtotal();
-  const selected = selectedShippingOption();
-  const freight = selected?.price || 0;
-  openModal(`<span class="eyebrow">QUOTE / REQUEST</span><h2>Solicite seu<br>orçamento.</h2><p>Deixe seus dados e a equipe ${state.settings.storeName} continua a conversa pelo WhatsApp.</p><form class="form-grid" id="quote-form"><div class="form-row"><label class="form-label">Nome<input name="name" required placeholder="Seu nome" /></label><label class="form-label">WhatsApp<input name="phone" required placeholder="(11) 99999-9999" /></label></div><div class="form-row"><label class="form-label">CEP<input name="zip" value="${state.cartShipping?.zip || ""}" placeholder="00000-000" /></label><label class="form-label">Cidade<input name="city" placeholder="São Paulo" /></label></div><label class="form-label">Endereço de entrega<input name="address" placeholder="Rua, número, complemento" /></label><label class="form-label">Observação<textarea name="note" placeholder="Algum detalhe sobre seu loadout?"></textarea></label><div class="summary-row"><span>Frete${selected ? ` · ${selected.carrier} / ${selected.service}` : ""}</span><strong>${selected ? (freight ? moneyDetailed(freight) : "Grátis") : "Pendente"}</strong></div><div class="summary-row total"><span>Total estimado</span><strong>${moneyDetailed(total + freight)}</strong></div><button class="modal-submit" type="submit">Criar orçamento e abrir WhatsApp</button></form>`);
+  const totals = cartTotals();
+  const { subtotal, discount, freight, total } = totals;
+  const selected = totals.selected;
+  openModal(`<span class="eyebrow">QUOTE / REQUEST</span><h2>Solicite seu<br>orçamento.</h2><p>Deixe seus dados e a equipe ${state.settings.storeName} continua a conversa pelo WhatsApp.</p><form class="form-grid" id="quote-form"><div class="form-row"><label class="form-label">Nome<input name="name" required placeholder="Seu nome" /></label><label class="form-label">WhatsApp<input name="phone" required placeholder="(11) 99999-9999" /></label></div><div class="form-row"><label class="form-label">CEP<input name="zip" value="${state.cartShipping?.zip || ""}" placeholder="00000-000" /></label><label class="form-label">Cidade<input name="city" placeholder="São Paulo" /></label></div><label class="form-label">Endereço de entrega<input name="address" placeholder="Rua, número, complemento" /></label><label class="form-label">Observação<textarea name="note" placeholder="Algum detalhe sobre seu loadout?"></textarea></label><div class="summary-row"><span>Subtotal</span><strong>${moneyDetailed(subtotal)}</strong></div>${discount ? `<div class="summary-row airdrop-discount-row"><span>Desconto Airdrop</span><strong>− ${moneyDetailed(discount)}</strong></div>` : ""}<div class="summary-row"><span>Frete${selected ? ` · ${selected.carrier} / ${selected.service}` : ""}</span><strong>${selected ? (freight ? moneyDetailed(freight) : "Grátis") : "Pendente"}</strong></div><div class="summary-row total"><span>Total estimado</span><strong>${moneyDetailed(total)}</strong></div><button class="modal-submit" type="submit">Criar orçamento e abrir WhatsApp</button></form>`);
   document.querySelector("#quote-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const quote = quoteRecord(form);
     const lines = state.cart.map((item) => { const product = findProduct(item.id); return `${item.quantity}x ${product.brand} ${product.name}`; }).join("\n");
-    const message = `Olá, gostaria de solicitar orçamento da ${state.settings.storeName}.\n\nOrçamento ${quote.id}\n\nItens:\n${lines}\n\nNome: ${form.get("name")}\nWhatsApp: ${form.get("phone")}\nCEP: ${form.get("zip") || "Não informado"}\nEndereço: ${form.get("address") || "Não informado"}\nCidade: ${form.get("city") || "Não informado"}\nFrete: ${quote.freight ? moneyDetailed(quote.freight) : "Grátis ou pendente"}\nTransportadora: ${quote.shipping?.carrier || "A definir"}\nPrazo: ${quote.shipping?.deadline || "A confirmar"}\nObservação: ${form.get("note") || "—"}`;
+    const message = `Olá, gostaria de solicitar orçamento da ${state.settings.storeName}.\n\nOrçamento ${quote.id}\n\nItens:\n${lines}\n\nNome: ${form.get("name")}\nWhatsApp: ${form.get("phone")}\nCEP: ${form.get("zip") || "Não informado"}\nEndereço: ${form.get("address") || "Não informado"}\nCidade: ${form.get("city") || "Não informado"}\nSubtotal: ${moneyDetailed(quote.subtotal)}\nAirdrop: ${quote.airdropCode ? `${quote.airdropCode} · desconto de ${moneyDetailed(quote.discount)}` : "Não utilizado"}\nFrete: ${quote.freight ? moneyDetailed(quote.freight) : "Grátis ou pendente"}\nTotal estimado: ${moneyDetailed(quote.total)}\nTransportadora: ${quote.shipping?.carrier || "A definir"}\nPrazo: ${quote.shipping?.deadline || "A confirmar"}\nObservação: ${form.get("note") || "—"}`;
     const link = `https://wa.me/${String(state.settings.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(message)}`;
+    if (quote.airdropCode) {
+      const campaign = state.airdrops.find((item) => item.code === quote.airdropCode);
+      if (campaign) campaign.redeemed += 1;
+    }
     state.cart = [];
+    state.appliedAirdropCode = "";
     invalidateShipping();
     persist();
     updateNav();
@@ -2225,6 +2392,8 @@ function bindViewEvents() {
   if (importFile) importFile.addEventListener("change", () => analyzeImportFile(importFile.files[0]));
   const settingsForm = document.querySelector("#settings-form");
   if (settingsForm) settingsForm.addEventListener("submit", (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const cubingFactor = Math.max(1, Number(form.get("cubingFactor")) || 5000); const quoteValidityHours = Math.max(1, Number(form.get("quoteValidityHours")) || 24); state.settings = { storeName: form.get("storeName").toString().trim(), city: form.get("city").toString().trim(), whatsapp: form.get("whatsapp").toString().replace(/\D/g, ""), lowStock: Number(form.get("lowStock")) || 0 }; state.shipping = { ...state.shipping, originZip: normalizeZip(form.get("originZip")) || state.shipping.originZip, originAddress: form.get("originAddress").toString().trim(), originCity: form.get("originCity").toString().trim(), originState: form.get("originState").toString().trim().toUpperCase(), cubingFactor, quoteValidityHours, freeShippingMin: Math.max(0, Number(form.get("freeShippingMin")) || 0), flatSp: Math.max(0, Number(form.get("flatSp")) || 0), pickupAddress: form.get("pickupAddress").toString().trim(), pickupHours: form.get("pickupHours").toString().trim(), pickupInstructions: form.get("pickupInstructions").toString().trim() }; state.shippingCache = {}; persist(); render(); showToast("Configurações salvas."); });
+  const airdropForm = document.querySelector("#airdrop-form");
+  if (airdropForm) airdropForm.addEventListener("submit", saveAirdrop);
 }
 
 document.addEventListener("click", (event) => {
@@ -2257,6 +2426,9 @@ document.addEventListener("click", (event) => {
   if (action === "select-shipping") selectShippingOption(event.target.closest("[data-shipping-option]")?.dataset.shippingOption);
   if (action === "shipping-sort") setShippingSort(event.target.closest("[data-shipping-sort]")?.dataset.shippingSort);
   if (action === "clear-shipping") { invalidateShipping(); persist(); renderDrawer(); }
+  if (action === "airdrop-clear") clearAirdrop();
+  if (action === "airdrop-launch") launchAirdrop(event.target.closest("[data-airdrop-id]")?.dataset.airdropId);
+  if (action === "airdrop-end") endAirdrop(event.target.closest("[data-airdrop-id]")?.dataset.airdropId);
   if (action === "close-modal") closeModal();
   if (action === "quote") quoteModal();
   if (action === "compare-open") compareModal();
@@ -2269,7 +2441,7 @@ document.addEventListener("click", (event) => {
   if (action === "commit-import") commitImport();
   if (action === "import-reset") { state.importData = null; render(); }
   if (action === "import-rollback") rollbackImport(event.target.closest("[data-import-id]")?.dataset.importId);
-  if (action === "reset-local-data" && window.confirm("Restaurar os dados demo e apagar os dados salvos neste dispositivo?")) { ["fieldops-products", "fieldops-cart", "fieldops-cart-shipping", "fieldops-shipping-cache", "fieldops-shipping", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme", "fieldops-radar", "fieldops-radar-following", "fieldops-radar-content"].forEach((key) => localStorage.removeItem(key)); location.hash = "#admin"; location.reload(); }
+  if (action === "reset-local-data" && window.confirm("Restaurar os dados demo e apagar os dados salvos neste dispositivo?")) { ["fieldops-products", "fieldops-cart", "fieldops-cart-shipping", "fieldops-shipping-cache", "fieldops-shipping", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme", "fieldops-radar", "fieldops-radar-following", "fieldops-radar-content", "fieldops-airdrops", "fieldops-airdrop-code"].forEach((key) => localStorage.removeItem(key)); location.hash = "#admin"; location.reload(); }
   if (action === "menu") openModal(`<span class="eyebrow">FIELD OPS / MENU</span><h2>Navegue<br>pelo arsenal.</h2><div class="form-grid"><button class="outline-cta" data-route="catalog">Catálogo</button><button class="outline-cta" data-route="radar">Radar Airsoft</button><button class="outline-cta" data-route="loadout">Monte seu loadout</button><button class="outline-cta" data-route="favorites">Favoritos</button><button class="outline-cta" data-route="admin">Painel operacional</button></div>`);
   if (action === "apply-filter-modal") { closeModal(); render(); }
   const loadoutId = event.target.closest("[data-loadout-select]")?.dataset.loadoutSelect;
@@ -2330,6 +2502,12 @@ document.addEventListener("click", (event) => {
 document.addEventListener("click", (event) => {
   const routeEl = event.target.closest(".modal-panel [data-route]");
   if (routeEl) { event.preventDefault(); closeModal(); go(routeEl.dataset.route); }
+});
+
+document.addEventListener("submit", (event) => {
+  if (event.target?.id !== "airdrop-claim-form") return;
+  event.preventDefault();
+  applyAirdropCode();
 });
 
 modalLayer.addEventListener("click", (event) => { if (event.target === modalLayer) closeModal(); });

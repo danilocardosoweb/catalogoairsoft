@@ -3,7 +3,7 @@
 Última revisão: 25/09/2026  
 Última versão publicada: Radar Airsoft local-first + radar tático dinâmico no hero
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
-Acesso atual: privado, com login do ChatGPT.
+Acesso atual: público para validação da experiência.
 
 ## Resumo
 
@@ -18,7 +18,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Home com hero tático, busca, categorias, marcas, destaques, briefing personalizado e itens recentemente visualizados.
 - Hero com vídeo pausado de operador Airsoft controlado horizontalmente pelo mouse, interpolação via `requestAnimationFrame`, retorno suave ao frame central, fallback visual e suporte a movimento reduzido/mobile.
 - Hero ajustado para usar somente o vídeo do operador, removendo a imagem anterior sobreposta; MP4 reprocessado a 24 fps com quadro-chave em todos os frames e seeks serializados para uma movimentação mais fluida.
-- Radar tático dinâmico no hero inspirado em HUDs de FPS: jogador com rota própria, três contatos hostis em trajetórias independentes, varredura cônica, grid, pontos cardeais, estados de contato e pings contextuais.
+- Radar tático dinâmico no hero inspirado em HUDs de FPS: jogador com rota própria, dois contatos hostis em trajetórias independentes, varredura cônica, grid, pontos cardeais, estados de contato e pings contextuais.
 - Animação do radar calculada por `requestAnimationFrame`, com easing por ator, troca de rota não determinística, atualização de setor/coordenadas e suporte a `prefers-reduced-motion`.
 - Sistema visual com modo noturno `NVG / NIGHT` e modo claro `DAY OPS / LIGHT`, preferência persistida no dispositivo e transição radial inspirada em troca de visor/HUD.
 - Contraste revisado em textos de filtro, metadados, descrições, cabeçalho e superfícies claras para melhorar leitura em telas menores.
@@ -32,6 +32,8 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Loadout builder com rifle, óptica, magazine, munição e proteção.
 - Carrinho lateral com alteração de quantidade, remoção de item e limite pelo estoque.
 - Solicitação de orçamento com dados do cliente, resumo dos itens e abertura do WhatsApp.
+- Airdrop no carrinho: campo para código liberado, validação de janela/valor mínimo/limite de resgates, desconto aplicado ao total e remoção do cupom.
+- Bloco Airdrop na home com comunicação de drop ativo ou próximo, reforçando o acompanhamento das redes sociais da loja.
 - Perfil local do cliente, sem obrigar cadastro para navegar.
 - Briefing personalizado por estilo de jogo e faixa de investimento.
 - Command palette para busca rápida e atalhos de navegação.
@@ -83,6 +85,8 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Página Radar com escopos Perto de mim, Minha cidade/estado, Brasil e Internacional, raio de 25/50/100/200 km, filtros por categoria, ordenação por relevância/distância/data/categoria/popularidade e visão feed/mapa.
 - Cards de eventos, campos, lojas, notícias e lançamentos com seguir/deixar de seguir, detalhes, tags e produtos relacionados ligados ao catálogo e ao loadout.
 - Central de Conteúdo no painel operacional para criar, editar, revisar, publicar e arquivar sinais Radar localmente, com status Rascunho, Em revisão, Publicado e Arquivado.
+- Central “Soltar Airdrop” em Configurações: agendamento ou disparo imediato, código, desconto percentual/fixo, mínimo de carrinho, validade, limite de resgates, mensagem social e encerramento manual.
+- Airdrops ficam registrados localmente, entram no backup JSON e são incorporados ao resumo do orçamento e da mensagem enviada ao WhatsApp.
 - Arquitetura inicial de Radar preparada para receber fontes externas e sumarização futura sem publicação automática; conteúdo demo continua separado do catálogo de produtos.
 
 ### Qualidade e publicação
@@ -98,6 +102,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Versão atual publicada em produção com o hero interativo, o fluxo comercial de Orçamentos, importação operacional e a Central de Pedidos ampliada.
 - Radar Airsoft validado localmente no feed, mapa tático, detalhe, localização manual, filtros e Central de Conteúdo.
 - Radar do hero validado no navegador local com jogador, dois hostis, sweep, leitura de contato, atualização de coordenadas e varredura manual; o círculo decorativo anterior foi removido para evitar sobreposição visual.
+- Airdrop validado no fluxo local com central administrativa, ativação no carrinho, cálculo do desconto e registro do código no orçamento.
 - Mini mapa do hero ficou translúcido no desktop e é ocultado em telas pequenas para preservar a leitura do operador, título e CTA.
 - A segunda calibração do Radar dobrou os intervalos das rotas e pausas, deixando sweep e pulsos ainda mais lentos para reduzir estímulos visuais.
 - Banner de Loadout recebeu contraste dedicado: overlay tático, tipografia clara, sombra de leitura e CTA com fundo translúcido, preservando a imagem em dark e light mode.
