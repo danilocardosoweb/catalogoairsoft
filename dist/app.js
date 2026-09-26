@@ -442,13 +442,13 @@ function productCard(product) {
       <span class="product-brand">${product.brand}</span>
       <strong class="product-name" data-product="${product.id}">${product.name}</strong>
       <span class="product-meta">${product.type} · ${product.meta}</span>
-      <div class="product-foot"><div><strong class="price">${money(product.price)}</strong><span class="stock ${product.stockCount <= 0 ? "stock-out" : ""}">${stockLabel(product)}</span></div><button class="product-add" type="button" data-add="${product.id}" aria-label="Adicionar ${product.name}" ${product.stockCount <= 0 ? "disabled" : ""}>+</button></div>
+      <div class="product-foot"><div><strong class="price">${money(product.price)}</strong><span class="stock ${product.stockCount <= 0 ? "stock-out" : ""}">${stockLabel(product)}</span></div><button class="product-add" type="button" data-add="${product.id}" aria-label="Adicionar ${product.name}" title="Adicionar ao carrinho" ${product.stockCount <= 0 ? "disabled" : ""}><span class="product-add-label">Adicionar</span><span class="product-add-icon" aria-hidden="true">+</span></button></div>
     </div>
   </article>`;
 }
 
 function searchBar() {
-  return `<div class="search-zone container"><div class="search-bar"><span class="icon icon-search"></span><input id="global-search" value="${state.search}" placeholder="Buscar equipamento, marca ou categoria" autocomplete="off" /><button class="search-key" data-action="open-search" aria-label="Abrir busca avançada">⌘ K</button></div><div class="search-results" data-search-results></div></div>`;
+  return `<div class="search-zone container"><div class="search-bar"><span class="icon icon-search"></span><input id="global-search" value="${state.search}" placeholder="Buscar equipamento, marca ou categoria" autocomplete="off" /><button class="search-key" data-action="open-search" aria-label="Abrir busca avançada">⌘ K</button></div><div class="search-quick-links" aria-label="Atalhos de catálogo"><button data-category="Rifles">Rifles</button><button data-category="Pistolas">Pistolas</button><button data-category="Ópticas">Ópticas</button><button data-category="Gear">Gear</button><button data-category="Munição">Munição</button></div><div class="search-results" data-search-results></div></div>`;
 }
 
 function recommendedProducts() {
@@ -679,13 +679,13 @@ function homePage() {
     </section>
     ${searchBar()}
     <div class="container">
-      ${radarHomeSection()}
-      ${airdropHomeSection()}
-      ${missionDeck()}
-      ${resumeStrip()}
-      <section class="home-section"><div class="section-label"><div><span class="eyebrow">01 / ARSENAL</span><h2>Escolha sua<br>plataforma.</h2></div><p>O essencial para entrar em campo com o setup certo, do primeiro jogo ao próximo upgrade.</p></div><div class="category-grid">${categories.map((category) => `<button class="category-card" type="button" data-category="${category.name}" style="--category-image: url('${category.image}')"><span class="category-card-content"><strong>${category.name}</strong><small>${activeProducts().filter((product) => product.category === category.name).length} itens ↗</small></span></button>`).join("")}</div></section>
+      <section class="home-section home-arsenal-section"><div class="section-label"><div><span class="eyebrow">01 / ARSENAL</span><h2>Escolha sua<br>plataforma.</h2></div><p>O essencial para entrar em campo com o setup certo, do primeiro jogo ao próximo upgrade.</p></div><div class="category-grid">${categories.map((category) => { const count = activeProducts().filter((product) => product.category === category.name).length; return `<button class="category-card ${count ? "" : "is-coming-soon"}" type="button" ${count ? `data-category="${category.name}"` : `data-action="coming-soon" data-category-name="${category.name}"`} style="--category-image: url('${category.image}')"><span class="category-card-content"><strong>${category.name}</strong><small>${count ? `${count} itens ↗` : "Em breve ↗"}</small></span></button>`; }).join("")}</div></section>
       <section class="home-section"><div class="section-label"><div><span class="eyebrow">02 / CURATED GEAR</span><h2>Escolhas<br>de campo.</h2></div><a class="text-link" href="#catalog" data-route="catalog">Ver catálogo</a></div><div class="product-grid">${feature.map(productCard).join("")}</div></section>
+      ${resumeStrip()}
+      ${missionDeck()}
       <section class="home-section"><div class="loadout-banner"><div class="loadout-copy"><span class="eyebrow">03 / BUILD YOUR LOADOUT</span><h2>Monte uma<br>vantagem.</h2><p>Combine arma, óptica, magazine e proteção em uma configuração que faz sentido para o seu próximo jogo.</p><button class="outline-cta" data-route="loadout">Montar loadout</button></div></div></section>
+      ${airdropHomeSection()}
+      ${radarHomeSection()}
       <section class="home-section"><div class="section-label"><div><span class="eyebrow">04 / BRANDS</span><h2>Marcas<br>em campo.</h2></div><a class="text-link" href="#brands" data-route="brands">Ver todas</a></div><div class="brand-strip">${["ROSSI", "G&G", "KJW", "BLS", "8FIELDS", "VECTOR"].map((brand) => `<button class="brand-pill" data-search-brand="${brand}">${brand}</button>`).join("")}</div></section>
     </div>
   </section>`;
@@ -2885,6 +2885,7 @@ document.addEventListener("click", (event) => {
   if (action === "radar-source-edit" && radarSourceId) radarSourceModal(radarSourceId);
   if (action === "radar-source-sync" && radarSourceId) syncRadarSource(radarSourceId);
   if (action === "radar-sources-sync-all") syncAllRadarSources();
+  if (action === "coming-soon") showToast(`${event.target.closest("[data-category-name]")?.dataset.categoryName || "Esta categoria"} será liberada em breve.`);
   const radarProductId = event.target.closest("[data-radar-product]")?.dataset.radarProduct;
   if (action === "radar-product" && radarProductId) { const product = findProduct(radarProductId); if (product) { closeModal(); go("product", product); } }
   if (action === "clear-recent") { state.recentProducts = []; persist(); render(); showToast("Histórico de produtos limpo."); }

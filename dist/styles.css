@@ -224,6 +224,10 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
 .search-bar .icon { flex: 0 0 auto; color: var(--accent); }
 .search-bar input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 16px; }
 .search-bar input::placeholder { color: var(--muted); }
+.search-quick-links { display: flex; align-items: center; gap: 7px; overflow-x: auto; padding: 9px 1px 1px; scrollbar-width: none; }
+.search-quick-links::-webkit-scrollbar { display: none; }
+.search-quick-links button { flex: 0 0 auto; min-height: 28px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; transition: border-color .2s ease, color .2s ease, background .2s ease; }
+.search-quick-links button:hover { border-color: var(--accent); color: var(--accent); background: var(--surface-2); }
 .search-key { padding: 5px 8px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; cursor: pointer; }
 .search-key:hover { border-color: var(--accent); color: var(--accent); }
 .search-results { display: none; position: absolute; left: 0; right: 0; top: 78px; max-height: 330px; overflow: auto; background: var(--surface); border: 1px solid var(--line-strong); box-shadow: var(--shadow); }
@@ -278,6 +282,8 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
 .category-card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 22%, rgba(0,0,0,.85) 100%), var(--category-image) center / cover; opacity: .62; transition: transform .45s ease, opacity .3s ease; }
 .category-card::after { content: ""; position: absolute; top: 0; right: 0; width: 17px; height: 17px; border-top: 1px solid var(--accent); border-right: 1px solid var(--accent); opacity: .65; }
 .category-card:hover { border-color: var(--line-strong); transform: translateY(-3px); }
+.category-card.is-coming-soon { cursor: help; }
+.category-card.is-coming-soon:hover { transform: none; }
 .category-card:hover::before { transform: scale(1.06); opacity: .8; }
 .category-card-content { position: relative; z-index: 1; }
 .category-card strong { display: block; font: 600 25px/.95 var(--display); text-transform: uppercase; }
@@ -310,7 +316,9 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
 .price { font: 700 22px/1 var(--display); letter-spacing: .02em; }
 .stock { display: inline-flex; align-items: center; gap: 6px; color: #aec68d; font-size: 9px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
 .stock::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-.product-add { display: grid; place-items: center; width: 31px; height: 31px; border: 1px solid var(--line-strong); background: transparent; color: var(--accent); cursor: pointer; }
+.product-add { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 31px; height: 31px; padding: 0 10px; border: 1px solid var(--line-strong); background: transparent; color: var(--accent); font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.product-add-label { white-space: nowrap; }
+.product-add-icon { font-size: 17px; line-height: 1; }
 .product-add:hover { background: var(--accent); color: var(--bg); }
 .product-add:disabled { opacity: .35; cursor: not-allowed; }
 .stock-out { color: var(--danger); }
@@ -1045,7 +1053,8 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
   .product-foot { margin-top: 14px; }
   .stock { font-size: 8px; }
   .stock::before { width: 4px; height: 4px; }
-  .product-add { width: 29px; height: 29px; }
+  .product-add { width: 29px; min-width: 29px; height: 29px; padding: 0; }
+  .product-add-label { display: none; }
   .product-hover-specs { display: none; }
   .loadout-banner { min-height: 340px; padding: 28px 22px; }
   .loadout-banner::before { font-size: 100px; }

@@ -43,6 +43,10 @@ O estado atual também está protegido por um ponto de restauração local docum
 - Command palette para busca rápida e atalhos de navegação.
 - Navegação inferior para uso em telas pequenas.
 - Estados vazios, mensagens de confirmação e toasts para as principais ações.
+- Página Início reorganizada para priorizar descoberta comercial: busca, atalhos de categoria, arsenal e produtos aparecem antes de briefing, Loadout, Airdrop, Radar e marcas.
+- Busca da home recebeu atalhos rápidos para Rifles, Pistolas, Ópticas, Gear e Munição, com rolagem horizontal no mobile.
+- Cards de categoria sem produtos não levam mais a uma página vazia: exibem “Em breve” e informam o usuário por toast.
+- Cards de produto receberam CTA textual “Adicionar” no desktop, mantendo o botão compacto no mobile e confirmação acessível para o carrinho.
 
 ### Painel operacional
 
