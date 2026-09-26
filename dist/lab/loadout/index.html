@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#080c09" />
-    <meta name="description" content="Loadout Lab — protótipo experimental da experiência de montagem Field Ops." />
+    <meta name="theme-color" content="#070908" />
+    <meta name="description" content="Loadout Lab — experiência cinematográfica experimental da Field Ops." />
     <title>LOADOUT LAB — FIELD OPS</title>
     <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -13,79 +13,34 @@
     <link rel="stylesheet" href="./loadout-lab.css" />
   </head>
   <body>
-    <div class="lab-shell">
-      <header class="lab-header">
-        <a class="lab-brand" href="../../#home" aria-label="Voltar para o início Field Ops">
-          <span class="lab-brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span><strong>FIELD<span>OPS</span></strong><small>TACTICAL EQUIPMENT / LAB</small></span>
-        </a>
-        <div class="lab-header-status"><i></i><span>LOADOUT LAB</span><b>EXPERIMENTAL</b></div>
-        <a class="lab-exit" href="../../#loadout">Loadout atual <span>↗</span></a>
-      </header>
+    <main class="lab-experience">
+      <a class="lab-back" href="../../#loadout">Loadout atual <span>↗</span></a>
 
-      <main>
-        <section class="lab-hero" aria-labelledby="lab-title">
-          <div class="lab-hero-copy">
-            <span class="lab-eyebrow">PROTOTYPE / FIELD OPS</span>
+      <section class="lab-story" data-lab-story aria-labelledby="lab-title">
+        <div class="lab-story-sticky">
+          <div class="lab-scene" data-lab-scene aria-hidden="true">
+            <div class="lab-operator-image"></div>
+            <div class="lab-rifle-image"></div>
+            <div class="lab-atmosphere"></div>
+            <div class="lab-light-leak"></div>
+          </div>
+
+          <div class="lab-copy" data-lab-copy>
             <h1 id="lab-title">Monte seu<br /><em>loadout.</em></h1>
-            <p>Uma experiência em construção para escolher cada peça como quem prepara a próxima missão.</p>
-            <div class="lab-hero-meta"><span>2.5D EXPERIENCE</span><span>LOCAL DEMO DATA</span></div>
+            <p>Seu equipamento. Sua configuração.</p>
           </div>
-          <div class="lab-scroll-cue" aria-hidden="true"><span></span><strong>Role para montar</strong><small>SCROLL TO DEPLOY</small></div>
-        </section>
 
-        <section class="lab-scene-scroller" data-scene-scroller aria-label="Experiência visual de montagem do Loadout">
-          <div class="lab-scene-sticky">
-            <div class="lab-scene-shell" data-scene-shell>
-              <div class="lab-scene-backdrop" aria-hidden="true"></div>
-              <div class="lab-grid-plane" aria-hidden="true"></div>
-              <div class="lab-operator-layer" aria-hidden="true"></div>
-              <div class="lab-rifle-layer" aria-hidden="true"></div>
-              <div class="lab-vignette" aria-hidden="true"></div>
-              <div class="lab-crosshair" aria-hidden="true"><span></span><i></i></div>
-
-              <div class="lab-scene-label"><span>FIELD // 07</span><strong data-scene-label>OPERATOR</strong></div>
-              <div class="lab-scene-readout" aria-live="polite"><span>SCROLL POSITION</span><strong data-progress-readout>00%</strong><small data-scene-readout>Operator em posição</small></div>
-
-              <div class="lab-hotspots" aria-label="Pontos de demonstração do rifle">
-                <button class="lab-hotspot hotspot-optic" type="button" data-hotspot="optic" aria-label="Abrir demonstração de óptica"><i></i><span>OPTIC</span></button>
-                <button class="lab-hotspot hotspot-magazine" type="button" data-hotspot="magazine" aria-label="Abrir demonstração de magazine"><i></i><span>MAG</span></button>
-                <button class="lab-hotspot hotspot-rail" type="button" data-hotspot="rail" aria-label="Abrir demonstração de trilho"><i></i><span>RAIL</span></button>
-              </div>
-
-              <div class="lab-scene-copy" data-scene-copy>
-                <span class="lab-eyebrow">01 / OPERATOR</span>
-                <h2 data-scene-title>Comece pelo<br /><em>operador.</em></h2>
-                <p data-scene-description>O conjunto começa antes da primeira escolha. Role para aproximar, encontrar os pontos de montagem e assumir o controle.</p>
-              </div>
-
-              <aside class="lab-detail-panel" data-detail-panel aria-live="polite" hidden>
-                <button class="lab-detail-close" type="button" data-close-detail aria-label="Fechar detalhe">×</button>
-                <span class="lab-eyebrow" data-detail-kicker>DEMO SLOT / OPTIC</span>
-                <h3 data-detail-title>Óptica</h3>
-                <p data-detail-copy>Área reservada para produtos compatíveis do catálogo real.</p>
-                <div class="lab-demo-product"><span>DEMONSTRAÇÃO</span><strong data-detail-product>RD-1 RED DOT</strong><small data-detail-price>R$ 429 · dado mockado</small></div>
-                <button class="lab-detail-action" type="button" data-select-demo>Marcar no protótipo <span>＋</span></button>
-              </aside>
-
-              <div class="lab-scene-footer"><span>WORKING PROTOTYPE</span><span><i></i>NO PRODUCTION DATA</span></div>
-            </div>
-
-            <nav class="lab-scene-rail" aria-label="Cenas da experiência">
-              <button type="button" class="is-active" data-scene-jump="0"><span>01</span>Operador</button>
-              <button type="button" data-scene-jump="0.36"><span>02</span>Aproximação</button>
-              <button type="button" data-scene-jump="0.68"><span>03</span>Rifle</button>
-              <div class="lab-rail-progress"><span></span></div>
-            </nav>
+          <div class="lab-scroll-cue" data-scroll-cue>
+            <span>Role para explorar</span>
+            <b>↓</b>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section class="lab-next-step">
-          <div><span class="lab-eyebrow">NEXT SLICE / LOCKED</span><h2>O rifle será<br /><em>o próximo sinal.</em></h2></div>
-          <p>Hotspots, produtos demonstrativos e montagem visual entram na próxima etapa, depois de validarmos o ritmo da primeira cena.</p>
-        </section>
-      </main>
-    </div>
+      <section class="lab-after-scene" aria-label="Próxima etapa do Loadout Lab">
+        <a href="../../#loadout">Voltar para o Loadout atual <span>↗</span></a>
+      </section>
+    </main>
     <script src="./loadout-lab.js" defer></script>
   </body>
 </html>
