@@ -155,6 +155,13 @@ const seedRadarContent = [
   { id: "radar-event-lisboa", type: "event", title: "FIELD INTEL / LISBOA", summary: "Leitura internacional para acompanhar o que está acontecendo na comunidade Airsoft fora do Brasil.", description: "Conteúdo internacional demonstrativo para validar a camada global do Radar antes da integração com fontes externas.", image: "https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=1200&q=82", city: "Lisboa", state: "", country: "Portugal", date: "2026-10-18", time: "09:00", organizer: "Field Ops international", field: "Lisboa", category: "Internacional", tags: ["internacional", "comunidade"], productIds: [], status: "published", popularity: 61, distanceKm: 9850, source: "Field Ops editorial" }
 ];
 
+const seedRadarSources = [
+  { id: "source-manual", name: "Entrada manual Field Ops", type: "manual", url: "", cadence: "manual", active: true, status: "local", lastSync: null, itemsFound: 0, notes: "Conteúdo criado pela operação e revisado antes da publicação." }
+];
+
+const radarSourceTypes = { manual: "Entrada manual", rss: "RSS / Atom", newsapi: "News API", youtube: "YouTube", events: "Eventos / API" };
+const radarSourceStatuses = { local: "Local", ready: "Pronta para conectar", queued: "Na fila", needs_backend: "Pede servidor" };
+
 const state = {
   route: "home",
   selectedProduct: null,
@@ -191,6 +198,7 @@ const state = {
   radar: JSON.parse(localStorage.getItem("fieldops-radar") || "null") || { location: { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual" }, scope: "nearby", type: "all", radius: 100, sort: "relevance", view: "feed" },
   radarFollowing: JSON.parse(localStorage.getItem("fieldops-radar-following") || "[]"),
   radarContents: JSON.parse(localStorage.getItem("fieldops-radar-content") || "null") || seedRadarContent,
+  radarSources: JSON.parse(localStorage.getItem("fieldops-radar-sources") || "null") || seedRadarSources,
   airdrops: JSON.parse(localStorage.getItem("fieldops-airdrops") || "null") || seedAirdrops,
   appliedAirdropCode: localStorage.getItem("fieldops-airdrop-code") || ""
 };
@@ -207,10 +215,15 @@ function ensureRadarContentShape(content) {
   return { ...content, type: radarTypes[content.type] ? content.type : "news", status: radarStatuses[content.status] ? content.status : "draft", title: content.title || "Sem título", summary: content.summary || "Conteúdo Radar Airsoft.", description: content.description || content.summary || "", city: content.city || "São Paulo", state: content.state ?? (content.country === "Brasil" ? "SP" : ""), country: content.country || "Brasil", date: content.date || new Date().toISOString().slice(0, 10), time: content.time || "", tags: Array.isArray(content.tags) ? content.tags : String(content.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean), productIds: Array.isArray(content.productIds) ? content.productIds : [], popularity: Number(content.popularity || 0), distanceKm: Number(content.distanceKm || 0), image: content.image || "https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=1200&q=82" };
 }
 
+function ensureRadarSourceShape(source) {
+  return { ...source, id: String(source.id || `source-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`), name: String(source.name || "Fonte sem nome").trim(), type: radarSourceTypes[source.type] ? source.type : "manual", url: String(source.url || "").trim(), cadence: ["manual", "hourly", "daily"].includes(source.cadence) ? source.cadence : "manual", active: source.active !== false, status: radarSourceStatuses[source.status] ? source.status : "local", lastSync: source.lastSync || null, itemsFound: Math.max(0, Number(source.itemsFound) || 0), notes: String(source.notes || "").trim() };
+}
+
 state.radar = { location: { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual" }, scope: "nearby", type: "all", radius: 100, sort: "relevance", view: "feed", ...(state.radar || {}) };
 state.radar.location = { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual", ...(state.radar.location || {}) };
 state.radarContents = (Array.isArray(state.radarContents) ? state.radarContents : seedRadarContent).map(ensureRadarContentShape).map((content) => content.country !== "Brasil" ? { ...content, state: "" } : content);
 state.radarFollowing = Array.isArray(state.radarFollowing) ? state.radarFollowing : [];
+state.radarSources = (Array.isArray(state.radarSources) ? state.radarSources : seedRadarSources).map(ensureRadarSourceShape);
 state.airdrops = (Array.isArray(state.airdrops) ? state.airdrops : seedAirdrops).map((campaign) => ({
   id: campaign.id || `airdrop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
   name: campaign.name || "AIRDROP FIELD OPS",
@@ -374,6 +387,7 @@ function persist() {
   localStorage.setItem("fieldops-radar", JSON.stringify(state.radar));
   localStorage.setItem("fieldops-radar-following", JSON.stringify(state.radarFollowing));
   localStorage.setItem("fieldops-radar-content", JSON.stringify(state.radarContents));
+  localStorage.setItem("fieldops-radar-sources", JSON.stringify(state.radarSources));
   localStorage.setItem("fieldops-airdrops", JSON.stringify(state.airdrops));
   localStorage.setItem("fieldops-airdrop-code", state.appliedAirdropCode || "");
 }
@@ -544,7 +558,11 @@ function radarHomeSection() {
 }
 
 function radarMapMarkup(contents) {
-  return `<section class="radar-map-panel"><div class="radar-map-head"><div><span class="eyebrow">TACTICAL MAP / LOCAL-FIRST</span><h2>Leitura de campo.</h2></div><span class="admin-sync">Mapa preparado sem rastrear sua posição</span></div><div class="radar-map"><div class="radar-map-grid"></div><div class="radar-map-crosshair"></div><span class="radar-map-label radar-map-label-a">SP / FIELD ZONE</span><span class="radar-map-label radar-map-label-b">LIVE SIGNALS</span>${contents.map((content, index) => `<button class="radar-map-marker ${content.type}" style="--marker-x:${18 + (index * 23) % 68}%;--marker-y:${24 + (index * 17) % 52}%" data-action="radar-detail" data-radar-id="${escapeHtml(content.id)}" title="${escapeHtml(content.title)}"><span>${String(index + 1).padStart(2, "0")}</span></button>`).join("")}<div class="radar-map-center"><span class="status-dot"></span><small>${escapeHtml(radarLocationLabel())}</small></div></div><div class="radar-map-legend"><span><i class="event"></i>Evento</span><span><i class="field"></i>Campo</span><span><i class="store"></i>Apoio</span><span><i class="release"></i>Novidade</span></div></section>`;
+  const mapContents = contents.slice(0, 5);
+  const intel = mapContents.slice(0, 3);
+  const markerMarkup = mapContents.map((content, index) => `<button class="radar-map-marker ${content.type}" style="--marker-x:${18 + (index * 23) % 68}%;--marker-y:${24 + (index * 17) % 52}%" data-action="radar-detail" data-radar-id="${escapeHtml(content.id)}" title="Abrir ${escapeHtml(content.title)}"><span>${String(index + 1).padStart(2, "0")}</span><em>${escapeHtml(radarTypeLabel(content.type))}</em></button>`).join("");
+  const intelMarkup = intel.length ? intel.map((content, index) => `<button class="radar-intel-item" data-action="radar-detail" data-radar-id="${escapeHtml(content.id)}"><span class="radar-intel-index">${String(index + 1).padStart(2, "0")}</span><span><b>${escapeHtml(radarTypeLabel(content.type))}</b><strong>${escapeHtml(content.title)}</strong><small>${escapeHtml(content.city)}${content.state ? ` / ${escapeHtml(content.state)}` : ""} · ${Math.round(radarDistance(content))} km</small></span><i>↗</i></button>`).join("") : `<div class="radar-intel-empty"><span>NO SIGNAL</span><small>Amplie o raio para localizar novos pontos.</small></div>`;
+  return `<section class="radar-map-panel"><div class="radar-map-head"><div><span class="eyebrow">TACTICAL MAP / LOCAL-FIRST</span><h2>Leitura de campo.</h2></div><div class="radar-map-connection"><span class="radar-live-dot"></span><span>LINK SEGURO</span><small>sem rastrear posição</small></div></div><div class="radar-tactical-layout"><div class="radar-map"><div class="radar-map-grid"></div><div class="radar-map-noise"></div><div class="radar-map-sweep"></div><div class="radar-map-crosshair"></div><div class="radar-map-ring radar-map-ring-outer"></div><div class="radar-map-ring radar-map-ring-inner"></div><span class="radar-map-label radar-map-label-a">${escapeHtml(String(state.radar.location.state || "SP"))} / FIELD ZONE</span><span class="radar-map-label radar-map-label-b">LIVE SIGNALS</span><span class="radar-map-axis radar-map-axis-n">N</span><span class="radar-map-axis radar-map-axis-e">E</span><span class="radar-map-axis radar-map-axis-s">S</span><span class="radar-map-axis radar-map-axis-w">W</span><div class="radar-map-hud radar-map-hud-top"><span>GRID 06 / ${String(Math.max(1, mapContents.length)).padStart(2, "0")}</span><span>SCAN / ${state.radar.radius} KM</span></div>${markerMarkup}<div class="radar-map-center"><span class="radar-center-pulse"></span><span class="status-dot"></span><small>${escapeHtml(radarLocationLabel())}</small></div><div class="radar-map-hud radar-map-hud-bottom"><span>LOCAL-FIRST</span><span>${mapContents.length} SINAIS NO SETOR</span></div></div><aside class="radar-intel-panel"><div class="radar-intel-head"><span class="eyebrow">FIELD INTEL</span><strong>Trilha de sinais</strong><small>prioridade por relevância</small></div>${intelMarkup}<button class="radar-intel-refresh" data-radar-view="feed">Abrir feed completo <span>↗</span></button></aside></div><div class="radar-map-legend"><span><i class="event"></i>Evento</span><span><i class="field"></i>Campo</span><span><i class="store"></i>Apoio</span><span><i class="release"></i>Novidade</span><span class="radar-legend-note">Clique em um sinal para abrir o briefing</span></div></section>`;
 }
 
 function radarPage() {
@@ -742,7 +760,7 @@ function exportDataModal() {
 
 function exportBackup() {
   closeModal();
-  const payload = { schemaVersion: 2, exportedAt: new Date().toISOString(), source: "FIELD OPS", products, cart: state.cart, cartShipping: state.cartShipping, shippingCache: state.shippingCache, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, compare: state.compare, loadout: state.loadout, settings: state.settings, profile: state.profile, account: state.account, recentSearches: state.recentSearches, recentProducts: state.recentProducts, importHistory: state.importHistory, theme: state.theme, radar: state.radar, radarFollowing: state.radarFollowing, radarContents: state.radarContents, airdrops: state.airdrops, appliedAirdropCode: state.appliedAirdropCode || "" };
+  const payload = { schemaVersion: 3, exportedAt: new Date().toISOString(), source: "FIELD OPS", products, cart: state.cart, cartShipping: state.cartShipping, shippingCache: state.shippingCache, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, compare: state.compare, loadout: state.loadout, settings: state.settings, profile: state.profile, account: state.account, recentSearches: state.recentSearches, recentProducts: state.recentProducts, importHistory: state.importHistory, theme: state.theme, radar: state.radar, radarFollowing: state.radarFollowing, radarContents: state.radarContents, radarSources: state.radarSources, airdrops: state.airdrops, appliedAirdropCode: state.appliedAirdropCode || "" };
   downloadLocalFile(`field-ops-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
   showToast("Backup completo exportado.");
 }
@@ -819,6 +837,7 @@ async function applyBackupRestore() {
   state.radar = payload.radar && typeof payload.radar === "object" ? payload.radar : state.radar;
   state.radarFollowing = Array.isArray(payload.radarFollowing) ? payload.radarFollowing : [];
   state.radarContents = Array.isArray(payload.radarContents) ? payload.radarContents.map(ensureRadarContentShape) : seedRadarContent.map(ensureRadarContentShape);
+  state.radarSources = Array.isArray(payload.radarSources) ? payload.radarSources.map(ensureRadarSourceShape) : seedRadarSources.map(ensureRadarSourceShape);
   state.airdrops = Array.isArray(payload.airdrops) ? payload.airdrops : seedAirdrops;
   state.appliedAirdropCode = String(payload.appliedAirdropCode || "").trim().toUpperCase();
   state.pendingBackupRestore = null;
@@ -892,10 +911,55 @@ async function updateRadarContentStatus(id, status) {
   showToast(`Radar: ${radarStatuses[status].toLowerCase()}.`);
 }
 
+function radarSourceDate(value) {
+  if (!value) return "Nunca sincronizada";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Data inválida" : date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function radarSourceModal(id = null) {
+  const current = state.radarSources.find((source) => source.id === id) || ensureRadarSourceShape({ type: "rss", name: "", url: "", cadence: "daily", active: true, status: "needs_backend", notes: "" });
+  openModal(`<span class="eyebrow">RADAR / SOURCE ${id ? "EDIT" : "NEW"}</span><h2>${id ? "Editar fonte." : "Adicionar fonte."}</h2><p>Cadastre de onde o Radar pode receber sinais. A fonte nunca publica sozinha: todo item passa pela sua curadoria.</p><form class="form-grid radar-source-form" id="radar-source-form"><div class="form-row"><label class="form-label">Nome da fonte<input name="name" value="${escapeHtml(current.name)}" placeholder="Ex.: Agenda da arena" required /></label><label class="form-label">Tipo<select name="type">${Object.entries(radarSourceTypes).map(([key, label]) => `<option value="${key}" ${current.type === key ? "selected" : ""}>${label}</option>`).join("")}</select></label></div><label class="form-label">URL ou endpoint<input name="url" type="url" value="${escapeHtml(current.url)}" placeholder="https://..." /><small class="form-help">Para RSS, informe o feed. Para APIs, use o endpoint do seu conector seguro.</small></label><div class="form-row"><label class="form-label">Frequência<select name="cadence"><option value="manual" ${current.cadence === "manual" ? "selected" : ""}>Somente quando eu mandar</option><option value="hourly" ${current.cadence === "hourly" ? "selected" : ""}>A cada hora</option><option value="daily" ${current.cadence === "daily" ? "selected" : ""}>Uma vez ao dia</option></select></label><label class="form-label radar-source-toggle"><span>Status da fonte</span><span><input name="active" type="checkbox" ${current.active ? "checked" : ""} /> Ativa para sincronização</span></label></div><label class="form-label">Observação interna<textarea name="notes" placeholder="Como essa fonte deve ser revisada?">${escapeHtml(current.notes)}</textarea></label><button class="modal-submit" type="submit">${id ? "Salvar fonte" : "Adicionar fonte"}</button></form>`);
+  document.querySelector("#radar-source-form")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const type = String(form.get("type") || "manual");
+    const record = ensureRadarSourceShape({ ...current, id: current.id || `source-${Date.now()}`, name: String(form.get("name") || "").trim(), type, url: String(form.get("url") || "").trim(), cadence: String(form.get("cadence") || "manual"), active: form.get("active") === "on", status: type === "manual" ? "local" : "needs_backend", notes: String(form.get("notes") || "").trim() });
+    const index = state.radarSources.findIndex((source) => source.id === id);
+    if (index >= 0) state.radarSources[index] = record;
+    else state.radarSources.unshift(record);
+    persist();
+    closeModal();
+    render();
+    showToast(id ? "Fonte atualizada." : "Fonte adicionada à central.");
+  });
+}
+
+function syncRadarSource(id) {
+  const source = state.radarSources.find((item) => item.id === id);
+  if (!source) return;
+  if (source.type === "manual") { showToast("A entrada manual já está disponível para novos sinais."); return; }
+  source.status = "queued";
+  source.lastSync = new Date().toISOString();
+  persist();
+  render();
+  showToast("Fonte enfileirada. O conector do servidor poderá buscar e trazer itens para revisão.");
+}
+
+function syncAllRadarSources() {
+  const sources = state.radarSources.filter((source) => source.active && source.type !== "manual");
+  sources.forEach((source) => { source.status = "queued"; source.lastSync = new Date().toISOString(); });
+  persist();
+  render();
+  showToast(sources.length ? `${sources.length} fonte(s) enfileirada(s) para sincronização.` : "Adicione uma fonte externa para iniciar a sincronização.");
+}
+
 function adminContentPage() {
   const published = state.radarContents.filter((content) => content.status === "published").length;
   const review = state.radarContents.filter((content) => content.status === "review").length;
-  return `${adminShell("admin-content", "06 / RADAR AIRSOFT", "Central de Conteúdo.", `<div class="admin-toolbar"><div><span class="admin-sync"><i class="status-dot"></i> ${published} publicados · ${review} em revisão</span></div><button class="hero-cta" data-action="radar-content-new">Novo sinal</button></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">RADAR CONTENT / LOCAL-FIRST</span><h2>Publicação e curadoria.</h2></div><span class="admin-sync">Nada é publicado automaticamente</span></div><p class="admin-content-note">Crie eventos, campos, lojas, notícias e lançamentos. O status <strong>Em revisão</strong> prepara a futura etapa de fontes externas e IA sem expor conteúdo antes da aprovação.</p><div class="admin-table-wrap"><table class="admin-table radar-admin-table"><thead><tr><th>Sinal</th><th>Categoria</th><th>Região</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead><tbody>${state.radarContents.map((content) => `<tr><td><div class="admin-product-cell"><img src="${escapeHtml(content.image)}" alt="" /><div><strong>${escapeHtml(content.title)}</strong><small>${escapeHtml(content.summary)}</small></div></div></td><td>${escapeHtml(radarTypeLabel(content.type))}</td><td>${escapeHtml(content.city)}${content.state ? ` / ${escapeHtml(content.state)}` : ""}</td><td>${escapeHtml(radarDateLabel(content.date, content.time))}</td><td><span class="admin-status ${radarContentStatusClass(content.status)}">${escapeHtml(radarStatuses[content.status])}</span></td><td><div class="admin-row-actions"><button data-action="radar-content-edit" data-radar-id="${escapeHtml(content.id)}">Editar</button>${content.status !== "published" ? `<button data-action="radar-content-status" data-radar-status="published" data-radar-id="${escapeHtml(content.id)}">Publicar</button>` : `<button data-action="radar-content-status" data-radar-status="archived" data-radar-id="${escapeHtml(content.id)}">Arquivar</button>`}</div></td></tr>`).join("")}</tbody></table></div></section>`) }`;
+  const externalSources = state.radarSources.filter((source) => source.type !== "manual");
+  const queuedSources = externalSources.filter((source) => source.status === "queued").length;
+  return `${adminShell("admin-content", "06 / RADAR AIRSOFT", "Central de Conteúdo.", `<div class="admin-toolbar"><div><span class="admin-sync"><i class="status-dot"></i> ${published} publicados · ${review} em revisão · ${externalSources.length} fontes</span></div><div class="admin-toolbar-actions"><button class="outline-cta" data-action="radar-sources-sync-all">Sincronizar fontes ↻</button><button class="hero-cta" data-action="radar-content-new">Novo sinal</button></div></div><section class="admin-panel radar-content-command"><div class="admin-panel-head"><div><span class="eyebrow">RADAR CONTENT / CURATION PIPELINE</span><h2>Publicação e curadoria.</h2></div><span class="admin-sync">Nada é publicado automaticamente</span></div><p class="admin-content-note">Insira conteúdos manualmente ou prepare fontes externas. O Radar recebe uma fila de inteligência, mas você decide o que vira sinal público.</p><div class="radar-pipeline"><div class="radar-pipeline-step active"><span>01</span><strong>Captar</strong><small>Manual ou fonte externa</small></div><div class="radar-pipeline-line"></div><div class="radar-pipeline-step ${queuedSources ? "active" : ""}"><span>02</span><strong>Revisar</strong><small>${queuedSources ? `${queuedSources} na fila` : "Nada automático"}</small></div><div class="radar-pipeline-line"></div><div class="radar-pipeline-step"><span>03</span><strong>Publicar</strong><small>${published} sinais ativos</small></div></div></section><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">SOURCE INTEL / CONNECTORS</span><h2>Fontes de inteligência.</h2></div><button class="outline-cta" data-action="radar-source-new">Adicionar fonte</button></div><div class="radar-source-grid">${state.radarSources.map((source) => `<article class="radar-source-card"><div class="radar-source-icon">${source.type === "rss" ? "◌" : source.type === "youtube" ? "▶" : source.type === "events" ? "⌁" : source.type === "newsapi" ? "N" : "+"}</div><div class="radar-source-copy"><div class="radar-source-card-head"><strong>${escapeHtml(source.name)}</strong><span class="admin-status ${source.status === "queued" ? "status-progress" : source.type === "manual" ? "status-live" : "status-low"}">${escapeHtml(radarSourceStatuses[source.status])}</span></div><small>${escapeHtml(radarSourceTypes[source.type])} · ${source.active ? "ativa" : "pausada"}</small><p>${escapeHtml(source.notes || (source.url ? source.url : "Pronta para receber conteúdo local."))}</p><div class="radar-source-meta"><span>Última ação: ${escapeHtml(radarSourceDate(source.lastSync))}</span><span>${source.itemsFound} itens</span></div></div><div class="radar-source-actions"><button data-action="radar-source-edit" data-radar-source-id="${escapeHtml(source.id)}">Editar</button><button data-action="radar-source-sync" data-radar-source-id="${escapeHtml(source.id)}">${source.type === "manual" ? "Abrir" : "Sincronizar"}</button></div></article>`).join("")}</div></section><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">FIELD OPS EDITORIAL</span><h2>Sinais publicados.</h2></div><span class="admin-sync">${state.radarContents.length} registros locais</span></div><div class="admin-table-wrap"><table class="admin-table radar-admin-table"><thead><tr><th>Sinal</th><th>Categoria</th><th>Região</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead><tbody>${state.radarContents.map((content) => `<tr><td><div class="admin-product-cell"><img src="${escapeHtml(content.image)}" alt="" /><div><strong>${escapeHtml(content.title)}</strong><small>${escapeHtml(content.summary)}</small></div></div></td><td>${escapeHtml(radarTypeLabel(content.type))}</td><td>${escapeHtml(content.city)}${content.state ? ` / ${escapeHtml(content.state)}` : ""}</td><td>${escapeHtml(radarDateLabel(content.date, content.time))}</td><td><span class="admin-status ${radarContentStatusClass(content.status)}">${escapeHtml(radarStatuses[content.status])}</span></td><td><div class="admin-row-actions"><button data-action="radar-content-edit" data-radar-id="${escapeHtml(content.id)}">Editar</button>${content.status !== "published" ? `<button data-action="radar-content-status" data-radar-status="published" data-radar-id="${escapeHtml(content.id)}">Publicar</button>` : `<button data-action="radar-content-status" data-radar-status="archived" data-radar-id="${escapeHtml(content.id)}">Arquivar</button>`}</div></td></tr>`).join("")}</tbody></table></div></section>`) }`;
 }
 
 function radarContentModal(id = null) {
@@ -1673,7 +1737,7 @@ async function deleteProduct(id) {
 async function resetLocalData() {
   const confirmed = await confirmAction({ eyebrow: "SYSTEM / RESET", title: "Restaurar dados demo?", message: "Todos os dados salvos neste dispositivo serão apagados e a operação voltará ao estado demonstrativo.", detail: "Produtos, carrinho, orçamentos, pedidos, perfil e configurações", confirmLabel: "Restaurar dados", tone: "danger" });
   if (!confirmed) return;
-  ["fieldops-products", "fieldops-cart", "fieldops-cart-shipping", "fieldops-shipping-cache", "fieldops-shipping", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme", "fieldops-radar", "fieldops-radar-following", "fieldops-radar-content", "fieldops-airdrops", "fieldops-airdrop-code"].forEach((key) => localStorage.removeItem(key));
+  ["fieldops-products", "fieldops-cart", "fieldops-cart-shipping", "fieldops-shipping-cache", "fieldops-shipping", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme", "fieldops-radar", "fieldops-radar-following", "fieldops-radar-content", "fieldops-radar-sources", "fieldops-airdrops", "fieldops-airdrop-code"].forEach((key) => localStorage.removeItem(key));
   location.hash = "#admin";
   location.reload();
 }
@@ -2773,6 +2837,11 @@ document.addEventListener("click", (event) => {
   if (action === "radar-content-new") radarContentModal();
   if (action === "radar-content-edit" && radarId) radarContentModal(radarId);
   if (action === "radar-content-status" && radarId) updateRadarContentStatus(radarId, event.target.closest("[data-radar-status]")?.dataset.radarStatus);
+  if (action === "radar-source-new") radarSourceModal();
+  const radarSourceId = event.target.closest("[data-radar-source-id]")?.dataset.radarSourceId;
+  if (action === "radar-source-edit" && radarSourceId) radarSourceModal(radarSourceId);
+  if (action === "radar-source-sync" && radarSourceId) syncRadarSource(radarSourceId);
+  if (action === "radar-sources-sync-all") syncAllRadarSources();
   const radarProductId = event.target.closest("[data-radar-product]")?.dataset.radarProduct;
   if (action === "radar-product" && radarProductId) { const product = findProduct(radarProductId); if (product) { closeModal(); go("product", product); } }
   if (action === "clear-recent") { state.recentProducts = []; persist(); render(); showToast("Histórico de produtos limpo."); }

@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 26/09/2026  
-Última versão publicada: restauração validada de backup local integrada ao centro de dados
+Última versão publicada: Central de Conteúdo com fontes configuráveis e Leitura de Campo tática
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
 
@@ -92,6 +92,8 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Central “Soltar Airdrop” em Configurações: agendamento ou disparo imediato, código, desconto percentual/fixo, mínimo de carrinho, validade, limite de resgates, mensagem social e encerramento manual.
 - Airdrops ficam registrados localmente, entram no backup JSON e são incorporados ao resumo do orçamento e da mensagem enviada ao WhatsApp.
 - Arquitetura inicial de Radar preparada para receber fontes externas e sumarização futura sem publicação automática; conteúdo demo continua separado do catálogo de produtos.
+- Central de Conteúdo ganhou pipeline visual Captar → Revisar → Publicar, cadastro de fontes manuais/RSS/API/YouTube/eventos, frequência, estado da fila e última sincronização, preservando a entrada manual e a aprovação humana.
+- Backup completo passou a incluir as fontes configuradas do Radar para manter a operação local recuperável.
 
 ### Qualidade e publicação
 
@@ -107,6 +109,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Radar Airsoft validado localmente no feed, mapa tático, detalhe, localização manual, filtros e Central de Conteúdo.
 - Radar do hero validado no navegador local com jogador, dois hostis, sweep, leitura de contato, atualização de coordenadas e varredura manual; o círculo decorativo anterior foi removido para evitar sobreposição visual.
 - Radar do hero recalibrado para uma cadência mais lenta: deslocamento dos pontos, sweep, pings e troca dos textos foram desacelerados para reduzir a sensação de tremor/interação excessiva.
+- Leitura de Campo recebeu HUD tático com varredura lenta, anéis de alcance, eixos cardeais, telemetria, quantidade de sinais no setor e trilha lateral de inteligência com abertura direta dos briefings.
 - Radar do hero calibrado em 1x: os atores agora percorrem trajetórias por progresso temporal real, com easing contínuo, microvariação menor, pausas entre rotas e varredura manual sem reposicionar todos os contatos.
 - Radar do hero recebeu modo de jogo assistido em 3x: contatos e operador se movimentam em cadência mais rápida, clique/toque em hostil cria alvo de perseguição e clique em área livre cria rota priorizada com retículo de comando.
 - Marcador do jogador agora usa o primeiro nome salvo no perfil e sinaliza contatos neutralizados quando o jogador cruza um hostil.
@@ -135,6 +138,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Conectar um gateway real de frete (Correios, Melhor Envio, Frenet ou equivalente) para substituir o simulador local e retornar preços/prazos oficiais.
 - Persistir cotações, volumes, etiquetas, rastreios e eventos de expedição em backend compartilhado, com auditoria por usuário.
 - Migrar o Radar Airsoft para backend compartilhado, com entidades de conteúdo, eventos, campos, lojas, seguidores e histórico de publicação.
+- Conectar o cadastro de fontes a um backend/cron seguro para buscar RSS e APIs após a hospedagem; o frontend já controla a fila e a revisão, mas não deve guardar chaves nem fazer coleta automática diretamente no navegador.
 
 ### Prioridade P1 — operação comercial e conteúdo
 
@@ -150,7 +154,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Permitir regras de preço por grupo: varejo, lojista e distribuidor, em vez de percentuais fixos.
 - Adicionar variações de produto, SKUs, códigos de barras, marcas e campos técnicos completos.
 - Implementar upload/armazenamento otimizado de imagens e fallback para imagens indisponíveis.
-- Conectar fontes reais de eventos/campos/lojas e criar fluxo de ingestão → resumo assistido → revisão administrativa → publicação; o protótipo atual não coleta fontes externas nem publica automaticamente.
+- Conectar fontes reais de eventos/campos/lojas e criar fluxo de ingestão → resumo assistido → revisão administrativa → publicação; o app já possui o cadastro e a fila local, faltando o conector hospedado e as credenciais dos provedores.
 - Integrar geocodificação reversa opcional e um provedor de mapas quando houver necessidade operacional; a visão atual é um mapa tático local sem dependência externa e sem guardar coordenadas precisas.
 
 ### Prioridade P1 — experiência, acessibilidade e confiabilidade
