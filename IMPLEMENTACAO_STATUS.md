@@ -121,6 +121,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Banner de Loadout recebeu contraste dedicado: overlay tático, tipografia clara, sombra de leitura e CTA com fundo translúcido, preservando a imagem em dark e light mode.
 - Hero mobile recebeu acionamento opcional de mira por giroscópio, com pedido de permissão quando necessário e fallback de visão fixa centralizada/levemente orientada para a direita.
 - Acesso privado preservado conforme a configuração atual do projeto.
+- Corrigido o CTA do carrinho vazio: “Explorar catálogo” agora fecha o drawer e leva corretamente à página de catálogo; a adição de produtos foi revalidada após a correção.
 
 ## Pendências de desenvolvimento
 
