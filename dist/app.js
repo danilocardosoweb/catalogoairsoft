@@ -232,6 +232,8 @@ const modalLayer = document.querySelector("[data-modal-layer]");
 const modalContent = document.querySelector("[data-modal-content]");
 let heroInteractionCleanup = null;
 let heroRadarCleanup = null;
+let heroSensorActivate = null;
+let heroRadarPulse = null;
 
 const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 const moneyDetailed = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0);
@@ -531,17 +533,17 @@ function radarDetailModal(id) {
 }
 
 function heroRadarMarkup() {
-  return `<aside class="hero-radar" data-hero-radar aria-label="Radar tático animado">
+  return `<button class="hero-radar" data-hero-radar data-action="hero-radar" type="button" aria-label="Ativar varredura manual do radar">
     <div class="hero-radar-heading"><span>LIVE / PLAYSPACE</span><b><i></i>TRACKING</b></div>
     <div class="hero-radar-scope" aria-hidden="true">
       <div class="hero-radar-grid"></div><div class="hero-radar-sweep"></div><div class="hero-radar-crosshair"></div>
       <span class="hero-radar-axis axis-n">N</span><span class="hero-radar-axis axis-e">E</span><span class="hero-radar-axis axis-s">S</span><span class="hero-radar-axis axis-w">W</span>
-      <span class="hero-radar-enemy enemy-one" data-radar-enemy="0"><i></i></span><span class="hero-radar-enemy enemy-two" data-radar-enemy="1"><i></i></span><span class="hero-radar-enemy enemy-three" data-radar-enemy="2"><i></i></span><span class="hero-radar-enemy enemy-four" data-radar-enemy="3"><i></i></span>
+      <span class="hero-radar-enemy enemy-one" data-radar-enemy="0"><i></i></span><span class="hero-radar-enemy enemy-two" data-radar-enemy="1"><i></i></span><span class="hero-radar-enemy enemy-three" data-radar-enemy="2"><i></i></span>
       <span class="hero-radar-player" data-radar-player><i></i><b></b></span>
       <span class="hero-radar-ping" data-radar-ping></span>
     </div>
-    <div class="hero-radar-readout"><span><strong data-radar-readout>04 HOSTIS</strong><small data-radar-mode>SECTOR MOVING</small></span><em data-radar-coordinates>GRID 04 / 17</em></div>
-  </aside>`;
+    <div class="hero-radar-readout"><span><strong data-radar-readout>03 HOSTIS</strong><small data-radar-mode>SECTOR MOVING</small></span><em data-radar-coordinates>GRID 04 / 17</em></div>
+  </button>`;
 }
 
 function homePage() {
@@ -551,7 +553,7 @@ function homePage() {
       <video class="hero-video" data-hero-video src="videos/operator-airsoft.mp4?v=motion-smooth-21" muted playsinline preload="auto" tabindex="-1" aria-hidden="true"></video>
       <div class="hero-video-shade" aria-hidden="true"></div>
       <div class="hero-content"><span class="hero-kicker">AIRSOFT EQUIPMENT / 01</span><h1 class="hero-title">DOMINE<br><em>O JOGO</em></h1><p class="hero-subtitle">Equipamentos, precisão e adrenalina para quem vive Airsoft.</p><button class="hero-cta" data-route="catalog">Explorar catálogo</button></div>
-      ${heroRadarMarkup()}
+      ${heroRadarMarkup()}<button class="hero-sensor-button" data-action="hero-sensor" type="button" aria-label="Ativar movimento por giroscópio"><span class="hero-sensor-glyph" aria-hidden="true">⌁</span><span data-sensor-label>Ativar sensor</span><small data-sensor-status>mobile aim / tap to sync</small></button>
       <div class="hero-coordinates"><span>System // Online</span><span>Stock // Updated</span><span>Field // Ready</span></div><div class="hero-index"><strong>01</strong> / 04</div>
     </section>
     ${searchBar()}
@@ -1802,14 +1804,13 @@ function bindHeroRadar() {
   const enemyWaypoints = [
     [[.23, .25], [.31, .39], [.24, .55], [.42, .31]],
     [[.69, .2], [.8, .31], [.72, .43], [.55, .23]],
-    [[.28, .72], [.43, .78], [.5, .65], [.3, .57]],
-    [[.77, .72], [.67, .8], [.58, .66], [.82, .54]]
+    [[.28, .72], [.43, .78], [.5, .65], [.3, .57]]
   ];
   const random = (min, max) => min + Math.random() * (max - min);
-  const makeActor = (x, y, pool, isPlayer = false) => ({ x, y, target: { x, y }, pool, isPlayer, duration: random(900, 1700), switchAt: 0 });
+  const makeActor = (x, y, pool, isPlayer = false) => ({ x, y, target: { x, y }, pool, isPlayer, duration: isPlayer ? random(3500, 4800) : random(2500, 3800), switchAt: 0 });
   const player = makeActor(.64, .59, playerWaypoints, true);
   const enemies = enemyEls.map((_, index) => {
-    const starts = [[.24, .28], [.72, .24], [.32, .72], [.77, .69]];
+    const starts = [[.24, .28], [.72, .24], [.32, .72]];
     return makeActor(starts[index][0], starts[index][1], enemyWaypoints[index]);
   });
   let frameId = 0;
@@ -1817,6 +1818,7 @@ function bindHeroRadar() {
   let lastReadout = 0;
   let pulseTimeout = 0;
   let nextPingAt = 0;
+  let manualScanUntil = 0;
   let active = true;
 
   const reducedMotion = () => Boolean(reducedMotionQuery?.matches);
@@ -1828,8 +1830,8 @@ function bindHeroRadar() {
     actor.target = { x: point[0] + random(-.025, .025), y: point[1] + random(-.025, .025) };
     actor.target.x = Math.min(.88, Math.max(.12, actor.target.x));
     actor.target.y = Math.min(.86, Math.max(.14, actor.target.y));
-    actor.duration = random(actor.isPlayer ? 1450 : 1000, actor.isPlayer ? 2600 : 2200);
-    actor.switchAt = now + actor.duration + random(500, actor.isPlayer ? 1700 : 900);
+    actor.duration = random(actor.isPlayer ? 3500 : 2500, actor.isPlayer ? 5200 : 4200);
+    actor.switchAt = now + actor.duration + random(900, actor.isPlayer ? 2200 : 1600);
   };
   const updateMarker = (element, actor, width, height) => {
     element.style.setProperty("--radar-dx", `${actor.x * width - width / 2}px`);
@@ -1839,14 +1841,15 @@ function bindHeroRadar() {
     if (now - lastReadout < 260) return;
     lastReadout = now;
     const contacts = enemies.filter((enemy) => distance(player, enemy) < .24).length;
-    const modes = contacts ? ["CONTACT / SHIFT", "FLANK DETECTED", "BREAKING LINE"] : ["SECTOR MOVING", "SCAN / WEST FLANK", "PATROL ROUTE"];
+    const manualScan = now < manualScanUntil;
+    const modes = manualScan ? ["MANUAL SCAN / TRACE"] : contacts ? ["CONTACT / SHIFT", "FLANK DETECTED", "BREAKING LINE"] : ["SECTOR MOVING", "SCAN / WEST FLANK", "PATROL ROUTE"];
     const readout = radar.querySelector("[data-radar-readout]");
     const mode = radar.querySelector("[data-radar-mode]");
     const coordinates = radar.querySelector("[data-radar-coordinates]");
-    if (readout) readout.textContent = contacts ? `${contacts} HOSTIS` : "SECTOR CLEAR";
+    if (readout) readout.textContent = manualScan ? "SCAN LOCK" : contacts ? `${contacts} HOSTIS` : "SECTOR CLEAR";
     if (mode) mode.textContent = modes[Math.floor(now / 2100) % modes.length];
     if (coordinates) coordinates.textContent = `GRID ${String(Math.round(player.x * 9)).padStart(2, "0")} / ${String(Math.round(player.y * 9)).padStart(2, "0")}`;
-    if (contacts && now > nextPingAt) {
+    if ((contacts || manualScan) && now > nextPingAt) {
       const contact = enemies.find((enemy) => distance(player, enemy) < .24) || enemies[0];
       const ping = radar.querySelector("[data-radar-ping]");
       if (ping) {
@@ -1858,8 +1861,30 @@ function bindHeroRadar() {
         window.clearTimeout(pulseTimeout);
         pulseTimeout = window.setTimeout(() => ping.classList.remove("is-active"), 1100);
       }
-      nextPingAt = now + random(1800, 3200);
+      nextPingAt = now + random(2600, 4400);
     }
+  };
+  const triggerManualScan = (now = performance.now()) => {
+    manualScanUntil = now + 3600;
+    nextPingAt = now;
+    lastReadout = 0;
+    chooseTarget(player, now);
+    enemies.forEach((enemy) => chooseTarget(enemy, now));
+    radar.classList.remove("is-focus");
+    void radar.offsetWidth;
+    radar.classList.add("is-focus");
+    window.setTimeout(() => radar.classList.remove("is-focus"), 3700);
+    updateReadout(now);
+  };
+  const onRadarKeyDown = (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      triggerManualScan();
+    }
+  };
+  const onRadarClick = (event) => {
+    event.stopPropagation();
+    triggerManualScan();
   };
   const tick = (now) => {
     frameId = 0;
@@ -1895,6 +1920,9 @@ function bindHeroRadar() {
     enemies.forEach((actor, index) => updateMarker(enemyEls[index], actor, bounds.width, bounds.height));
     updateReadout(1000);
   } else start();
+  heroRadarPulse = triggerManualScan;
+  radar.addEventListener("keydown", onRadarKeyDown);
+  radar.addEventListener("click", onRadarClick);
   reducedMotionQuery?.addEventListener?.("change", onMotionPreferenceChange);
   if (reducedMotionQuery && !reducedMotionQuery.addEventListener) reducedMotionQuery.addListener(onMotionPreferenceChange);
 
@@ -1902,6 +1930,9 @@ function bindHeroRadar() {
     active = false;
     if (frameId) window.cancelAnimationFrame(frameId);
     window.clearTimeout(pulseTimeout);
+    if (heroRadarPulse === triggerManualScan) heroRadarPulse = null;
+    radar.removeEventListener("keydown", onRadarKeyDown);
+    radar.removeEventListener("click", onRadarClick);
     reducedMotionQuery?.removeEventListener?.("change", onMotionPreferenceChange);
     if (reducedMotionQuery && !reducedMotionQuery.removeEventListener) reducedMotionQuery.removeListener(onMotionPreferenceChange);
   };
@@ -1916,9 +1947,13 @@ function bindHeroVideo() {
 
   const reducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
   const tabletQuery = window.matchMedia?.("(max-width: 1100px)");
+  const mobileQuery = window.matchMedia?.("(max-width: 720px)");
+  const sensorButton = hero.querySelector("[data-action=hero-sensor]");
   let frameId = 0;
   let metadataReady = false;
   let hasPointer = false;
+  let orientationActive = false;
+  let orientationBaseline = null;
   let targetProgress = 0.5;
   let currentProgress = 0.5;
   let lastFrameTime = 0;
@@ -1929,6 +1964,17 @@ function bindHeroVideo() {
 
   const clampProgress = (value) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0.5));
   const reducedMotion = () => Boolean(reducedMotionQuery?.matches);
+  const updateSensorButton = (active, fallback = false) => {
+    if (!sensorButton) return;
+    const label = sensorButton.querySelector("[data-sensor-label]");
+    const status = sensorButton.querySelector("[data-sensor-status]");
+    sensorButton.classList.toggle("is-active", active);
+    sensorButton.classList.toggle("is-fallback", fallback);
+    sensorButton.setAttribute("aria-pressed", String(active));
+    sensorButton.setAttribute("aria-label", active ? "Desativar movimento por giroscópio" : "Ativar movimento por giroscópio");
+    if (label) label.textContent = active ? "Sensor ativo" : fallback ? "Visão fixa" : "Ativar sensor";
+    if (status) status.textContent = active ? "gyro linked / live aim" : fallback ? "center lock / safe view" : "mobile aim / tap to sync";
+  };
   const setCenterFrame = () => {
     if (!metadataReady || !Number.isFinite(video.duration) || video.duration <= 0) return;
     const centerTime = Math.max(0, Math.min(video.duration - 0.001, video.duration * 0.5));
@@ -1980,7 +2026,7 @@ function bindHeroVideo() {
     if (!frameId && !reducedMotion() && metadataReady) frameId = requestAnimationFrame(frameLoop);
   };
   const onPointerMove = (event) => {
-    if (reducedMotion() || event.pointerType === "touch") return;
+    if (reducedMotion() || event.pointerType === "touch" || orientationActive) return;
     const bounds = hero.getBoundingClientRect();
     if (!bounds.width) return;
     hasPointer = true;
@@ -1990,9 +2036,62 @@ function bindHeroVideo() {
     startFrameLoop();
   };
   const onPointerLeave = () => {
+    if (orientationActive) return;
     hasPointer = false;
     targetProgress = 0.5;
     startFrameLoop();
+  };
+  const onOrientation = (event) => {
+    if (!orientationActive || !mobileQuery?.matches || reducedMotion()) return;
+    const gamma = Number(event.gamma);
+    if (!Number.isFinite(gamma)) return;
+    if (orientationBaseline === null) orientationBaseline = gamma;
+    const delta = Math.max(-28, Math.min(28, gamma - orientationBaseline));
+    const normalized = delta / 28;
+    hasPointer = true;
+    targetProgress = clampProgress(0.5 + normalized * 0.32);
+    hero.style.setProperty("--hero-operator-shift", `${Math.max(-18, Math.min(18, -normalized * 16))}px`);
+    startFrameLoop();
+  };
+  const enableHeroSensor = async () => {
+    if (!mobileQuery?.matches) { showToast("O sensor é uma experiência exclusiva para telas pequenas."); return; }
+    if (orientationActive) {
+      orientationActive = false;
+      orientationBaseline = null;
+      window.removeEventListener("deviceorientation", onOrientation);
+      hasPointer = false;
+      targetProgress = 0.5;
+      hero.style.setProperty("--hero-operator-shift", "10px");
+      setCenterFrame();
+      updateSensorButton(false);
+      showToast("Sensor desligado. Visão fixa centralizada.");
+      return;
+    }
+    if (reducedMotion() || typeof window.DeviceOrientationEvent === "undefined") {
+      updateSensorButton(false, true);
+      showToast("Este aparelho não oferece giroscópio. Visão fixa ativada.");
+      return;
+    }
+    try {
+      if (typeof window.DeviceOrientationEvent.requestPermission === "function") {
+        const permission = await window.DeviceOrientationEvent.requestPermission();
+        if (permission !== "granted") throw new Error("orientation-denied");
+      }
+      orientationActive = true;
+      orientationBaseline = null;
+      window.addEventListener("deviceorientation", onOrientation, { passive: true });
+      updateSensorButton(true);
+      showToast("Mira giroscópica conectada.");
+    } catch {
+      orientationActive = false;
+      orientationBaseline = null;
+      hasPointer = false;
+      targetProgress = 0.5;
+      hero.style.setProperty("--hero-operator-shift", "10px");
+      setCenterFrame();
+      updateSensorButton(false, true);
+      showToast("Permissão não disponível. Visão fixa centralizada.");
+    }
   };
   const onMetadata = () => {
     metadataReady = Number.isFinite(video.duration) && video.duration > 0;
@@ -2020,6 +2119,9 @@ function bindHeroVideo() {
   };
 
   video.pause();
+  hero.style.setProperty("--hero-operator-shift", "10px");
+  updateSensorButton(false, typeof window.DeviceOrientationEvent === "undefined");
+  heroSensorActivate = enableHeroSensor;
   video.addEventListener("loadedmetadata", onMetadata);
   video.addEventListener("loadeddata", onMetadata);
   video.addEventListener("durationchange", onMetadata);
@@ -2043,6 +2145,8 @@ function bindHeroVideo() {
     video.removeEventListener("seeked", onSeeked);
     hero.removeEventListener("pointermove", onPointerMove);
     hero.removeEventListener("pointerleave", onPointerLeave);
+    window.removeEventListener("deviceorientation", onOrientation);
+    if (heroSensorActivate === enableHeroSensor) heroSensorActivate = null;
     reducedMotionQuery?.removeEventListener?.("change", onMotionPreferenceChange);
     if (reducedMotionQuery && !reducedMotionQuery.removeEventListener) reducedMotionQuery.removeListener(onMotionPreferenceChange);
   };
@@ -2127,6 +2231,8 @@ function bindViewEvents() {
 document.addEventListener("click", (event) => {
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (action === "toggle-theme") toggleTheme(event);
+  if (action === "hero-sensor") heroSensorActivate?.();
+  if (action === "hero-radar") heroRadarPulse?.();
   if (action === "open-search") searchPalette();
   if (action === "profile-setup") profileSetupModal();
   if (action === "radar-location") radarLocationModal();
