@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 26/09/2026  
-Última versão publicada: v47 — Radar com pontuação discreta de assistência e fontes iniciais cadastradas
+Última versão publicada: v50 — Home reorganizada para descoberta comercial, atalhos de categoria e CTAs de compra mais claros
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
 Ponto de restauração: tag `restore-v47-radar-score` · commit `96cbc2e4d8e09ddedff85abdf28e5bb4eb4dd7dd`
