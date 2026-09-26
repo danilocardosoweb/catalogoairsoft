@@ -21,6 +21,7 @@
   let renderedTime = 0;
   let scrollFrame = 0;
   let scrubFrame = 0;
+  let isSeeking = false;
   let previousPaint = performance.now();
   let measuredFps = 0;
 
@@ -40,6 +41,10 @@
     debug.fps.textContent = measuredFps ? `${measuredFps}` : "—";
   }
 
+  function scheduleScrub() {
+    if (!scrubFrame) scrubFrame = window.requestAnimationFrame(paintVideo);
+  }
+
   function paintVideo() {
     scrubFrame = 0;
     if (!duration || video.readyState < 1) return;
@@ -49,12 +54,19 @@
       targetTime = 0;
     } else {
       const difference = targetTime - renderedTime;
-      renderedTime += difference * 0.16;
+      renderedTime += difference * 0.2;
       if (Math.abs(difference) < 0.012) renderedTime = targetTime;
     }
 
     const nextTime = clamp(renderedTime, 0, Math.max(0, duration - 0.001));
-    if (Math.abs(video.currentTime - nextTime) > 0.006) video.currentTime = nextTime;
+    if (!isSeeking && Math.abs(video.currentTime - nextTime) > 0.018) {
+      isSeeking = true;
+      try {
+        video.currentTime = nextTime;
+      } catch {
+        isSeeking = false;
+      }
+    }
 
     const now = performance.now();
     const delta = now - previousPaint;
@@ -62,7 +74,12 @@
     previousPaint = now;
     updateDebug(getProgress());
 
-    if (!reducedMotion && Math.abs(targetTime - renderedTime) > 0.012) scrubFrame = window.requestAnimationFrame(paintVideo);
+    if (!isSeeking && !reducedMotion && Math.abs(targetTime - renderedTime) > 0.012) scheduleScrub();
+  }
+
+  function handleSeeked() {
+    isSeeking = false;
+    if (!reducedMotion && Math.abs(targetTime - renderedTime) > 0.012) scheduleScrub();
   }
 
   function updateTarget() {
@@ -74,7 +91,7 @@
     copy.style.setProperty("--copy-opacity", (1 - copyExit).toFixed(4));
     copy.style.setProperty("--copy-y", `${(-copyExit * 18).toFixed(2)}px`);
     updateDebug(progress);
-    if (!scrubFrame) scrubFrame = window.requestAnimationFrame(paintVideo);
+    scheduleScrub();
   }
 
   function requestUpdate() {
@@ -107,6 +124,7 @@
     markReady();
     prepareVideo();
   }, { once: true });
+  video.addEventListener("seeked", handleSeeked);
   video.addEventListener("error", () => sticky.classList.add("is-video-error"), { once: true });
   window.addEventListener("scroll", requestUpdate, { passive: true });
   window.addEventListener("resize", requestUpdate, { passive: true });
