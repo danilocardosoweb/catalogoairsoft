@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 25/09/2026  
-Última versão publicada: Radar Airsoft local-first + radar tático dinâmico no hero
+Última versão publicada: Airdrop social local-first integrado ao carrinho e às configurações
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
 
