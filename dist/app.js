@@ -231,6 +231,7 @@ const drawerBackdrop = document.querySelector(".drawer-backdrop");
 const modalLayer = document.querySelector("[data-modal-layer]");
 const modalContent = document.querySelector("[data-modal-content]");
 let heroInteractionCleanup = null;
+let heroRadarCleanup = null;
 
 const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 const moneyDetailed = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0);
@@ -529,6 +530,20 @@ function radarDetailModal(id) {
   openModal(`<div class="radar-detail"><div class="radar-detail-image"><img src="${escapeHtml(content.image)}" alt="" /><span class="radar-type-chip">${escapeHtml(radarTypeLabel(content.type))}</span></div><div class="radar-detail-copy"><span class="eyebrow">RADAR SIGNAL / ${escapeHtml(content.category || radarTypeLabel(content.type))}</span><h2>${escapeHtml(content.title)}</h2><div class="radar-detail-meta"><span>⌖ ${escapeHtml(content.city)}${content.state ? ` / ${escapeHtml(content.state)}` : ""}</span><span>◷ ${escapeHtml(radarDateLabel(content.date, content.time))}</span></div><p>${escapeHtml(content.description || content.summary)}</p>${content.organizer ? `<div class="radar-detail-info"><span>Organização</span><strong>${escapeHtml(content.organizer)}</strong></div>` : ""}${content.field ? `<div class="radar-detail-info"><span>Local / referência</span><strong>${escapeHtml(content.field)}</strong></div>` : ""}<div class="radar-tag-list">${(content.tags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div><div class="radar-detail-actions"><button class="hero-cta" data-action="radar-follow" data-radar-id="${escapeHtml(content.id)}">${followed ? "Deixar de seguir" : "Seguir sinal"}</button>${content.type === "event" ? `<button class="outline-cta" data-action="radar-copy" data-radar-id="${escapeHtml(content.id)}">Copiar briefing</button>` : ""}</div></div>${related.length ? `<div class="radar-related"><div class="section-label"><div><span class="eyebrow">CONNECTED LOADOUT</span><h3>Leve este sinal<br>para o catálogo.</h3></div><button class="text-link" data-route="loadout">Montar loadout</button></div><div class="radar-related-products">${related.map((product) => `<button data-action="radar-product" data-radar-product="${product.id}"><img src="${escapeHtml(product.image)}" alt="" /><span><strong>${escapeHtml(product.name)}</strong><small>${money(product.price)}</small></span><b>↗</b></button>`).join("")}</div></div>` : ""}</div>`);
 }
 
+function heroRadarMarkup() {
+  return `<aside class="hero-radar" data-hero-radar aria-label="Radar tático animado">
+    <div class="hero-radar-heading"><span>LIVE / PLAYSPACE</span><b><i></i>TRACKING</b></div>
+    <div class="hero-radar-scope" aria-hidden="true">
+      <div class="hero-radar-grid"></div><div class="hero-radar-sweep"></div><div class="hero-radar-crosshair"></div>
+      <span class="hero-radar-axis axis-n">N</span><span class="hero-radar-axis axis-e">E</span><span class="hero-radar-axis axis-s">S</span><span class="hero-radar-axis axis-w">W</span>
+      <span class="hero-radar-enemy enemy-one" data-radar-enemy="0"><i></i></span><span class="hero-radar-enemy enemy-two" data-radar-enemy="1"><i></i></span><span class="hero-radar-enemy enemy-three" data-radar-enemy="2"><i></i></span><span class="hero-radar-enemy enemy-four" data-radar-enemy="3"><i></i></span>
+      <span class="hero-radar-player" data-radar-player><i></i><b></b></span>
+      <span class="hero-radar-ping" data-radar-ping></span>
+    </div>
+    <div class="hero-radar-readout"><span><strong data-radar-readout>04 HOSTIS</strong><small data-radar-mode>SECTOR MOVING</small></span><em data-radar-coordinates>GRID 04 / 17</em></div>
+  </aside>`;
+}
+
 function homePage() {
   const feature = recommendedProducts().slice(0, 4);
   return `<section class="page home-page">
@@ -536,6 +551,7 @@ function homePage() {
       <video class="hero-video" data-hero-video src="videos/operator-airsoft.mp4?v=motion-smooth-21" muted playsinline preload="auto" tabindex="-1" aria-hidden="true"></video>
       <div class="hero-video-shade" aria-hidden="true"></div>
       <div class="hero-content"><span class="hero-kicker">AIRSOFT EQUIPMENT / 01</span><h1 class="hero-title">DOMINE<br><em>O JOGO</em></h1><p class="hero-subtitle">Equipamentos, precisão e adrenalina para quem vive Airsoft.</p><button class="hero-cta" data-route="catalog">Explorar catálogo</button></div>
+      ${heroRadarMarkup()}
       <div class="hero-coordinates"><span>System // Online</span><span>Stock // Updated</span><span>Field // Ready</span></div><div class="hero-index"><strong>01</strong> / 04</div>
     </section>
     ${searchBar()}
@@ -1426,6 +1442,8 @@ function rollbackImport(id) {
 function render() {
   heroInteractionCleanup?.();
   heroInteractionCleanup = null;
+  heroRadarCleanup?.();
+  heroRadarCleanup = null;
   let view = homePage();
   if (state.route === "catalog") view = catalogPage();
   if (state.route === "product" && state.selectedProduct) view = productPage(state.selectedProduct);
@@ -1770,6 +1788,125 @@ function bindFilterControls(root, immediateRender = true) {
   });
 }
 
+function bindHeroRadar() {
+  heroRadarCleanup?.();
+  heroRadarCleanup = null;
+  const radar = document.querySelector("[data-hero-radar]");
+  const scope = radar?.querySelector(".hero-radar-scope");
+  const playerEl = radar?.querySelector("[data-radar-player]");
+  const enemyEls = [...(radar?.querySelectorAll("[data-radar-enemy]") || [])];
+  if (!radar || !scope || !playerEl || enemyEls.length === 0) return;
+
+  const reducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+  const playerWaypoints = [[.69, .62], [.77, .45], [.67, .28], [.47, .25], [.32, .42], [.38, .68], [.56, .78], [.78, .73]];
+  const enemyWaypoints = [
+    [[.23, .25], [.31, .39], [.24, .55], [.42, .31]],
+    [[.69, .2], [.8, .31], [.72, .43], [.55, .23]],
+    [[.28, .72], [.43, .78], [.5, .65], [.3, .57]],
+    [[.77, .72], [.67, .8], [.58, .66], [.82, .54]]
+  ];
+  const random = (min, max) => min + Math.random() * (max - min);
+  const makeActor = (x, y, pool, isPlayer = false) => ({ x, y, target: { x, y }, pool, isPlayer, duration: random(900, 1700), switchAt: 0 });
+  const player = makeActor(.64, .59, playerWaypoints, true);
+  const enemies = enemyEls.map((_, index) => {
+    const starts = [[.24, .28], [.72, .24], [.32, .72], [.77, .69]];
+    return makeActor(starts[index][0], starts[index][1], enemyWaypoints[index]);
+  });
+  let frameId = 0;
+  let lastFrame = 0;
+  let lastReadout = 0;
+  let pulseTimeout = 0;
+  let nextPingAt = 0;
+  let active = true;
+
+  const reducedMotion = () => Boolean(reducedMotionQuery?.matches);
+  const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const chooseTarget = (actor, now) => {
+    const candidates = actor.pool.filter((point) => distance({ x: point[0], y: point[1] }, actor.target) > .08).sort(() => Math.random() - .5);
+    const next = actor.isPlayer ? candidates.find((point) => enemies.every((enemy) => distance(point, enemy) > .13)) : candidates[0];
+    const point = next || actor.pool[0];
+    actor.target = { x: point[0] + random(-.025, .025), y: point[1] + random(-.025, .025) };
+    actor.target.x = Math.min(.88, Math.max(.12, actor.target.x));
+    actor.target.y = Math.min(.86, Math.max(.14, actor.target.y));
+    actor.duration = random(actor.isPlayer ? 1450 : 1000, actor.isPlayer ? 2600 : 2200);
+    actor.switchAt = now + actor.duration + random(500, actor.isPlayer ? 1700 : 900);
+  };
+  const updateMarker = (element, actor, width, height) => {
+    element.style.setProperty("--radar-dx", `${actor.x * width - width / 2}px`);
+    element.style.setProperty("--radar-dy", `${actor.y * height - height / 2}px`);
+  };
+  const updateReadout = (now) => {
+    if (now - lastReadout < 260) return;
+    lastReadout = now;
+    const contacts = enemies.filter((enemy) => distance(player, enemy) < .24).length;
+    const modes = contacts ? ["CONTACT / SHIFT", "FLANK DETECTED", "BREAKING LINE"] : ["SECTOR MOVING", "SCAN / WEST FLANK", "PATROL ROUTE"];
+    const readout = radar.querySelector("[data-radar-readout]");
+    const mode = radar.querySelector("[data-radar-mode]");
+    const coordinates = radar.querySelector("[data-radar-coordinates]");
+    if (readout) readout.textContent = contacts ? `${contacts} HOSTIS` : "SECTOR CLEAR";
+    if (mode) mode.textContent = modes[Math.floor(now / 2100) % modes.length];
+    if (coordinates) coordinates.textContent = `GRID ${String(Math.round(player.x * 9)).padStart(2, "0")} / ${String(Math.round(player.y * 9)).padStart(2, "0")}`;
+    if (contacts && now > nextPingAt) {
+      const contact = enemies.find((enemy) => distance(player, enemy) < .24) || enemies[0];
+      const ping = radar.querySelector("[data-radar-ping]");
+      if (ping) {
+        ping.style.setProperty("--radar-dx", `${contact.x * 100}%`);
+        ping.style.setProperty("--radar-dy", `${contact.y * 100}%`);
+        ping.classList.remove("is-active");
+        void ping.offsetWidth;
+        ping.classList.add("is-active");
+        window.clearTimeout(pulseTimeout);
+        pulseTimeout = window.setTimeout(() => ping.classList.remove("is-active"), 1100);
+      }
+      nextPingAt = now + random(1800, 3200);
+    }
+  };
+  const tick = (now) => {
+    frameId = 0;
+    if (!active || reducedMotion()) return;
+    const elapsed = lastFrame ? Math.min(60, now - lastFrame) : 16;
+    lastFrame = now;
+    [player, ...enemies].forEach((actor) => {
+      if (!actor.switchAt || now > actor.switchAt || distance(actor, actor.target) < .025) chooseTarget(actor, now);
+      const easing = 1 - Math.exp(-elapsed / actor.duration * 900);
+      actor.x += (actor.target.x - actor.x) * easing;
+      actor.y += (actor.target.y - actor.y) * easing;
+    });
+    const bounds = scope.getBoundingClientRect();
+    updateMarker(playerEl, player, bounds.width, bounds.height);
+    enemies.forEach((actor, index) => updateMarker(enemyEls[index], actor, bounds.width, bounds.height));
+    updateReadout(now);
+    frameId = window.requestAnimationFrame(tick);
+  };
+  const start = () => {
+    if (!reducedMotion() && !frameId) frameId = window.requestAnimationFrame(tick);
+  };
+  const onMotionPreferenceChange = () => {
+    if (reducedMotion()) {
+      if (frameId) window.cancelAnimationFrame(frameId);
+      frameId = 0;
+      lastFrame = 0;
+    } else start();
+  };
+
+  if (reducedMotion()) {
+    const bounds = scope.getBoundingClientRect();
+    updateMarker(playerEl, player, bounds.width, bounds.height);
+    enemies.forEach((actor, index) => updateMarker(enemyEls[index], actor, bounds.width, bounds.height));
+    updateReadout(1000);
+  } else start();
+  reducedMotionQuery?.addEventListener?.("change", onMotionPreferenceChange);
+  if (reducedMotionQuery && !reducedMotionQuery.addEventListener) reducedMotionQuery.addListener(onMotionPreferenceChange);
+
+  heroRadarCleanup = () => {
+    active = false;
+    if (frameId) window.cancelAnimationFrame(frameId);
+    window.clearTimeout(pulseTimeout);
+    reducedMotionQuery?.removeEventListener?.("change", onMotionPreferenceChange);
+    if (reducedMotionQuery && !reducedMotionQuery.removeEventListener) reducedMotionQuery.removeListener(onMotionPreferenceChange);
+  };
+}
+
 function bindHeroVideo() {
   heroInteractionCleanup?.();
   heroInteractionCleanup = null;
@@ -1940,6 +2077,7 @@ function bindSearch() {
 
 function bindViewEvents() {
   bindHeroVideo();
+  bindHeroRadar();
   bindSearch();
   document.querySelectorAll("[data-product]").forEach((el) => el.addEventListener("click", (event) => { if (!el.matches("button") && event.target.closest("button")) return; const product = findProduct(el.dataset.product); if (product) go("product", product); }));
   document.querySelectorAll("[data-add]").forEach((el) => el.addEventListener("click", () => addToCart(el.dataset.add)));
