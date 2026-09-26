@@ -21,7 +21,7 @@
   let renderedTime = 0;
   let scrollFrame = 0;
   let scrubFrame = 0;
-  let isSeeking = false;
+  let nextSeekAt = 0;
   let previousPaint = performance.now();
   let measuredFps = 0;
 
@@ -59,26 +59,21 @@
     }
 
     const nextTime = clamp(renderedTime, 0, Math.max(0, duration - 0.001));
-    if (!isSeeking && Math.abs(video.currentTime - nextTime) > 0.018) {
-      isSeeking = true;
+    const now = performance.now();
+    if (!reducedMotion && now >= nextSeekAt && Math.abs(video.currentTime - nextTime) > 0.018) {
+      nextSeekAt = now + 80;
       try {
         video.currentTime = nextTime;
       } catch {
-        isSeeking = false;
+        nextSeekAt = now;
       }
     }
 
-    const now = performance.now();
     const delta = now - previousPaint;
     if (delta > 0) measuredFps = Math.round(1000 / delta);
     previousPaint = now;
     updateDebug(getProgress());
 
-    if (!isSeeking && !reducedMotion && Math.abs(targetTime - renderedTime) > 0.012) scheduleScrub();
-  }
-
-  function handleSeeked() {
-    isSeeking = false;
     if (!reducedMotion && Math.abs(targetTime - renderedTime) > 0.012) scheduleScrub();
   }
 
@@ -124,7 +119,6 @@
     markReady();
     prepareVideo();
   }, { once: true });
-  video.addEventListener("seeked", handleSeeked);
   video.addEventListener("error", () => sticky.classList.add("is-video-error"), { once: true });
   window.addEventListener("scroll", requestUpdate, { passive: true });
   window.addEventListener("resize", requestUpdate, { passive: true });
