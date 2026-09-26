@@ -171,7 +171,7 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
 .hero-radar-grid::before { top: 50%; right: -30%; left: -30%; height: 1px; }
 .hero-radar-grid::after { top: -30%; bottom: -30%; left: 50%; width: 1px; }
 .hero-radar-sweep { position: absolute; inset: 0; z-index: 2; overflow: hidden; border-radius: 50%; pointer-events: none; }
-.hero-radar-sweep::before { content: ""; position: absolute; inset: -55%; background: conic-gradient(from 0deg, transparent 0deg 302deg, rgba(216,255,89,.02) 320deg, rgba(216,255,89,.34) 352deg, rgba(216,255,89,.04) 360deg); animation: hero-radar-sweep 14s linear infinite; }
+.hero-radar-sweep::before { content: ""; position: absolute; inset: -55%; background: conic-gradient(from 0deg, transparent 0deg 302deg, rgba(216,255,89,.02) 320deg, rgba(216,255,89,.34) 352deg, rgba(216,255,89,.04) 360deg); animation: hero-radar-sweep 28s linear infinite; }
 .hero-radar-crosshair { position: absolute; z-index: 2; top: 50%; left: 50%; width: 13px; height: 13px; border: 1px solid rgba(216,255,89,.34); border-radius: 50%; transform: translate(-50%, -50%); }
 .hero-radar-crosshair::before, .hero-radar-crosshair::after { content: ""; position: absolute; background: rgba(216,255,89,.28); }
 .hero-radar-crosshair::before { top: 5px; left: -7px; width: 25px; height: 1px; }
@@ -184,7 +184,7 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
 .hero-radar-player b { position: absolute; top: -5px; left: 8px; width: 1px; height: 5px; background: var(--accent); transform: rotate(24deg); transform-origin: bottom; }
 .hero-radar-enemy { width: 12px; height: 12px; border: 1px solid rgba(255,141,96,.86); background: rgba(255,88,62,.11); transform-origin: center; }
 .hero-radar-enemy::before { content: ""; position: absolute; inset: 2px; background: #ff7659; transform: rotate(45deg); box-shadow: 0 0 12px rgba(255,88,62,.72); }
-.hero-radar-enemy::after { content: ""; position: absolute; inset: -5px; border: 1px solid rgba(255,118,89,.28); border-radius: 50%; animation: enemy-pulse 7.2s ease-out infinite; }
+.hero-radar-enemy::after { content: ""; position: absolute; inset: -5px; border: 1px solid rgba(255,118,89,.28); border-radius: 50%; animation: enemy-pulse 14.4s ease-out infinite; }
 .hero-radar-enemy i { position: absolute; z-index: 1; top: -7px; left: 4px; width: 3px; height: 3px; border-radius: 50%; background: #ffbd84; box-shadow: 0 0 8px #ff7659; }
 .hero-radar-enemy.enemy-two::after { animation-delay: -.7s; }
 .hero-radar-ping { position: absolute; z-index: 5; top: var(--radar-dy, 50%); left: var(--radar-dx, 50%); width: 12px; height: 12px; border: 1px solid #ffbd84; border-radius: 50%; opacity: 0; transform: translate(-50%, -50%) scale(.35); pointer-events: none; }
