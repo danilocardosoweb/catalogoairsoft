@@ -156,8 +156,15 @@ const seedRadarContent = [
 ];
 
 const seedRadarSources = [
-  { id: "source-manual", name: "Entrada manual Field Ops", type: "manual", url: "", cadence: "manual", active: true, status: "local", lastSync: null, itemsFound: 0, notes: "Conteúdo criado pela operação e revisado antes da publicação." }
+  { id: "source-manual", name: "Entrada manual Field Ops", type: "manual", url: "", cadence: "manual", active: true, status: "local", lastSync: null, itemsFound: 0, notes: "Conteúdo criado pela operação e revisado antes da publicação." },
+  { id: "source-ghostbase", name: "GhostBase / Agenda Nacional", type: "events", url: "https://www.ghostbase.com.br/", cadence: "daily", active: true, status: "needs_backend", lastSync: null, itemsFound: 0, notes: "Revisar operações, equipes e notícias. Confirmar data, cidade, organizador e disponibilidade antes de publicar." },
+  { id: "source-airsoftrs", name: "Airsoft RS / Feed de agenda", type: "rss", url: "https://airsoftrs.com/feed/", cadence: "daily", active: true, status: "needs_backend", lastSync: null, itemsFound: 0, notes: "Feed RSS público de agenda e notícias. Priorizar eventos futuros e validar informações no artigo original." },
+  { id: "source-airsoftcompany", name: "Airsoft Company / Eventos", type: "events", url: "https://www.airsoftcompany.com.br/eventos", cadence: "daily", active: true, status: "needs_backend", lastSync: null, itemsFound: 0, notes: "Agenda pública de eventos e torneios. Usar como descoberta e confirmar detalhes com a organização." },
+  { id: "source-tactov", name: "TacTov / Painel de eventos", type: "events", url: "https://www.tactov.com/dashboard", cadence: "daily", active: true, status: "needs_backend", lastSync: null, itemsFound: 0, notes: "Painel público para descoberta de eventos por cidade, estado e modalidade; revisar valores, vagas e datas." },
+  { id: "source-brasil-airsoft-youtube", name: "Brasil Airsoft / YouTube", type: "youtube", url: "https://www.youtube.com/channel/UCJqMeZK3hFySfAg0Jque6Xg", cadence: "daily", active: true, status: "needs_backend", lastSync: null, itemsFound: 0, notes: "Canal público de reviews, opinião e entrevistas. Transformar vídeos em sinais editoriais com título, resumo e link original." }
 ];
+
+const storedRadarSources = JSON.parse(localStorage.getItem("fieldops-radar-sources") || "null");
 
 const radarSourceTypes = { manual: "Entrada manual", rss: "RSS / Atom", newsapi: "News API", youtube: "YouTube", events: "Eventos / API" };
 const radarSourceStatuses = { local: "Local", ready: "Pronta para conectar", queued: "Na fila", needs_backend: "Pede servidor" };
@@ -198,7 +205,7 @@ const state = {
   radar: JSON.parse(localStorage.getItem("fieldops-radar") || "null") || { location: { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual" }, scope: "nearby", type: "all", radius: 100, sort: "relevance", view: "feed" },
   radarFollowing: JSON.parse(localStorage.getItem("fieldops-radar-following") || "[]"),
   radarContents: JSON.parse(localStorage.getItem("fieldops-radar-content") || "null") || seedRadarContent,
-  radarSources: JSON.parse(localStorage.getItem("fieldops-radar-sources") || "null") || seedRadarSources,
+  radarSources: Array.isArray(storedRadarSources) ? storedRadarSources : seedRadarSources,
   airdrops: JSON.parse(localStorage.getItem("fieldops-airdrops") || "null") || seedAirdrops,
   appliedAirdropCode: localStorage.getItem("fieldops-airdrop-code") || ""
 };
@@ -224,6 +231,8 @@ state.radar.location = { city: defaultSettings.city, state: "SP", country: "Bras
 state.radarContents = (Array.isArray(state.radarContents) ? state.radarContents : seedRadarContent).map(ensureRadarContentShape).map((content) => content.country !== "Brasil" ? { ...content, state: "" } : content);
 state.radarFollowing = Array.isArray(state.radarFollowing) ? state.radarFollowing : [];
 state.radarSources = (Array.isArray(state.radarSources) ? state.radarSources : seedRadarSources).map(ensureRadarSourceShape);
+const existingRadarSourceIds = new Set(state.radarSources.map((source) => source.id));
+state.radarSources.push(...seedRadarSources.filter((source) => !existingRadarSourceIds.has(source.id)).map(ensureRadarSourceShape));
 state.airdrops = (Array.isArray(state.airdrops) ? state.airdrops : seedAirdrops).map((campaign) => ({
   id: campaign.id || `airdrop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
   name: campaign.name || "AIRDROP FIELD OPS",
