@@ -506,9 +506,11 @@ function requestRadarLocation() {
 
 function toggleRadarFollow(id) {
   if (!id) return;
+  const modalWasOpen = modalLayer.classList.contains("is-open");
   state.radarFollowing = state.radarFollowing.includes(id) ? state.radarFollowing.filter((item) => item !== id) : [...state.radarFollowing, id];
   persist();
-  render();
+  if (modalWasOpen) { closeModal(); radarDetailModal(id); }
+  else render();
   showToast(state.radarFollowing.includes(id) ? "Sinal seguido." : "Sinal removido dos seguidos.");
 }
 
