@@ -1823,7 +1823,7 @@ function bindHeroRadar() {
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const chooseTarget = (actor, now) => {
     const candidates = actor.pool.filter((point) => distance({ x: point[0], y: point[1] }, actor.target) > .08).sort(() => Math.random() - .5);
-    const next = actor.isPlayer ? candidates.find((point) => enemies.every((enemy) => distance(point, enemy) > .13)) : candidates[0];
+    const next = actor.isPlayer ? candidates.find((point) => enemies.every((enemy) => distance({ x: point[0], y: point[1] }, enemy) > .13)) : candidates[0];
     const point = next || actor.pool[0];
     actor.target = { x: point[0] + random(-.025, .025), y: point[1] + random(-.025, .025) };
     actor.target.x = Math.min(.88, Math.max(.12, actor.target.x));
