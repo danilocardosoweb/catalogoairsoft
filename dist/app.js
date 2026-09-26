@@ -1807,7 +1807,7 @@ function bindHeroRadar() {
     [[.28, .72], [.43, .78], [.5, .65], [.3, .57]]
   ];
   const random = (min, max) => min + Math.random() * (max - min);
-  const makeActor = (x, y, pool, isPlayer = false) => ({ x, y, target: { x, y }, pool, isPlayer, duration: isPlayer ? random(3500, 4800) : random(2500, 3800), switchAt: 0 });
+  const makeActor = (x, y, pool, isPlayer = false) => ({ x, y, target: { x, y }, pool, isPlayer, duration: isPlayer ? random(6800, 9000) : random(5200, 7600), switchAt: 0 });
   const player = makeActor(.64, .59, playerWaypoints, true);
   const enemies = enemyEls.map((_, index) => {
     const starts = [[.24, .28], [.72, .24], [.32, .72]];
@@ -1830,8 +1830,8 @@ function bindHeroRadar() {
     actor.target = { x: point[0] + random(-.025, .025), y: point[1] + random(-.025, .025) };
     actor.target.x = Math.min(.88, Math.max(.12, actor.target.x));
     actor.target.y = Math.min(.86, Math.max(.14, actor.target.y));
-    actor.duration = random(actor.isPlayer ? 3500 : 2500, actor.isPlayer ? 5200 : 4200);
-    actor.switchAt = now + actor.duration + random(900, actor.isPlayer ? 2200 : 1600);
+    actor.duration = random(actor.isPlayer ? 7000 : 5400, actor.isPlayer ? 10000 : 8200);
+    actor.switchAt = now + actor.duration + random(1800, actor.isPlayer ? 3600 : 3000);
   };
   const updateMarker = (element, actor, width, height) => {
     element.style.setProperty("--radar-dx", `${actor.x * width - width / 2}px`);
