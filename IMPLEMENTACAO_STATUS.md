@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 25/09/2026  
-Última versão publicada: versão 24 — Radar Airsoft local-first
+Última versão publicada: versão 25 — Radar Airsoft local-first
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: privado, com login do ChatGPT.
 
