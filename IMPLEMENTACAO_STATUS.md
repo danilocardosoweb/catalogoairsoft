@@ -100,6 +100,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Radar do hero validado no navegador local com jogador, dois hostis, sweep, leitura de contato, atualização de coordenadas e varredura manual; o círculo decorativo anterior foi removido para evitar sobreposição visual.
 - Mini mapa do hero ficou translúcido no desktop e é ocultado em telas pequenas para preservar a leitura do operador, título e CTA.
 - A segunda calibração do Radar dobrou os intervalos das rotas e pausas, deixando sweep e pulsos ainda mais lentos para reduzir estímulos visuais.
+- Banner de Loadout recebeu contraste dedicado: overlay tático, tipografia clara, sombra de leitura e CTA com fundo translúcido, preservando a imagem em dark e light mode.
 - Hero mobile recebeu acionamento opcional de mira por giroscópio, com pedido de permissão quando necessário e fallback de visão fixa centralizada/levemente orientada para a direita.
 - Acesso privado preservado conforme a configuração atual do projeto.
 
