@@ -67,6 +67,7 @@
 
   function updateTarget() {
     scrollFrame = 0;
+    initializeDuration();
     const progress = getProgress();
     targetTime = reducedMotion ? 0 : progress * duration;
     const copyExit = clamp(progress / 0.12);
@@ -84,20 +85,28 @@
     sticky.classList.add("is-video-ready");
   }
 
-  function prepareVideo() {
-    if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+  function initializeDuration() {
+    if (duration || !Number.isFinite(video.duration) || video.duration <= 0) return false;
     duration = video.duration;
     video.currentTime = 0;
     renderedTime = 0;
-    targetTime = reducedMotion ? 0 : getProgress() * duration;
     markReady();
+    return true;
+  }
+
+  function prepareVideo() {
+    if (!initializeDuration()) return;
+    targetTime = reducedMotion ? 0 : getProgress() * duration;
     updateDebug(getProgress());
     requestUpdate();
   }
 
   if (DEBUG && debugPanel) debugPanel.hidden = false;
   video.addEventListener("loadedmetadata", prepareVideo, { once: true });
-  video.addEventListener("loadeddata", markReady, { once: true });
+  video.addEventListener("loadeddata", () => {
+    markReady();
+    prepareVideo();
+  }, { once: true });
   video.addEventListener("error", () => sticky.classList.add("is-video-error"), { once: true });
   window.addEventListener("scroll", requestUpdate, { passive: true });
   window.addEventListener("resize", requestUpdate, { passive: true });
