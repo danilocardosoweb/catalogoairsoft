@@ -56,6 +56,8 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Abertura do WhatsApp do cliente quando existe um número válido.
 - Exclusão protegida por confirmação para orçamentos salvos localmente.
 - Central comercial adaptada com CPF/CNPJ, CEP, origem, vendedor, validade, observação interna, desconto, frete, transportadora, modalidade, prazo e volumes.
+- Central de orçamento com edição completa de cliente, produtos, quantidades, condições, logística, rastreamento e observações, com recálculo automático do subtotal/total.
+- Ações do detalhe do orçamento conectadas: avanço de etapa, conversão em pedido, cópia de resumo, cópia de link, WhatsApp com número brasileiro normalizado e exclusão protegida.
 - Fluxo de status ampliado: Novo, Em análise, Proposta enviada, Aguardando cliente, Aprovado, Rejeitado, Expirado, Convertido em pedido e Cancelado.
 - Histórico local de mudanças de status e condições comerciais.
 - Link compartilhável do orçamento usando a rota hash atual do app: `#quote/ORC-000000`.

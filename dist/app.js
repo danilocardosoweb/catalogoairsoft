@@ -962,7 +962,7 @@ function adminQuotesWorkspace() {
     const matchesStatus = state.quoteStatusFilter === "all" || quote.status === state.quoteStatusFilter;
     return matchesQuery && matchesStatus;
   });
-  return adminShell("admin-quotes", "04 / COMMERCIAL", "Orçamentos.", `<div class="admin-toolbar quote-toolbar"><div class="admin-search"><span class="icon icon-search"></span><input id="quote-search" value="${state.quoteSearch}" placeholder="Buscar por número, cliente, produto ou SKU" /></div><select class="quote-status-filter" id="quote-status-filter" aria-label="Filtrar orçamentos por status"><option value="all" ${state.quoteStatusFilter === "all" ? "selected" : ""}>Todos os status</option>${quoteStatuses.map((status) => `<option value="${status}" ${state.quoteStatusFilter === status ? "selected" : ""}>${status}</option>`).join("")}</select><button class="hero-cta" data-action="quote-new">Novo orçamento</button></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">QUOTE PIPELINE</span><h2>${list.length} conversas na visão atual</h2></div><span class="admin-sync"><i class="status-dot"></i> ${state.quotes.length} salvos neste dispositivo</span></div><div class="admin-quote-cards"><div><span>NOVOS</span><strong>${allQuotes.filter((quote) => quote.status === "Novo").length}</strong><small>aguardando primeiro contato</small></div><div><span>EM ANÁLISE</span><strong>${allQuotes.filter((quote) => ["Em análise", "Proposta enviada", "Aguardando cliente"].includes(quote.status)).length}</strong><small>propostas em atendimento</small></div><div><span>APROVADOS</span><strong>${allQuotes.filter((quote) => ["Aprovado", "Convertido em pedido"].includes(quote.status)).length}</strong><small>prontos para virar pedido</small></div></div><div class="admin-table-wrap"><table class="admin-table quotes-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Total estimado</th><th>Itens</th><th>Status</th><th>Ações</th></tr></thead><tbody>${list.length ? list.map((quote) => { const saved = state.quotes.some((item) => item.id === quote.id); return `<tr><td><strong>#${quote.id}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td><strong>${quote.customer}</strong><small>${quote.phone || "WhatsApp não informado"}</small></td><td><strong>${money(quote.total)}</strong></td><td>${(quote.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)} itens</td><td><span class="admin-status ${quoteStatusClass(quote.status)}">${quote.status}</span></td><td><div class="admin-row-actions quote-row-actions"><button data-action="quote-view" data-quote-id="${quote.id}">Ver</button>${saved ? `<button data-action="quote-advance" data-quote-id="${quote.id}">Avançar</button>` : `<span class="admin-table-muted">Demo</span>`}</div></td></tr>`; }).join("") : `<tr><td colspan="6"><div class="admin-inline-empty">Nenhum orçamento corresponde aos filtros atuais.</div></td></tr>`}</tbody></table></div></section>`);
+  return adminShell("admin-quotes", "04 / COMMERCIAL", "Orçamentos.", `<div class="admin-toolbar quote-toolbar"><div class="admin-search"><span class="icon icon-search"></span><input id="quote-search" value="${state.quoteSearch}" placeholder="Buscar por número, cliente, produto ou SKU" /></div><select class="quote-status-filter" id="quote-status-filter" aria-label="Filtrar orçamentos por status"><option value="all" ${state.quoteStatusFilter === "all" ? "selected" : ""}>Todos os status</option>${quoteStatuses.map((status) => `<option value="${status}" ${state.quoteStatusFilter === status ? "selected" : ""}>${status}</option>`).join("")}</select><button class="hero-cta" data-action="quote-new">Novo orçamento</button></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">QUOTE PIPELINE</span><h2>${list.length} conversas na visão atual</h2></div><span class="admin-sync"><i class="status-dot"></i> ${state.quotes.length} salvos neste dispositivo</span></div><div class="admin-quote-cards"><div><span>NOVOS</span><strong>${allQuotes.filter((quote) => quote.status === "Novo").length}</strong><small>aguardando primeiro contato</small></div><div><span>EM ANÁLISE</span><strong>${allQuotes.filter((quote) => ["Em análise", "Proposta enviada", "Aguardando cliente"].includes(quote.status)).length}</strong><small>propostas em atendimento</small></div><div><span>APROVADOS</span><strong>${allQuotes.filter((quote) => ["Aprovado", "Convertido em pedido"].includes(quote.status)).length}</strong><small>prontos para virar pedido</small></div></div><div class="admin-table-wrap"><table class="admin-table quotes-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Total estimado</th><th>Itens</th><th>Status</th><th>Ações</th></tr></thead><tbody>${list.length ? list.map((quote) => { const saved = state.quotes.some((item) => item.id === quote.id); return `<tr><td><strong>#${quote.id}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td><strong>${quote.customer}</strong><small>${quote.phone || "WhatsApp não informado"}</small></td><td><strong>${money(quote.total)}</strong></td><td>${(quote.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)} itens</td><td><span class="admin-status ${quoteStatusClass(quote.status)}">${quote.status}</span></td><td><div class="admin-row-actions quote-row-actions"><button data-action="quote-view" data-quote-id="${quote.id}">Ver</button>${saved ? `<button data-action="quote-edit" data-quote-id="${quote.id}">Editar</button><button data-action="quote-advance" data-quote-id="${quote.id}">Avançar</button>` : `<span class="admin-table-muted">Demo</span>`}</div></td></tr>`; }).join("") : `<tr><td colspan="6"><div class="admin-inline-empty">Nenhum orçamento corresponde aos filtros atuais.</div></td></tr>`}</tbody></table></div></section>`);
 }
 
 function quoteDetailModal(id) {
@@ -989,18 +989,47 @@ function quoteCreateModal() {
   });
 }
 
+function normalizeWhatsAppNumber(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("55") && digits.length >= 12) return digits;
+  return [10, 11].includes(digits.length) ? `55${digits}` : digits;
+}
+
+function writeClipboardText(text) {
+  const fallback = () => new Promise((resolve, reject) => {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    try {
+      if (!document.execCommand("copy")) throw new Error("copy-failed");
+      resolve();
+    } catch (error) {
+      reject(error);
+    } finally {
+      area.remove();
+    }
+  });
+  return navigator.clipboard?.writeText ? navigator.clipboard.writeText(text).catch(fallback) : fallback();
+}
+
 function copyQuoteSummary(id) {
   const quote = quoteCollection().find((item) => item.id === id);
   if (!quote) return;
-  if (!navigator.clipboard?.writeText) { showToast("Não foi possível copiar neste navegador."); return; }
-  navigator.clipboard.writeText(quoteSummary(quote)).then(() => showToast("Resumo copiado."), () => showToast("Não foi possível copiar neste navegador."));
+  writeClipboardText(quoteSummary(quote)).then(() => showToast("Resumo copiado."), () => showToast("Não foi possível copiar neste navegador."));
 }
 
 function openQuoteWhatsApp(id) {
   const quote = state.quotes.find((item) => item.id === id) || quoteDemoData().find((item) => item.id === id);
-  const phone = String(quote?.phone || "").replace(/\D/g, "");
+  const phone = normalizeWhatsAppNumber(quote?.phone);
   if (!quote || phone.length < 10) { showToast("Este orçamento não tem um WhatsApp válido."); return; }
-  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`${quoteSummary(quote)}\n\nVer proposta: ${quoteShareLink(quote)}`)}`, "_blank", "noopener,noreferrer");
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(`${quoteSummary(quote)}\n\nVer proposta: ${quoteShareLink(quote)}`)}`;
+  const popup = window.open(url, "_blank", "noopener,noreferrer");
+  if (!popup) window.location.href = url;
 }
 
 function deleteQuote(id) {
@@ -1058,6 +1087,80 @@ function quoteEditModal(id) {
   });
 }
 
+function quoteEditModalComplete(id) {
+  const quote = state.quotes.find((item) => item.id === id);
+  const quoteProducts = activeProducts();
+  if (!quote) return;
+  if (!quoteProducts.length) { showToast("Cadastre pelo menos um produto antes de editar o orçamento."); return; }
+  const draftItems = (quote.items?.length ? quote.items : [{ id: quoteProducts[0].id, quantity: 1 }]).map((item) => ({ productId: item.id, quantity: Math.max(1, Number(item.quantity) || 1) }));
+  const productOptions = (selectedId) => quoteProducts.map((product) => `<option value="${escapeHtml(product.id)}" ${product.id === selectedId ? "selected" : ""}>${escapeHtml(product.name)} · ${money(product.price)}</option>`).join("");
+  const draftSubtotal = () => draftItems.reduce((sum, item) => { const product = findProduct(item.productId); return sum + (product ? product.price * Math.max(1, Number(item.quantity) || 1) : 0); }, 0);
+  const value = (field, fallback = "") => escapeHtml(quote[field] ?? fallback);
+  openModal(`<span class="eyebrow">QUOTE / ${escapeHtml(quote.id)} / EDIT</span><h2>Editar<br>orçamento.</h2><p>Atualize cliente, produtos, condições e logística em um único lugar. Cada alteração fica registrada no histórico.</p><form class="form-grid" id="quote-edit-form"><div class="form-row"><label class="form-label">Nome do cliente<input name="customer" required value="${value("customer")}" placeholder="Nome completo" /></label><label class="form-label">WhatsApp<input name="phone" required value="${value("phone")}" placeholder="(11) 99999-9999" /></label></div><div class="form-row"><label class="form-label">CPF / CNPJ<input name="document" value="${value("document")}" placeholder="Opcional" /></label><label class="form-label">CEP<input name="zip" value="${value("zip")}" placeholder="00000-000" /></label></div><div class="form-row"><label class="form-label">Cidade / UF<input name="city" value="${value("city", "—")}" placeholder="São Paulo / SP" /></label><label class="form-label">Origem<select name="origin">${["Catálogo", "WhatsApp", "Telefone", "Balcão", "Indicação", "Site"].map((origin) => `<option ${quote.origin === origin ? "selected" : ""}>${origin}</option>`).join("")}</select></label></div><label class="form-label">Endereço<input name="address" value="${value("address")}" placeholder="Rua, número, complemento" /></label><div class="form-row"><label class="form-label">Status<select name="status">${quoteStatuses.map((status) => `<option value="${escapeHtml(status)}" ${quote.status === status ? "selected" : ""}>${escapeHtml(status)}</option>`).join("")}</select></label><label class="form-label">Validade<input name="validUntil" type="date" value="${value("validUntil")}" /></label></div><label class="form-label">Vendedor responsável<input name="seller" value="${value("seller", "Operação local")}" placeholder="Responsável" /></label><section class="quote-item-builder"><div class="quote-item-builder-head"><div><span class="eyebrow">ITEMS / PRODUTOS</span><strong data-quote-edit-items-count>${draftItems.length} produto${draftItems.length === 1 ? "" : "s"}</strong></div><button class="outline-cta" type="button" data-quote-edit-add-line>Adicionar produto +</button></div><div class="quote-item-lines" id="quote-edit-item-lines"></div><div class="summary-row quote-builder-total"><span>Subtotal dos produtos</span><strong data-quote-edit-subtotal>${money(draftSubtotal())}</strong></div></section><div class="form-row"><label class="form-label">Desconto<input name="discount" type="number" min="0" step="0.01" value="${Number(quote.discount || 0)}" /></label><label class="form-label">Frete<input name="freight" type="number" min="0" step="0.01" value="${Number(quote.freight || 0)}" /></label></div><div class="form-row"><label class="form-label">Transportadora<input name="carrier" value="${escapeHtml(quote.shipping?.carrier || "")}" placeholder="Field Express, Correios..." /></label><label class="form-label">Modalidade<input name="method" value="${escapeHtml(quote.shipping?.method || quote.shipping?.service || "")}" placeholder="Expresso, retirada..." /></label></div><div class="form-row"><label class="form-label">Prazo estimado<input name="deadline" value="${escapeHtml(quote.shipping?.deadline || "")}" placeholder="3 dias úteis" /></label><label class="form-label">Volumes<input name="volumes" type="number" min="1" step="1" value="${Math.max(1, Number(quote.shipping?.volumes) || 1)}" /></label></div><label class="form-label">Rastreamento<input name="tracking" value="${escapeHtml(quote.shipping?.tracking || "")}" placeholder="Código ou link de acompanhamento" /></label><div class="form-row"><label class="form-label">Observação do cliente<textarea name="note" placeholder="Preferências, prazo ou contexto">${value("note")}</textarea></label><label class="form-label">Observação interna<textarea name="internalNote" placeholder="Uso exclusivo do time">${value("internalNote")}</textarea></label></div><button class="modal-submit" type="submit">Salvar orçamento</button></form>`);
+  const formElement = document.querySelector("#quote-edit-form");
+  const syncDraftItems = () => formElement.querySelectorAll("[data-quote-edit-line]").forEach((line, index) => { draftItems[index] = { productId: line.querySelector("[data-quote-edit-product]")?.value || draftItems[index]?.productId, quantity: Math.max(1, Number(line.querySelector("[data-quote-edit-quantity]")?.value) || 1) }; });
+  const renderDraftItems = () => {
+    formElement.querySelector("#quote-edit-item-lines").innerHTML = draftItems.map((item, index) => { const product = findProduct(item.productId) || quoteProducts[0]; const quantity = Math.max(1, Number(item.quantity) || 1); item.productId = product.id; item.quantity = quantity; return `<div class="quote-item-line" data-quote-edit-line="${index}"><label class="form-label">Produto<select data-quote-edit-product aria-label="Produto ${index + 1}">${productOptions(product.id)}</select></label><label class="form-label quote-item-quantity">Qtd.<input data-quote-edit-quantity type="number" min="1" step="1" value="${quantity}" aria-label="Quantidade do produto ${index + 1}" /></label><strong class="quote-item-line-total">${money(product.price * quantity)}</strong><button class="quote-line-remove" type="button" data-quote-edit-remove-line="${index}" ${draftItems.length === 1 ? "disabled" : ""} aria-label="Remover produto ${index + 1}">×</button></div>`; }).join("");
+    formElement.querySelector("[data-quote-edit-items-count]").textContent = `${draftItems.length} produto${draftItems.length === 1 ? "" : "s"}`;
+    formElement.querySelector("[data-quote-edit-subtotal]").textContent = money(draftSubtotal());
+  };
+  formElement.addEventListener("click", (event) => {
+    const addButton = event.target.closest("[data-quote-edit-add-line]");
+    const removeButton = event.target.closest("[data-quote-edit-remove-line]");
+    if (addButton) { syncDraftItems(); draftItems.push({ productId: quoteProducts[0].id, quantity: 1 }); renderDraftItems(); }
+    if (removeButton && draftItems.length > 1) { syncDraftItems(); draftItems.splice(Number(removeButton.dataset.quoteEditRemoveLine), 1); renderDraftItems(); }
+  });
+  formElement.addEventListener("change", (event) => { if (event.target.matches("[data-quote-edit-product], [data-quote-edit-quantity]")) { syncDraftItems(); renderDraftItems(); } });
+  formElement.addEventListener("input", (event) => {
+    if (!event.target.matches("[data-quote-edit-quantity]")) return;
+    const line = event.target.closest("[data-quote-edit-line]");
+    const index = Number(line?.dataset.quoteEditLine);
+    if (!Number.isInteger(index) || !draftItems[index]) return;
+    draftItems[index].quantity = Math.max(1, Number(event.target.value) || 1);
+    const product = findProduct(draftItems[index].productId);
+    if (product) line.querySelector(".quote-item-line-total").textContent = money(product.price * draftItems[index].quantity);
+    formElement.querySelector("[data-quote-edit-subtotal]").textContent = money(draftSubtotal());
+  });
+  formElement.addEventListener("submit", (event) => {
+    event.preventDefault();
+    syncDraftItems();
+    const form = new FormData(event.currentTarget);
+    const consolidatedItems = [];
+    draftItems.forEach((item) => { const product = findProduct(item.productId); if (!product) return; const current = consolidatedItems.find((line) => line.id === product.id); if (current) current.quantity += Math.max(1, Number(item.quantity) || 1); else consolidatedItems.push({ id: product.id, quantity: Math.max(1, Number(item.quantity) || 1) }); });
+    if (!consolidatedItems.length) { showToast("Adicione pelo menos um produto ao orçamento."); return; }
+    const previous = JSON.stringify({ customer: quote.customer, phone: quote.phone, document: quote.document, zip: quote.zip, city: quote.city, address: quote.address, origin: quote.origin, seller: quote.seller, status: quote.status, subtotal: quote.subtotal, discount: quote.discount, freight: quote.freight, validUntil: quote.validUntil, note: quote.note, internalNote: quote.internalNote, items: quote.items, shipping: quote.shipping });
+    const nextStatus = form.get("status")?.toString() || quote.status;
+    const seller = form.get("seller")?.toString().trim() || "Operação local";
+    quote.customer = form.get("customer")?.toString().trim() || quote.customer;
+    quote.phone = form.get("phone")?.toString().trim() || "";
+    quote.document = form.get("document")?.toString().trim() || "";
+    quote.zip = normalizeZip(form.get("zip")) || form.get("zip")?.toString().trim() || "";
+    quote.city = form.get("city")?.toString().trim() || "—";
+    quote.address = form.get("address")?.toString().trim() || "";
+    quote.origin = form.get("origin")?.toString() || "Catálogo";
+    quote.seller = seller;
+    quote.validUntil = form.get("validUntil")?.toString() || quote.validUntil;
+    quote.items = consolidatedItems;
+    quote.subtotal = consolidatedItems.reduce((sum, item) => { const product = findProduct(item.id); return sum + (product ? product.price * item.quantity : 0); }, 0);
+    quote.discount = Math.min(quote.subtotal, Math.max(0, Number(form.get("discount")) || 0));
+    quote.freight = Math.max(0, Number(form.get("freight")) || 0);
+    quote.total = Math.max(0, quote.subtotal - quote.discount + quote.freight);
+    quote.note = form.get("note")?.toString().trim() || "—";
+    quote.internalNote = form.get("internalNote")?.toString().trim() || "";
+    quote.shipping = { ...quote.shipping, carrier: form.get("carrier")?.toString().trim() || "", service: form.get("method")?.toString().trim() || "", method: form.get("method")?.toString().trim() || "", deadline: form.get("deadline")?.toString().trim() || "", volumes: Math.max(1, Number(form.get("volumes")) || 1), tracking: form.get("tracking")?.toString().trim() || "", zip: quote.zip, address: quote.address };
+    const statusChanged = nextStatus !== quote.status;
+    if (statusChanged) addQuoteHistory(quote, nextStatus, "Etapa atualizada pela central de orçamento.", seller);
+    const current = JSON.stringify({ customer: quote.customer, phone: quote.phone, document: quote.document, zip: quote.zip, city: quote.city, address: quote.address, origin: quote.origin, seller: quote.seller, status: quote.status, subtotal: quote.subtotal, discount: quote.discount, freight: quote.freight, validUntil: quote.validUntil, note: quote.note, internalNote: quote.internalNote, items: quote.items, shipping: quote.shipping });
+    if (previous !== current && !statusChanged) quote.history = [...(quote.history || []), { at: new Date().toISOString(), actor: seller, from: quote.status, to: quote.status, note: "Dados, produtos ou condições comerciais atualizados." }];
+    quote.updatedAt = new Date().toISOString();
+    persist();
+    closeModal();
+    render();
+    showToast(`${quote.id} atualizado com sucesso.`);
+  });
+  renderDraftItems();
+}
+
 function convertQuoteToOrder(id) {
   const quote = state.quotes.find((item) => item.id === id);
   if (!quote || quote.status !== "Aprovado") return;
@@ -1074,8 +1177,8 @@ function convertQuoteToOrder(id) {
 
 function copyQuoteLink(id) {
   const quote = quoteCollection().find((item) => item.id === id);
-  if (!quote || !navigator.clipboard?.writeText) { showToast("Não foi possível copiar o link."); return; }
-  navigator.clipboard.writeText(quoteShareLink(quote)).then(() => showToast("Link do orçamento copiado."), () => showToast("Não foi possível copiar o link."));
+  if (!quote) return;
+  writeClipboardText(quoteShareLink(quote)).then(() => showToast("Link do orçamento copiado."), () => showToast("Não foi possível copiar o link."));
 }
 
 function quoteCreateModalV2() {
@@ -1132,10 +1235,12 @@ function quoteCreateModalV2() {
 
 function openSellerWhatsApp(id) {
   const quote = quoteCollection().find((item) => item.id === id);
-  const phone = String(state.settings.whatsapp || "").replace(/\D/g, "");
+  const phone = normalizeWhatsAppNumber(state.settings.whatsapp);
   if (!quote || phone.length < 10) { showToast("O WhatsApp da operação ainda não foi configurado."); return; }
   const message = `Olá, sou ${quote.customer} e quero falar sobre o orçamento ${quote.id}.\n\n${quoteShareLink(quote)}`;
-  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  const popup = window.open(url, "_blank", "noopener,noreferrer");
+  if (!popup) window.location.href = url;
 }
 
 function publicQuotePage(id) {
@@ -1916,7 +2021,7 @@ function quoteModal() {
     const quote = quoteRecord(form);
     const lines = state.cart.map((item) => { const product = findProduct(item.id); return `${item.quantity}x ${product.brand} ${product.name}`; }).join("\n");
     const message = `Olá, gostaria de solicitar orçamento da ${state.settings.storeName}.\n\nOrçamento ${quote.id}\n\nItens:\n${lines}\n\nNome: ${form.get("name")}\nWhatsApp: ${form.get("phone")}\nCEP: ${form.get("zip") || "Não informado"}\nEndereço: ${form.get("address") || "Não informado"}\nCidade: ${form.get("city") || "Não informado"}\nSubtotal: ${moneyDetailed(quote.subtotal)}\nAirdrop: ${quote.airdropCode ? `${quote.airdropCode} · desconto de ${moneyDetailed(quote.discount)}` : "Não utilizado"}\nFrete: ${quote.freight ? moneyDetailed(quote.freight) : "Grátis ou pendente"}\nTotal estimado: ${moneyDetailed(quote.total)}\nTransportadora: ${quote.shipping?.carrier || "A definir"}\nPrazo: ${quote.shipping?.deadline || "A confirmar"}\nObservação: ${form.get("note") || "—"}`;
-    const link = `https://wa.me/${String(state.settings.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(message)}`;
+    const link = `https://wa.me/${normalizeWhatsAppNumber(state.settings.whatsapp)}?text=${encodeURIComponent(message)}`;
     if (quote.airdropCode) {
       const campaign = state.airdrops.find((item) => item.code === quote.airdropCode);
       if (campaign) campaign.redeemed += 1;
@@ -2497,7 +2602,7 @@ document.addEventListener("click", (event) => {
   const quoteId = event.target.closest("[data-quote-id]")?.dataset.quoteId;
   if (action === "quote-view" && quoteId) quoteDetailModalV2(quoteId);
   if (action === "quote-advance" && quoteId) advanceQuoteStatus(quoteId);
-  if (action === "quote-edit" && quoteId) quoteEditModal(quoteId);
+  if (action === "quote-edit" && quoteId) quoteEditModalComplete(quoteId);
   if (action === "quote-convert" && quoteId) convertQuoteToOrder(quoteId);
   if (action === "quote-copy" && quoteId) copyQuoteSummary(quoteId);
   if (action === "quote-share" && quoteId) copyQuoteLink(quoteId);
