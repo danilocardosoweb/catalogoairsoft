@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#070908" />
-    <meta name="description" content="Loadout Lab — experiência cinematográfica experimental da Field Ops." />
+    <meta name="description" content="Loadout Lab — experiência de vídeo controlada pelo scroll da Field Ops." />
     <title>LOADOUT LAB — FIELD OPS</title>
     <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -18,21 +18,33 @@
 
       <section class="lab-story" data-lab-story aria-labelledby="lab-title">
         <div class="lab-story-sticky">
-          <div class="lab-scene" data-lab-scene aria-hidden="true">
-            <div class="lab-operator-image"></div>
-            <div class="lab-rifle-image"></div>
-            <div class="lab-atmosphere"></div>
-            <div class="lab-light-leak"></div>
+          <div class="lab-video-stage">
+            <div class="lab-video-poster" aria-hidden="true"></div>
+            <video
+              class="lab-video"
+              data-lab-video
+              muted
+              playsinline
+              preload="auto"
+              poster="./video-poster.jpg"
+              aria-label="Operador de airsoft avançando com seu equipamento"
+            >
+              <source src="./loadout-scroll.mp4" type="video/mp4" />
+            </video>
+            <div class="lab-video-wash" aria-hidden="true"></div>
           </div>
 
           <div class="lab-copy" data-lab-copy>
             <h1 id="lab-title">Monte seu<br /><em>loadout.</em></h1>
-            <p>Seu equipamento. Sua configuração.</p>
+            <p>Role para explorar</p>
           </div>
 
-          <div class="lab-scroll-cue" data-scroll-cue>
-            <span>Role para explorar</span>
-            <b>↓</b>
+          <div class="lab-debug-panel" data-lab-debug hidden aria-live="polite">
+            <span>Scroll progress: <b data-debug-progress>0.00</b></span>
+            <span>Video duration: <b data-debug-duration>—</b></span>
+            <span>Target time: <b data-debug-target>0.00</b></span>
+            <span>Current time: <b data-debug-current>0.00</b></span>
+            <span>FPS: <b data-debug-fps>—</b></span>
           </div>
         </div>
       </section>
