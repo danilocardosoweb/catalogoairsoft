@@ -170,6 +170,7 @@ const state = {
   orders: JSON.parse(localStorage.getItem("fieldops-orders") || "[]"),
   loadout: JSON.parse(localStorage.getItem("fieldops-loadout") || "null") || { Rifle: "neptune-10" },
   importData: null,
+  pendingBackupRestore: null,
   importHistory: JSON.parse(localStorage.getItem("fieldops-import-history") || "[]"),
   adminProductSearch: "",
   account: JSON.parse(localStorage.getItem("fieldops-account") || "null"),
@@ -735,14 +736,98 @@ function csvDocument(rows) {
 }
 
 function exportDataModal() {
-  openModal(`<span class="eyebrow">DATA / EXPORT</span><h2>Leve sua<br>operação.</h2><p>Exporte os dados salvos neste dispositivo para backup, análise ou migração.</p><div class="form-grid"><button class="modal-submit" data-action="export-backup">Backup completo · JSON</button><button class="outline-cta" data-action="export-products">Produtos e estoque · CSV</button><button class="outline-cta" data-action="export-quotes">Orçamentos e clientes · CSV</button></div>`);
+  openModal(`<span class="eyebrow">DATA / EXPORT</span><h2>Leve sua<br>operação.</h2><p>Exporte os dados salvos neste dispositivo para backup, análise ou migração.</p><div class="form-grid"><button class="modal-submit" data-action="export-backup">Backup completo · JSON</button><button class="outline-cta" data-action="export-products">Produtos e estoque · CSV</button><button class="outline-cta" data-action="export-quotes">Orçamentos e clientes · CSV</button><label class="backup-import-dropzone"><input id="backup-file" type="file" accept=".json,application/json" /><span class="dropzone-mark">↥</span><strong>Restaurar um backup</strong><small>Selecione um JSON exportado pelo FIELD OPS</small><span class="outline-cta">Escolher backup</span></label></div>`);
+  document.querySelector("#backup-file")?.addEventListener("change", (event) => analyzeBackupFile(event.target.files[0]));
 }
 
 function exportBackup() {
   closeModal();
-  const payload = { exportedAt: new Date().toISOString(), source: "FIELD OPS", products, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, loadout: state.loadout, settings: state.settings, profile: state.profile, radar: state.radar, radarFollowing: state.radarFollowing, radarContents: state.radarContents, airdrops: state.airdrops };
+  const payload = { schemaVersion: 2, exportedAt: new Date().toISOString(), source: "FIELD OPS", products, cart: state.cart, cartShipping: state.cartShipping, shippingCache: state.shippingCache, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, compare: state.compare, loadout: state.loadout, settings: state.settings, profile: state.profile, account: state.account, recentSearches: state.recentSearches, recentProducts: state.recentProducts, importHistory: state.importHistory, theme: state.theme, radar: state.radar, radarFollowing: state.radarFollowing, radarContents: state.radarContents, airdrops: state.airdrops, appliedAirdropCode: state.appliedAirdropCode || "" };
   downloadLocalFile(`field-ops-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
   showToast("Backup completo exportado.");
+}
+
+function safeBackupImage(value) {
+  const image = String(value || "").trim();
+  if (!image) return "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82";
+  try {
+    const url = new URL(image, window.location.origin);
+    return ["http:", "https:", "data:"].includes(url.protocol) ? image : "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82";
+  } catch {
+    return "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82";
+  }
+}
+
+function restoreProductShape(raw, index) {
+  if (!raw || typeof raw !== "object" || !String(raw.name || "").trim()) return null;
+  const product = { ...raw, id: String(raw.id || `restored-${Date.now()}-${index}`), brand: String(raw.brand || "IMPORTADO").trim().slice(0, 80), name: String(raw.name).trim().slice(0, 120), type: String(raw.type || "FIELD GEAR").trim().slice(0, 100), meta: String(raw.meta || "FIELD READY").trim().slice(0, 100), price: Math.max(0, Number(raw.price) || 0), stockCount: Math.max(0, Math.round(Number(raw.stockCount ?? raw.stock ?? 0) || 0)), category: String(raw.category || "Equipamentos").trim().slice(0, 60), system: String(raw.system || "FIELD GEAR").trim().slice(0, 60), image: safeBackupImage(raw.image), specs: raw.specs && typeof raw.specs === "object" ? raw.specs : {}, description: String(raw.description || "").trim().slice(0, 600), tag: String(raw.tag || "").trim().slice(0, 40), sku: normalizeCatalogSku(raw.sku) || `REST-${String(index + 1).padStart(4, "0")}`, active: raw.active !== false };
+  ensureProductShipping(product);
+  return product;
+}
+
+function backupRestorePreview() {
+  const pending = state.pendingBackupRestore;
+  if (!pending) return exportDataModal();
+  const payload = pending.payload;
+  const counts = { products: Array.isArray(payload.products) ? payload.products.length : 0, quotes: Array.isArray(payload.quotes) ? payload.quotes.length : 0, orders: Array.isArray(payload.orders) ? payload.orders.length : 0, airdrops: Array.isArray(payload.airdrops) ? payload.airdrops.length : 0 };
+  const missing = ["products", "quotes", "orders"].filter((key) => !Array.isArray(payload[key]));
+  openModal(`<span class="eyebrow">DATA / RESTORE</span><h2>Backup<br>identificado.</h2><p>Confira o conteúdo antes de substituir os dados deste dispositivo. O arquivo atual não será misturado: a restauração cria um novo ponto de operação.</p><div class="backup-file-summary"><strong>${escapeHtml(pending.fileName)}</strong><small>Exportado em ${escapeHtml(pending.exportedAt || "data não informada")}</small></div><div class="backup-count-grid"><div><span>Produtos</span><strong>${counts.products}</strong></div><div><span>Orçamentos</span><strong>${counts.quotes}</strong></div><div><span>Pedidos</span><strong>${counts.orders}</strong></div><div><span>Airdrops</span><strong>${counts.airdrops}</strong></div></div>${missing.length ? `<div class="backup-warning"><strong>Backup parcial.</strong><span>Seções ausentes serão mantidas com valores vazios: ${missing.join(", ")}.</span></div>` : ""}<div class="backup-restore-actions"><button class="outline-cta" data-action="backup-cancel">Voltar</button><button class="modal-submit" data-action="backup-apply">Continuar com restauração</button></div>`);
+}
+
+function analyzeBackupFile(file) {
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { showToast("O backup precisa ter no máximo 10 MB."); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const payload = JSON.parse(String(reader.result || ""));
+      if (!payload || payload.source !== "FIELD OPS" || !Array.isArray(payload.products)) throw new Error("Arquivo incompatível");
+      state.pendingBackupRestore = { payload, fileName: file.name, exportedAt: payload.exportedAt ? new Date(payload.exportedAt).toLocaleString("pt-BR") : "data não informada" };
+      backupRestorePreview();
+    } catch {
+      showToast("Não foi possível reconhecer este backup FIELD OPS.");
+    }
+  };
+  reader.onerror = () => showToast("Não foi possível ler o arquivo selecionado.");
+  reader.readAsText(file, "UTF-8");
+}
+
+async function applyBackupRestore() {
+  const pending = state.pendingBackupRestore;
+  if (!pending) return;
+  const payload = pending.payload;
+  const restoredProducts = (Array.isArray(payload.products) ? payload.products : []).map(restoreProductShape).filter(Boolean);
+  if (!restoredProducts.length) { showToast("O backup não possui produtos válidos para restaurar."); return; }
+  const confirmed = await confirmAction({ eyebrow: "DATA / RESTORE", title: "Substituir operação local?", message: "Os dados atuais deste dispositivo serão trocados pelo conteúdo validado do backup.", detail: `${restoredProducts.length} produtos · ${Array.isArray(payload.quotes) ? payload.quotes.length : 0} orçamentos · ${Array.isArray(payload.orders) ? payload.orders.length : 0} pedidos`, confirmLabel: "Restaurar backup", tone: "warning" });
+  if (!confirmed) return;
+  products.splice(0, products.length, ...restoredProducts);
+  state.cart = (Array.isArray(payload.cart) ? payload.cart : []).map((item) => ({ id: String(item.id || ""), quantity: Math.max(1, Math.round(Number(item.quantity) || 1)) })).filter((item) => findProduct(item.id));
+  state.cartShipping = payload.cartShipping && typeof payload.cartShipping === "object" ? payload.cartShipping : null;
+  state.shippingCache = payload.shippingCache && typeof payload.shippingCache === "object" ? payload.shippingCache : {};
+  state.favorites = (Array.isArray(payload.favorites) ? payload.favorites : []).filter((id) => findProduct(id));
+  state.compare = (Array.isArray(payload.compare) ? payload.compare : []).filter((id) => findProduct(id)).slice(0, 3);
+  state.quotes = (Array.isArray(payload.quotes) ? payload.quotes : []).map(ensureQuoteShape);
+  state.orders = (Array.isArray(payload.orders) ? payload.orders : []).map(ensureOrderShape);
+  state.loadout = payload.loadout && typeof payload.loadout === "object" ? payload.loadout : { Rifle: restoredProducts[0].id };
+  state.settings = { ...defaultSettings, ...(payload.settings && typeof payload.settings === "object" ? payload.settings : {}) };
+  state.shipping = { ...defaultShippingSettings, ...(payload.shipping && typeof payload.shipping === "object" ? payload.shipping : {}), packages: Array.isArray(payload.shipping?.packages) && payload.shipping.packages.length ? payload.shipping.packages : defaultShippingPackages };
+  state.profile = payload.profile && typeof payload.profile === "object" ? payload.profile : null;
+  state.account = payload.account && typeof payload.account === "object" ? payload.account : null;
+  state.recentSearches = Array.isArray(payload.recentSearches) ? payload.recentSearches.slice(0, 10) : [];
+  state.recentProducts = (Array.isArray(payload.recentProducts) ? payload.recentProducts : []).filter((id) => findProduct(id)).slice(0, 10);
+  state.importHistory = Array.isArray(payload.importHistory) ? payload.importHistory.slice(0, 10) : [];
+  state.radar = payload.radar && typeof payload.radar === "object" ? payload.radar : state.radar;
+  state.radarFollowing = Array.isArray(payload.radarFollowing) ? payload.radarFollowing : [];
+  state.radarContents = Array.isArray(payload.radarContents) ? payload.radarContents.map(ensureRadarContentShape) : seedRadarContent.map(ensureRadarContentShape);
+  state.airdrops = Array.isArray(payload.airdrops) ? payload.airdrops : seedAirdrops;
+  state.appliedAirdropCode = String(payload.appliedAirdropCode || "").trim().toUpperCase();
+  state.pendingBackupRestore = null;
+  state.importData = null;
+  applyTheme(payload.theme === "light" ? "light" : "dark");
+  persist();
+  closeModal();
+  render();
+  showToast("Backup restaurado neste dispositivo.");
 }
 
 function exportProducts() {
@@ -2695,6 +2780,8 @@ document.addEventListener("click", (event) => {
   if (action === "export-backup") exportBackup();
   if (action === "export-products") exportProducts();
   if (action === "export-quotes") exportQuotes();
+  if (action === "backup-cancel") { state.pendingBackupRestore = null; exportDataModal(); }
+  if (action === "backup-apply") applyBackupRestore();
   if (action === "cart") { renderDrawer(); openDrawer(); }
   if (action === "close-drawer") closeDrawer();
   if (action === "calculate-shipping") calculateCartShipping();

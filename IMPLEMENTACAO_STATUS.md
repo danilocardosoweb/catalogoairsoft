@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
-Última revisão: 25/09/2026  
-Última versão publicada: Airdrop social local-first integrado ao carrinho e às configurações
+Última revisão: 26/09/2026  
+Última versão publicada: restauração validada de backup local integrada ao centro de dados
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
 
@@ -84,6 +84,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Persistência local de produtos, carrinho, favoritos, comparação, loadout, perfil, briefing, buscas recentes, produtos recentes, orçamentos e configurações.
 - Cards de recomendação e itens recentes com abertura direta do produto, além de limpeza do histórico local.
 - Exportação local de backup completo em JSON e relatórios de produtos/estoque e orçamentos/clientes em CSV.
+- Centro de dados com restauração de backup JSON: validação de origem/estrutura, prévia de produtos, orçamentos, pedidos e Airdrops, aviso para arquivos parciais e confirmação visual antes de substituir os dados locais.
 - Radar Airsoft integrado à home com bloco discreto, localização por cidade/estado e abertura sob demanda; nenhuma solicitação de GPS acontece automaticamente.
 - Página Radar com escopos Perto de mim, Minha cidade/estado, Brasil e Internacional, raio de 25/50/100/200 km, filtros por categoria, ordenação por relevância/distância/data/categoria/popularidade e visão feed/mapa.
 - Cards de eventos, campos, lojas, notícias e lançamentos com seguir/deixar de seguir, detalhes, tags e produtos relacionados ligados ao catálogo e ao loadout.
@@ -127,6 +128,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Implementar autenticação real e permissões por perfil: administrador, vendedor, lojista e distribuidor.
 - Proteger o painel administrativo no servidor, não apenas pela navegação do frontend.
 - Validar e sanitizar dados vindos de produtos, importações e formulários antes de renderizar HTML.
+- A restauração de backup aplica normalização mínima a produtos, imagens, quantidades e seções principais; ainda é necessário centralizar a sanitização de todas as entradas do app.
 - Substituir dados demo e valores padrão por catálogo, preços, imagens e estoque reais.
 - Configurar o número oficial do WhatsApp fora do código e separar ambientes de desenvolvimento e produção.
 - Registrar histórico de alterações de preço, estoque, produto e status de orçamento.
