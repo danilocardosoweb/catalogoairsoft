@@ -171,7 +171,7 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
 .hero-radar-grid::before { top: 50%; right: -30%; left: -30%; height: 1px; }
 .hero-radar-grid::after { top: -30%; bottom: -30%; left: 50%; width: 1px; }
 .hero-radar-sweep { position: absolute; inset: 0; z-index: 2; overflow: hidden; border-radius: 50%; pointer-events: none; }
-.hero-radar-sweep::before { content: ""; position: absolute; inset: -55%; background: conic-gradient(from 0deg, transparent 0deg 302deg, rgba(216,255,89,.02) 320deg, rgba(216,255,89,.34) 352deg, rgba(216,255,89,.04) 360deg); animation: hero-radar-sweep 56s linear infinite; }
+.hero-radar-sweep::before { content: ""; position: absolute; inset: -55%; background: conic-gradient(from 0deg, transparent 0deg 302deg, rgba(216,255,89,.02) 320deg, rgba(216,255,89,.34) 352deg, rgba(216,255,89,.04) 360deg); animation: hero-radar-sweep 90s linear infinite; }
 .hero-radar-crosshair { position: absolute; z-index: 2; top: 50%; left: 50%; width: 13px; height: 13px; border: 1px solid rgba(216,255,89,.34); border-radius: 50%; transform: translate(-50%, -50%); }
 .hero-radar-crosshair::before, .hero-radar-crosshair::after { content: ""; position: absolute; background: rgba(216,255,89,.28); }
 .hero-radar-crosshair::before { top: 5px; left: -7px; width: 25px; height: 1px; }

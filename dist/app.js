@@ -2083,14 +2083,13 @@ function bindHeroRadar() {
     [[.69, .2], [.8, .31], [.72, .43], [.55, .23]]
   ];
   const random = (min, max) => min + Math.random() * (max - min);
-  const makeActor = (x, y, pool, isPlayer = false) => ({ x, y, target: { x, y }, pool, isPlayer, duration: isPlayer ? random(27200, 36000) : random(20800, 30400), switchAt: 0, downUntil: 0, lastClearedAt: 0 });
+  const makeActor = (x, y, pool, isPlayer = false) => ({ x, y, target: { x, y }, origin: { x, y }, pool, isPlayer, duration: isPlayer ? random(42000, 56000) : random(32000, 46000), startedAt: 0, switchAt: 0, downUntil: 0, lastClearedAt: 0 });
   const player = makeActor(.64, .59, playerWaypoints, true);
   const enemies = enemyEls.map((_, index) => {
     const starts = [[.24, .28], [.72, .24]];
     return makeActor(starts[index][0], starts[index][1], enemyWaypoints[index]);
   });
   let frameId = 0;
-  let lastFrame = 0;
   let lastReadout = 0;
   let pulseTimeout = 0;
   let nextPingAt = 0;
@@ -2106,18 +2105,20 @@ function bindHeroRadar() {
     const candidates = actor.pool.filter((point) => distance({ x: point[0], y: point[1] }, actor.target) > .08).sort(() => Math.random() - .5);
     const next = actor.isPlayer ? candidates.find((point) => enemies.every((enemy) => distance({ x: point[0], y: point[1] }, enemy) > .13)) : candidates[0];
     const point = next || actor.pool[0];
-    actor.target = { x: point[0] + random(-.025, .025), y: point[1] + random(-.025, .025) };
+    actor.target = { x: point[0] + random(-.012, .012), y: point[1] + random(-.012, .012) };
     actor.target.x = Math.min(.88, Math.max(.12, actor.target.x));
     actor.target.y = Math.min(.86, Math.max(.14, actor.target.y));
-    actor.duration = random(actor.isPlayer ? 28000 : 21600, actor.isPlayer ? 40000 : 32800);
-    actor.switchAt = now + actor.duration + random(7200, actor.isPlayer ? 14400 : 12000);
+    actor.origin = { x: actor.x, y: actor.y };
+    actor.startedAt = now;
+    actor.duration = random(actor.isPlayer ? 42000 : 32000, actor.isPlayer ? 56000 : 46000);
+    actor.switchAt = now + actor.duration + random(12000, actor.isPlayer ? 24000 : 20000);
   };
   const updateMarker = (element, actor, width, height) => {
     element.style.setProperty("--radar-dx", `${actor.x * width - width / 2}px`);
     element.style.setProperty("--radar-dy", `${actor.y * height - height / 2}px`);
   };
   const updateReadout = (now) => {
-    if (now - lastReadout < 520) return;
+    if (now - lastReadout < 1000) return;
     lastReadout = now;
     const contacts = enemies.filter((enemy) => distance(player, enemy) < .24).length;
     const manualScan = now < manualScanUntil;
@@ -2127,7 +2128,7 @@ function bindHeroRadar() {
     const coordinates = radar.querySelector("[data-radar-coordinates]");
     const clearing = enemies.some((enemy) => enemy.downUntil > now);
     if (readout) readout.textContent = clearing ? `${playerName} / CLEAR` : manualScan ? "SCAN LOCK" : contacts ? `${contacts} HOSTIS` : "SECTOR CLEAR";
-    if (mode) mode.textContent = clearing ? "CONTACT NEUTRALIZED" : modes[Math.floor(now / 4200) % modes.length];
+    if (mode) mode.textContent = clearing ? "CONTACT NEUTRALIZED" : modes[Math.floor(now / 8000) % modes.length];
     if (coordinates) coordinates.textContent = `GRID ${String(Math.round(player.x * 9)).padStart(2, "0")} / ${String(Math.round(player.y * 9)).padStart(2, "0")}`;
     if ((contacts || manualScan) && now > nextPingAt) {
       const contact = enemies.find((enemy) => distance(player, enemy) < .24) || enemies[0];
@@ -2141,19 +2142,17 @@ function bindHeroRadar() {
         window.clearTimeout(pulseTimeout);
         pulseTimeout = window.setTimeout(() => ping.classList.remove("is-active"), 2200);
       }
-      nextPingAt = now + random(5200, 8800);
+      nextPingAt = now + random(12000, 18000);
     }
   };
   const triggerManualScan = (now = performance.now()) => {
-    manualScanUntil = now + 7200;
+    manualScanUntil = now + 10000;
     nextPingAt = now;
     lastReadout = 0;
-    chooseTarget(player, now);
-    enemies.forEach((enemy) => chooseTarget(enemy, now));
     radar.classList.remove("is-focus");
     void radar.offsetWidth;
     radar.classList.add("is-focus");
-    window.setTimeout(() => radar.classList.remove("is-focus"), 7400);
+    window.setTimeout(() => radar.classList.remove("is-focus"), 10200);
     updateReadout(now);
   };
   const onRadarKeyDown = (event) => {
@@ -2166,15 +2165,17 @@ function bindHeroRadar() {
     event.stopPropagation();
     triggerManualScan();
   };
+  const moveActor = (actor, now) => {
+    const progress = Math.min(1, Math.max(0, (now - actor.startedAt) / Math.max(1, actor.duration)));
+    const eased = progress * progress * (3 - (2 * progress));
+    actor.x = actor.origin.x + (actor.target.x - actor.origin.x) * eased;
+    actor.y = actor.origin.y + (actor.target.y - actor.origin.y) * eased;
+  };
   const tick = (now) => {
     frameId = 0;
     if (!active || reducedMotion()) return;
-    const elapsed = lastFrame ? Math.min(60, now - lastFrame) : 16;
-    lastFrame = now;
-    if (!player.switchAt || now > player.switchAt || distance(player, player.target) < .025) chooseTarget(player, now);
-    const playerEasing = 1 - Math.exp(-elapsed / player.duration * 900);
-    player.x += (player.target.x - player.x) * playerEasing;
-    player.y += (player.target.y - player.y) * playerEasing;
+    if (!player.switchAt || now > player.switchAt) chooseTarget(player, now);
+    moveActor(player, now);
     enemies.forEach((actor, index) => {
       const element = enemyEls[index];
       if (actor.downUntil > now) {
@@ -2196,10 +2197,8 @@ function bindHeroRadar() {
         window.setTimeout(() => radar.classList.remove("is-hunting"), 1800);
         return;
       }
-      if (!actor.switchAt || now > actor.switchAt || distance(actor, actor.target) < .025) chooseTarget(actor, now);
-      const easing = 1 - Math.exp(-elapsed / actor.duration * 900);
-      actor.x += (actor.target.x - actor.x) * easing;
-      actor.y += (actor.target.y - actor.y) * easing;
+      if (!actor.switchAt || now > actor.switchAt) chooseTarget(actor, now);
+      moveActor(actor, now);
     });
     const bounds = scope.getBoundingClientRect();
     updateMarker(playerEl, player, bounds.width, bounds.height);
@@ -2214,7 +2213,6 @@ function bindHeroRadar() {
     if (reducedMotion()) {
       if (frameId) window.cancelAnimationFrame(frameId);
       frameId = 0;
-      lastFrame = 0;
     } else start();
   };
 
