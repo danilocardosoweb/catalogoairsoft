@@ -26,12 +26,42 @@
               muted
               playsinline
               preload="auto"
-              poster="./video-poster.jpg?rev=scroll-scrub-57"
+              poster="./video-poster.jpg?rev=interaction-59"
               aria-label="Operador de airsoft avançando com seu equipamento"
             >
-              <source src="./loadout-scroll.mp4?rev=scroll-scrub-57" type="video/mp4" />
+              <source src="./loadout-scroll.mp4?rev=interaction-59" type="video/mp4" />
             </video>
             <div class="lab-video-wash" aria-hidden="true"></div>
+          </div>
+
+          <div class="lab-interface" data-lab-interface>
+            <div class="lab-mission-copy">
+              <span class="lab-eyebrow" data-lab-stage-kicker>LOADOUT LAB / 01</span>
+              <h2 data-lab-stage-title>Escolha sua base.</h2>
+              <p data-lab-stage-description>A plataforma define o ritmo da sua operação.</p>
+            </div>
+
+            <div class="lab-loadout-status" aria-live="polite">
+              <span>CONFIGURAÇÃO EM CAMPO</span>
+              <strong data-lab-total>R$ 4.135</strong>
+              <small data-lab-selection-count>05 decisões registradas</small>
+            </div>
+
+            <section class="lab-choice-panel" data-choice-panel aria-labelledby="choice-panel-title">
+              <div class="lab-choice-head">
+                <div>
+                  <span class="lab-eyebrow" data-lab-stage-index>01 / 05</span>
+                  <h3 id="choice-panel-title" data-lab-panel-title>Plataforma</h3>
+                </div>
+                <span class="lab-choice-hint" data-lab-choice-hint>Escolha 1</span>
+              </div>
+              <div class="lab-choice-list" data-choice-list role="listbox" aria-label="Escolhas do loadout"></div>
+              <div class="lab-choice-footer">
+                <button class="lab-ghost-button" type="button" data-stage-prev>Voltar</button>
+                <button class="lab-primary-button" type="button" data-stage-next>Confirmar escolha <span>↗</span></button>
+              </div>
+              <p class="lab-save-status" data-save-status role="status" aria-live="polite"></p>
+            </section>
           </div>
 
           <div class="lab-copy" data-lab-copy>
@@ -53,6 +83,6 @@
         <a href="../../#loadout">Voltar para o Loadout atual <span>↗</span></a>
       </section>
     </main>
-    <script src="./loadout-lab.js?rev=scroll-scrub-57" defer></script>
+    <script src="./loadout-lab.js?rev=interaction-59" defer></script>
   </body>
 </html>
