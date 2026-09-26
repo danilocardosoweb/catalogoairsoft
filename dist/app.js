@@ -436,6 +436,11 @@ function profileLabel() {
   return { assalto: "Assalto", precisao: "Precisão", proximidade: "Proximidade" }[state.profile?.style] || "seu estilo";
 }
 
+function radarPlayerName() {
+  const source = String(state.account?.name || state.profile?.name || "").trim();
+  return (source ? source.split(/\s+/)[0] : "YOU").slice(0, 14).toUpperCase();
+}
+
 function missionDeck() {
   const profile = state.profile;
   const recommendations = recommendedProducts().slice(0, 2);
@@ -611,7 +616,7 @@ function heroRadarMarkup() {
       <div class="hero-radar-grid"></div><div class="hero-radar-sweep"></div><div class="hero-radar-crosshair"></div>
       <span class="hero-radar-axis axis-n">N</span><span class="hero-radar-axis axis-e">E</span><span class="hero-radar-axis axis-s">S</span><span class="hero-radar-axis axis-w">W</span>
       <span class="hero-radar-enemy enemy-one" data-radar-enemy="0"><i></i></span><span class="hero-radar-enemy enemy-two" data-radar-enemy="1"><i></i></span>
-      <span class="hero-radar-player" data-radar-player><i></i><b></b></span>
+      <span class="hero-radar-player" data-radar-player><i></i><b></b><strong data-radar-player-name>${escapeHtml(radarPlayerName())}</strong></span>
       <span class="hero-radar-ping" data-radar-ping></span>
     </div>
     <div class="hero-radar-readout"><span><strong data-radar-readout>02 HOSTIS</strong><small data-radar-mode>SECTOR MOVING</small></span><em data-radar-coordinates>GRID 04 / 17</em></div>
@@ -1375,7 +1380,7 @@ function accountModal() {
     return;
   }
   openModal(`<span class="eyebrow">IDENTITY / ACCOUNT</span><h2>Seu perfil<br>de campo.</h2><p>Salve um nome e um WhatsApp para acelerar seus próximos orçamentos. Você continua navegando como visitante.</p><form class="form-grid" id="account-form"><label class="form-label">Nome<input name="name" required placeholder="Como podemos chamar você?" /></label><div class="form-row"><label class="form-label">WhatsApp<input name="phone" placeholder="(11) 99999-9999" /></label><label class="form-label">Perfil<select name="segment"><option>Consumidor</option><option>Lojista</option><option>Distribuidor</option></select></label></div><button class="modal-submit" type="submit">Salvar perfil</button></form><button class="outline-cta account-admin-link" data-action="admin-preview">Abrir painel operacional</button>`);
-  document.querySelector("#account-form").addEventListener("submit", (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); state.account = { name: form.get("name"), phone: form.get("phone"), segment: form.get("segment") }; localStorage.setItem("fieldops-account", JSON.stringify(state.account)); closeModal(); showToast("Perfil salvo neste dispositivo."); });
+  document.querySelector("#account-form").addEventListener("submit", (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); state.account = { name: form.get("name"), phone: form.get("phone"), segment: form.get("segment") }; localStorage.setItem("fieldops-account", JSON.stringify(state.account)); closeModal(); render(); showToast("Perfil salvo neste dispositivo."); });
 }
 
 function compareModal() {
@@ -1973,7 +1978,7 @@ function bindHeroRadar() {
     [[.69, .2], [.8, .31], [.72, .43], [.55, .23]]
   ];
   const random = (min, max) => min + Math.random() * (max - min);
-  const makeActor = (x, y, pool, isPlayer = false) => ({ x, y, target: { x, y }, pool, isPlayer, duration: isPlayer ? random(13600, 18000) : random(10400, 15200), switchAt: 0 });
+  const makeActor = (x, y, pool, isPlayer = false) => ({ x, y, target: { x, y }, pool, isPlayer, duration: isPlayer ? random(27200, 36000) : random(20800, 30400), switchAt: 0, downUntil: 0, lastClearedAt: 0 });
   const player = makeActor(.64, .59, playerWaypoints, true);
   const enemies = enemyEls.map((_, index) => {
     const starts = [[.24, .28], [.72, .24]];
@@ -1985,6 +1990,9 @@ function bindHeroRadar() {
   let pulseTimeout = 0;
   let nextPingAt = 0;
   let manualScanUntil = 0;
+  const playerName = radarPlayerName();
+  const playerNameEl = radar.querySelector("[data-radar-player-name]");
+  if (playerNameEl) playerNameEl.textContent = playerName;
   let active = true;
 
   const reducedMotion = () => Boolean(reducedMotionQuery?.matches);
@@ -1996,15 +2004,15 @@ function bindHeroRadar() {
     actor.target = { x: point[0] + random(-.025, .025), y: point[1] + random(-.025, .025) };
     actor.target.x = Math.min(.88, Math.max(.12, actor.target.x));
     actor.target.y = Math.min(.86, Math.max(.14, actor.target.y));
-    actor.duration = random(actor.isPlayer ? 14000 : 10800, actor.isPlayer ? 20000 : 16400);
-    actor.switchAt = now + actor.duration + random(3600, actor.isPlayer ? 7200 : 6000);
+    actor.duration = random(actor.isPlayer ? 28000 : 21600, actor.isPlayer ? 40000 : 32800);
+    actor.switchAt = now + actor.duration + random(7200, actor.isPlayer ? 14400 : 12000);
   };
   const updateMarker = (element, actor, width, height) => {
     element.style.setProperty("--radar-dx", `${actor.x * width - width / 2}px`);
     element.style.setProperty("--radar-dy", `${actor.y * height - height / 2}px`);
   };
   const updateReadout = (now) => {
-    if (now - lastReadout < 260) return;
+    if (now - lastReadout < 520) return;
     lastReadout = now;
     const contacts = enemies.filter((enemy) => distance(player, enemy) < .24).length;
     const manualScan = now < manualScanUntil;
@@ -2012,8 +2020,9 @@ function bindHeroRadar() {
     const readout = radar.querySelector("[data-radar-readout]");
     const mode = radar.querySelector("[data-radar-mode]");
     const coordinates = radar.querySelector("[data-radar-coordinates]");
-    if (readout) readout.textContent = manualScan ? "SCAN LOCK" : contacts ? `${contacts} HOSTIS` : "SECTOR CLEAR";
-    if (mode) mode.textContent = modes[Math.floor(now / 2100) % modes.length];
+    const clearing = enemies.some((enemy) => enemy.downUntil > now);
+    if (readout) readout.textContent = clearing ? `${playerName} / CLEAR` : manualScan ? "SCAN LOCK" : contacts ? `${contacts} HOSTIS` : "SECTOR CLEAR";
+    if (mode) mode.textContent = clearing ? "CONTACT NEUTRALIZED" : modes[Math.floor(now / 4200) % modes.length];
     if (coordinates) coordinates.textContent = `GRID ${String(Math.round(player.x * 9)).padStart(2, "0")} / ${String(Math.round(player.y * 9)).padStart(2, "0")}`;
     if ((contacts || manualScan) && now > nextPingAt) {
       const contact = enemies.find((enemy) => distance(player, enemy) < .24) || enemies[0];
@@ -2025,13 +2034,13 @@ function bindHeroRadar() {
         void ping.offsetWidth;
         ping.classList.add("is-active");
         window.clearTimeout(pulseTimeout);
-        pulseTimeout = window.setTimeout(() => ping.classList.remove("is-active"), 1100);
+        pulseTimeout = window.setTimeout(() => ping.classList.remove("is-active"), 2200);
       }
-      nextPingAt = now + random(2600, 4400);
+      nextPingAt = now + random(5200, 8800);
     }
   };
   const triggerManualScan = (now = performance.now()) => {
-    manualScanUntil = now + 3600;
+    manualScanUntil = now + 7200;
     nextPingAt = now;
     lastReadout = 0;
     chooseTarget(player, now);
@@ -2039,7 +2048,7 @@ function bindHeroRadar() {
     radar.classList.remove("is-focus");
     void radar.offsetWidth;
     radar.classList.add("is-focus");
-    window.setTimeout(() => radar.classList.remove("is-focus"), 3700);
+    window.setTimeout(() => radar.classList.remove("is-focus"), 7400);
     updateReadout(now);
   };
   const onRadarKeyDown = (event) => {
@@ -2057,7 +2066,31 @@ function bindHeroRadar() {
     if (!active || reducedMotion()) return;
     const elapsed = lastFrame ? Math.min(60, now - lastFrame) : 16;
     lastFrame = now;
-    [player, ...enemies].forEach((actor) => {
+    if (!player.switchAt || now > player.switchAt || distance(player, player.target) < .025) chooseTarget(player, now);
+    const playerEasing = 1 - Math.exp(-elapsed / player.duration * 900);
+    player.x += (player.target.x - player.x) * playerEasing;
+    player.y += (player.target.y - player.y) * playerEasing;
+    enemies.forEach((actor, index) => {
+      const element = enemyEls[index];
+      if (actor.downUntil > now) {
+        element.classList.add("is-cleared");
+        return;
+      }
+      if (actor.downUntil) {
+        actor.downUntil = 0;
+        element.classList.remove("is-cleared");
+        chooseTarget(actor, now);
+      }
+      if (distance(player, actor) < .115 && now - actor.lastClearedAt > 18000) {
+        actor.lastClearedAt = now;
+        actor.downUntil = now + 4800;
+        element.classList.add("is-cleared");
+        radar.classList.remove("is-hunting");
+        void radar.offsetWidth;
+        radar.classList.add("is-hunting");
+        window.setTimeout(() => radar.classList.remove("is-hunting"), 1800);
+        return;
+      }
       if (!actor.switchAt || now > actor.switchAt || distance(actor, actor.target) < .025) chooseTarget(actor, now);
       const easing = 1 - Math.exp(-elapsed / actor.duration * 900);
       actor.x += (actor.target.x - actor.x) * easing;

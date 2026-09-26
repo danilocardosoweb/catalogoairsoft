@@ -102,6 +102,9 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Versão atual publicada em produção com o hero interativo, o fluxo comercial de Orçamentos, importação operacional e a Central de Pedidos ampliada.
 - Radar Airsoft validado localmente no feed, mapa tático, detalhe, localização manual, filtros e Central de Conteúdo.
 - Radar do hero validado no navegador local com jogador, dois hostis, sweep, leitura de contato, atualização de coordenadas e varredura manual; o círculo decorativo anterior foi removido para evitar sobreposição visual.
+- Radar do hero recalibrado para uma cadência mais lenta: deslocamento dos pontos, sweep, pings e troca dos textos foram desacelerados para reduzir a sensação de tremor/interação excessiva.
+- Marcador do jogador agora usa o primeiro nome salvo no perfil e sinaliza contatos neutralizados quando o jogador cruza um hostil.
+- Títulos longos dos sinais Radar recebem quebra responsiva para não cortar palavras em modais estreitos.
 - Airdrop validado no fluxo local com central administrativa, ativação no carrinho, cálculo do desconto e registro do código no orçamento.
 - Mini mapa do hero ficou translúcido no desktop e é ocultado em telas pequenas para preservar a leitura do operador, título e CTA.
 - A segunda calibração do Radar dobrou os intervalos das rotas e pausas, deixando sweep e pulsos ainda mais lentos para reduzir estímulos visuais.
