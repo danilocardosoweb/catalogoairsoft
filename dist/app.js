@@ -304,6 +304,8 @@ let heroInteractionCleanup = null;
 let heroRadarCleanup = null;
 let heroSensorActivate = null;
 let heroRadarPulse = null;
+let modalPreviousFocus = null;
+let pendingConfirmation = null;
 
 const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 const moneyDetailed = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0);
@@ -785,9 +787,20 @@ function radarContentStatusClass(status) {
   return status === "published" ? "status-live" : status === "review" ? "status-progress" : status === "archived" ? "status-low" : "status-wait";
 }
 
-function updateRadarContentStatus(id, status) {
+async function updateRadarContentStatus(id, status) {
   const content = state.radarContents.find((item) => item.id === id);
   if (!content || !radarStatuses[status]) return;
+  if (status === "published" || status === "archived") {
+    const confirmed = await confirmAction({
+      eyebrow: `RADAR / ${status === "published" ? "APPROVAL" : "ARCHIVE"}`,
+      title: status === "published" ? "Publicar este sinal?" : "Arquivar este sinal?",
+      message: status === "published" ? "O conteúdo ficará disponível para os usuários do Radar Airsoft." : "O sinal sairá da operação ativa e deixará de aparecer como conteúdo publicado.",
+      detail: content.title,
+      confirmLabel: status === "published" ? "Publicar sinal" : "Arquivar sinal",
+      tone: status === "published" ? "accent" : "warning"
+    });
+    if (!confirmed) return;
+  }
   content.status = status;
   persist();
   render();
@@ -876,9 +889,11 @@ function saveAirdrop(event) {
   showToast(action === "launch" ? "Airdrop solto no mapa." : "Airdrop agendado.");
 }
 
-function launchAirdrop(id) {
+async function launchAirdrop(id) {
   const campaign = state.airdrops.find((item) => item.id === id);
   if (!campaign) return;
+  const confirmed = await confirmAction({ eyebrow: "AIRDROP / LAUNCH", title: "Soltar este Airdrop?", message: "O cupom ficará ativo no catálogo e poderá ser resgatado pelos clientes.", detail: `${campaign.name} · ${campaign.code}`, confirmLabel: "Soltar Airdrop", tone: "accent" });
+  if (!confirmed) return;
   state.airdrops.filter((item) => airdropPhase(item) === "active" && item.id !== id).forEach((item) => { item.status = "ended"; });
   campaign.status = "active";
   campaign.startsAt = new Date().toISOString();
@@ -888,9 +903,11 @@ function launchAirdrop(id) {
   showToast("Airdrop solto no mapa.");
 }
 
-function endAirdrop(id) {
+async function endAirdrop(id) {
   const campaign = state.airdrops.find((item) => item.id === id);
   if (!campaign) return;
+  const confirmed = await confirmAction({ eyebrow: "AIRDROP / CONTROL", title: "Encerrar este Airdrop?", message: "O cupom deixará de ser aceito imediatamente no carrinho.", detail: `${campaign.name} · ${campaign.code}`, confirmLabel: "Encerrar Airdrop", tone: "warning" });
+  if (!confirmed) return;
   campaign.status = "ended";
   persist();
   render();
@@ -1032,9 +1049,11 @@ function openQuoteWhatsApp(id) {
   if (!popup) window.location.href = url;
 }
 
-function deleteQuote(id) {
+async function deleteQuote(id) {
   const quote = state.quotes.find((item) => item.id === id);
-  if (!quote || !window.confirm(`Excluir o orçamento ${quote.id}?`)) return;
+  if (!quote) return;
+  const confirmed = await confirmAction({ eyebrow: "QUOTE / DELETE", title: "Excluir orçamento?", message: "Esta proposta será removida da central e não poderá ser recuperada neste dispositivo.", detail: `${quote.id} · ${quote.customer}`, confirmLabel: "Excluir orçamento", tone: "danger" });
+  if (!confirmed) return;
   state.quotes = state.quotes.filter((item) => item.id !== id);
   persist();
   closeModal();
@@ -1161,10 +1180,12 @@ function quoteEditModalComplete(id) {
   renderDraftItems();
 }
 
-function convertQuoteToOrder(id) {
+async function convertQuoteToOrder(id) {
   const quote = state.quotes.find((item) => item.id === id);
   if (!quote || quote.status !== "Aprovado") return;
   if (quote.orderId) { showToast(`Este orçamento já virou o pedido ${quote.orderId}.`); return; }
+  const confirmed = await confirmAction({ eyebrow: "QUOTE / CONVERSION", title: "Converter em pedido?", message: "A aprovação será transformada em um novo pedido para separação e expedição.", detail: `${quote.id} · ${quote.customer} · ${money(quote.total)}`, confirmLabel: "Criar pedido", tone: "accent" });
+  if (!confirmed) return;
   const order = { id: `PED-${String(154 + state.orders.length).padStart(6, "0")}`, quoteId: quote.id, customer: quote.customer, phone: quote.phone, document: quote.document || "", zip: quote.zip || "", address: quote.address || quote.shipping?.address || "", city: quote.city || "", seller: quote.seller, items: quote.items.map((item) => ({ ...item, picked: false, location: "A definir" })), subtotal: quote.subtotal, discount: quote.discount, freight: quote.freight, total: quote.total, status: "Novo pedido", createdAt: new Date().toISOString(), shipping: { ...quote.shipping, address: quote.address || quote.shipping?.address || "", status: "Aguardando separação", packages: quote.shipping?.packages || [] }, history: [{ at: new Date().toISOString(), actor: quote.seller || "Operação local", from: null, to: "Novo pedido", note: `Convertido do orçamento ${quote.id}.` }], note: quote.note || "—" };
   state.orders.unshift(order);
   quote.orderId = order.id;
@@ -1250,9 +1271,11 @@ function publicQuotePage(id) {
   return `<section class="page public-quote-page"><div class="container"><div class="public-quote-header"><div><span class="eyebrow">${state.settings.storeName.toUpperCase()} / PROPOSAL</span><h1>Orçamento<br>${quote.id}.</h1><p>Proposta preparada para ${quote.customer}.</p></div><span class="admin-status ${quoteStatusClass(quote.status)}">${quote.status}</span></div><div class="public-quote-grid"><section class="public-quote-card"><div class="quote-section-title"><span class="eyebrow">SUMMARY / RESUMO</span><strong>Seu equipamento em campo</strong></div><div class="public-quote-items">${items.map((item) => `<div class="quote-detail-item"><div><strong>${item.product?.name || item.name || item.id}</strong><small>${item.product?.brand || "Produto"} · ${item.quantity} unidade(s)</small></div><b>${item.product ? money(item.product.price * item.quantity) : "—"}</b></div>`).join("")}</div><div class="quote-financial"><div><span>Subtotal</span><strong>${money(quote.subtotal)}</strong></div><div><span>Desconto</span><strong>− ${money(quote.discount)}</strong></div><div><span>Frete</span><strong>${money(quote.freight)}</strong></div><div class="quote-total"><span>Total final</span><strong>${money(quote.total)}</strong></div></div></section><aside class="public-quote-card public-quote-side"><span class="eyebrow">NEXT STEP / PRÓXIMO PASSO</span><h2>Pronto para<br>seguir?</h2><p>Revise a proposta e escolha como quer continuar com a equipe.</p><button class="hero-cta" data-action="quote-accept-public" data-quote-id="${quote.id}" ${state.quotes.some((item) => item.id === quote.id) && quote.status !== "Convertido em pedido" ? "" : "disabled"}>Aceitar orçamento</button><button class="outline-cta" data-action="quote-whatsapp" data-quote-id="${quote.id}">Falar com vendedor ↗</button><button class="text-link public-copy-link" data-action="quote-share" data-quote-id="${quote.id}">Copiar este link</button><small>Validade: ${quote.validUntil ? new Date(`${quote.validUntil}T12:00:00`).toLocaleDateString("pt-BR") : "A confirmar"}</small></aside></div></div></section>`;
 }
 
-function acceptPublicQuote(id) {
+async function acceptPublicQuote(id) {
   const quote = state.quotes.find((item) => item.id === id);
   if (!quote || quote.status === "Convertido em pedido") return;
+  const confirmed = await confirmAction({ eyebrow: "QUOTE / APPROVAL", title: "Aprovar orçamento?", message: "A proposta será marcada como aprovada e ficará pronta para conversão em pedido.", detail: `${quote.id} · ${money(quote.total)}`, confirmLabel: "Aprovar orçamento", tone: "accent" });
+  if (!confirmed) return;
   addQuoteHistory(quote, "Aprovado", "Orçamento aceito pelo cliente.", quote.customer);
   persist();
   render();
@@ -1419,12 +1442,14 @@ function orderShippingModal(id) {
   });
 }
 
-function advanceOrderStatus(id) {
+async function advanceOrderStatus(id) {
   const order = state.orders.find((item) => item.id === id);
   if (!order) return;
   const nextIndex = orderStatuses.indexOf(order.status) + 1;
   if (order.status === "Cancelado" || nextIndex >= orderStatuses.length - 1) { showToast("Este pedido já está na última etapa operacional."); return; }
   const next = orderStatuses[nextIndex];
+  const confirmed = await confirmAction({ eyebrow: "ORDER / PIPELINE", title: "Avançar este pedido?", message: `O pedido passará de ${order.status} para ${next}.`, detail: `${order.id} · ${order.customer}`, confirmLabel: `Avançar para ${next}`, tone: "accent" });
+  if (!confirmed) return;
   const from = order.status;
   order.status = next;
   order.history = [...(order.history || []), { at: new Date().toISOString(), actor: "Operação local", from, to: next, note: "Status avançado pelo painel." }];
@@ -1549,13 +1574,35 @@ function duplicateProduct(id) {
   showToast("Produto duplicado para edição.");
 }
 
-function advanceQuoteStatus(id) {
+async function deleteProduct(id) {
+  const product = findProduct(id);
+  if (!product) return;
+  const confirmed = await confirmAction({ eyebrow: "CATALOG / DELETE", title: "Desativar produto?", message: "O item sairá do catálogo ativo, mas poderá ser reativado no cadastro local.", detail: `${product.brand} · ${product.name}`, confirmLabel: "Desativar produto", tone: "danger" });
+  if (!confirmed) return;
+  product.active = false;
+  persist();
+  render();
+  showToast("Produto desativado.");
+}
+
+async function resetLocalData() {
+  const confirmed = await confirmAction({ eyebrow: "SYSTEM / RESET", title: "Restaurar dados demo?", message: "Todos os dados salvos neste dispositivo serão apagados e a operação voltará ao estado demonstrativo.", detail: "Produtos, carrinho, orçamentos, pedidos, perfil e configurações", confirmLabel: "Restaurar dados", tone: "danger" });
+  if (!confirmed) return;
+  ["fieldops-products", "fieldops-cart", "fieldops-cart-shipping", "fieldops-shipping-cache", "fieldops-shipping", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme", "fieldops-radar", "fieldops-radar-following", "fieldops-radar-content", "fieldops-airdrops", "fieldops-airdrop-code"].forEach((key) => localStorage.removeItem(key));
+  location.hash = "#admin";
+  location.reload();
+}
+
+async function advanceQuoteStatus(id) {
   const quote = state.quotes.find((item) => item.id === id);
   if (!quote) return;
   const pipeline = ["Novo", "Em análise", "Proposta enviada", "Aguardando cliente", "Aprovado"];
   const currentIndex = pipeline.indexOf(quote.status);
   if (currentIndex < 0 || currentIndex >= pipeline.length - 1) { showToast(quote.status === "Aprovado" ? "Aprovado. Use Converter em pedido para continuar." : `O orçamento está em ${quote.status}.`); return; }
-  addQuoteHistory(quote, pipeline[currentIndex + 1], "Etapa avançada pelo painel.");
+  const nextStatus = pipeline[currentIndex + 1];
+  const confirmed = await confirmAction({ eyebrow: "QUOTE / PIPELINE", title: "Avançar esta etapa?", message: `O orçamento passará de ${quote.status} para ${nextStatus}.`, detail: `${quote.id} · ${quote.customer}`, confirmLabel: `Avançar para ${nextStatus}`, tone: "accent" });
+  if (!confirmed) return;
+  addQuoteHistory(quote, nextStatus, "Etapa avançada pelo painel.");
   persist();
   closeModal();
   render();
@@ -1675,10 +1722,11 @@ function commitImport() {
   persist(); render(); showToast(`Carga aplicada: ${summary.added} novos · ${summary.updated} atualizados.`);
 }
 
-function rollbackImport(id) {
+async function rollbackImport(id) {
   const entry = state.importHistory.find((item) => item.id === id) || state.importHistory[0];
   if (!entry?.snapshot) return;
-  if (!window.confirm(`Desfazer a carga ${entry.fileName}? Os produtos voltarão ao estado anterior.`)) return;
+  const confirmed = await confirmAction({ eyebrow: "IMPORT / ROLLBACK", title: "Desfazer esta carga?", message: "Os produtos voltarão ao estado anterior desta importação.", detail: entry.fileName, confirmLabel: "Desfazer carga", tone: "danger" });
+  if (!confirmed) return;
   products.splice(0, products.length, ...JSON.parse(JSON.stringify(entry.snapshot)));
   state.importHistory = state.importHistory.filter((item) => item.id !== entry.id);
   persist();
@@ -2008,7 +2056,18 @@ function renderDrawer() {
 function openDrawer() { drawer.classList.add("is-open"); drawerBackdrop.classList.add("is-open"); drawer.setAttribute("aria-hidden", "false"); }
 function closeDrawer() { drawer.classList.remove("is-open"); drawerBackdrop.classList.remove("is-open"); drawer.setAttribute("aria-hidden", "true"); }
 function openModal(content) { modalContent.innerHTML = content; modalLayer.classList.add("is-open"); modalLayer.classList.toggle("is-command", content.includes("command-palette")); modalLayer.setAttribute("aria-hidden", "false"); const title = modalContent.querySelector("h2"); if (title) title.id = "modal-title"; }
-function closeModal() { modalLayer.classList.remove("is-open", "is-command"); modalLayer.setAttribute("aria-hidden", "true"); modalContent.innerHTML = ""; }
+function closeModal(confirmResult = false) { const resolver = pendingConfirmation?.resolve; pendingConfirmation = null; modalLayer.classList.remove("is-open", "is-command", "is-confirm"); modalLayer.setAttribute("aria-hidden", "true"); modalContent.innerHTML = ""; const previousFocus = modalPreviousFocus; modalPreviousFocus = null; if (resolver) resolver(Boolean(confirmResult)); if (previousFocus && document.contains(previousFocus)) window.setTimeout(() => previousFocus.focus(), 0); }
+function confirmAction({ eyebrow = "ACTION / CONFIRM", title = "Confirmar ação.", message = "Revise a ação antes de continuar.", detail = "", confirmLabel = "Confirmar", cancelLabel = "Cancelar", tone = "danger" } = {}) {
+  if (pendingConfirmation) closeModal();
+  modalPreviousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const confirmTone = ["danger", "warning", "accent"].includes(tone) ? tone : "danger";
+  const detailMarkup = detail ? `<small class="confirm-dialog-detail">${escapeHtml(detail)}</small>` : "";
+  const promise = new Promise((resolve) => { pendingConfirmation = { resolve }; });
+  openModal(`<div class="confirm-dialog" role="alertdialog" aria-labelledby="modal-title" aria-describedby="confirm-dialog-message"><span class="confirm-dialog-mark ${confirmTone}" aria-hidden="true">${confirmTone === "danger" ? "!" : "✓"}</span><span class="eyebrow">${escapeHtml(eyebrow)}</span><h2>${escapeHtml(title)}</h2><p id="confirm-dialog-message">${escapeHtml(message)}</p>${detailMarkup}<div class="confirm-dialog-actions"><button class="outline-cta" data-action="confirm-cancel" type="button">${escapeHtml(cancelLabel)}</button><button class="modal-submit confirm-submit ${confirmTone}" data-action="confirm-accept" type="button">${escapeHtml(confirmLabel)}</button></div></div>`);
+  modalLayer.classList.add("is-confirm");
+  window.requestAnimationFrame(() => modalContent.querySelector("[data-action=confirm-cancel]")?.focus());
+  return promise;
+}
 
 function quoteModal() {
   const totals = cartTotals();
@@ -2513,7 +2572,7 @@ function bindViewEvents() {
   document.querySelectorAll("[data-action=product-new]").forEach((el) => el.addEventListener("click", () => productModal()));
   document.querySelectorAll("[data-edit-product]").forEach((el) => el.addEventListener("click", () => productModal(findProduct(el.dataset.editProduct))));
   document.querySelectorAll("[data-duplicate-product]").forEach((el) => el.addEventListener("click", () => duplicateProduct(el.dataset.duplicateProduct)));
-  document.querySelectorAll("[data-delete-product]").forEach((el) => el.addEventListener("click", () => { const product = findProduct(el.dataset.deleteProduct); if (product && window.confirm(`Excluir ${product.name}?`)) { product.active = false; persist(); render(); showToast("Produto desativado."); } }));
+  document.querySelectorAll("[data-delete-product]").forEach((el) => el.addEventListener("click", () => deleteProduct(el.dataset.deleteProduct)));
   const adminSearch = document.querySelector("#admin-product-search");
   if (adminSearch) adminSearch.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.adminProductSearch = adminSearch.value; render(); } });
   const quoteSearch = document.querySelector("#quote-search");
@@ -2534,6 +2593,8 @@ function bindViewEvents() {
 
 document.addEventListener("click", (event) => {
   const action = event.target.closest("[data-action]")?.dataset.action;
+  if (action === "confirm-accept" && pendingConfirmation) { closeModal(true); return; }
+  if (action === "confirm-cancel" && pendingConfirmation) { closeModal(false); return; }
   if (action === "toggle-theme") toggleTheme(event);
   if (action === "hero-sensor") heroSensorActivate?.();
   if (action === "hero-radar") heroRadarPulse?.();
@@ -2577,7 +2638,7 @@ document.addEventListener("click", (event) => {
   if (action === "commit-import") commitImport();
   if (action === "import-reset") { state.importData = null; render(); }
   if (action === "import-rollback") rollbackImport(event.target.closest("[data-import-id]")?.dataset.importId);
-  if (action === "reset-local-data" && window.confirm("Restaurar os dados demo e apagar os dados salvos neste dispositivo?")) { ["fieldops-products", "fieldops-cart", "fieldops-cart-shipping", "fieldops-shipping-cache", "fieldops-shipping", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme", "fieldops-radar", "fieldops-radar-following", "fieldops-radar-content", "fieldops-airdrops", "fieldops-airdrop-code"].forEach((key) => localStorage.removeItem(key)); location.hash = "#admin"; location.reload(); }
+  if (action === "reset-local-data") resetLocalData();
   if (action === "menu") openModal(`<span class="eyebrow">FIELD OPS / MENU</span><h2>Navegue<br>pelo arsenal.</h2><div class="form-grid"><button class="outline-cta" data-route="catalog">Catálogo</button><button class="outline-cta" data-route="radar">Radar Airsoft</button><button class="outline-cta" data-route="loadout">Monte seu loadout</button><button class="outline-cta" data-route="favorites">Favoritos</button><button class="outline-cta" data-route="admin">Painel operacional</button></div>`);
   if (action === "apply-filter-modal") { closeModal(); render(); }
   const loadoutId = event.target.closest("[data-loadout-select]")?.dataset.loadoutSelect;
@@ -2652,6 +2713,14 @@ window.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); searchPalette(); }
   if (event.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) { event.preventDefault(); searchPalette(); }
   if (event.key === "Escape" && modalLayer.classList.contains("is-open")) closeModal();
+  if (event.key === "Tab" && modalLayer.classList.contains("is-confirm")) {
+    const focusables = [...modalContent.querySelectorAll("button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])")];
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  }
 });
 window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); const quoteMatch = route.match(/^quote\/(.+)$/); closeModal(); state.route = productMatch ? "product" : quoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-settings"].includes(route) ? route : "home"; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; state.selectedQuoteId = quoteMatch ? quoteMatch[1] : null; render(); });
 

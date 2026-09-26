@@ -112,6 +112,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Airdrop validado no fluxo local com central administrativa, ativação no carrinho, cálculo do desconto e registro do código no orçamento.
 - Mini mapa do hero ficou translúcido no desktop e é ocultado em telas pequenas para preservar a leitura do operador, título e CTA.
 - A segunda calibração do Radar dobrou os intervalos das rotas e pausas, deixando sweep e pulsos ainda mais lentos para reduzir estímulos visuais.
+- Confirmações críticas padronizadas em modal visual do FIELD OPS, substituindo `window.confirm` em exclusões, aprovações, publicação/arquivamento, Airdrop, avanço de etapas, conversão de pedidos, rollback e restauração de dados.
 - Banner de Loadout recebeu contraste dedicado: overlay tático, tipografia clara, sombra de leitura e CTA com fundo translúcido, preservando a imagem em dark e light mode.
 - Hero mobile recebeu acionamento opcional de mira por giroscópio, com pedido de permissão quando necessário e fallback de visão fixa centralizada/levemente orientada para a direita.
 - Acesso privado preservado conforme a configuração atual do projeto.
