@@ -1,15 +1,18 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 26/09/2026  
-Última versão publicada: Central de Conteúdo com fontes configuráveis e Leitura de Campo tática
+Última versão publicada: v47 — Radar com pontuação discreta de assistência e fontes iniciais cadastradas
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
+Ponto de restauração: tag `restore-v47-radar-score` · commit `96cbc2e4d8e09ddedff85abdf28e5bb4eb4dd7dd`
 
 ## Resumo
 
 O app já possui um MVP navegável de catálogo premium de Airsoft, com experiência mobile-first, carrinho, orçamento via WhatsApp, montagem de loadout e painel operacional local-first.
 
 A publicação atual é funcional para demonstração, validação de UX e operação em um único dispositivo. As principais pendências restantes estão relacionadas a dados reais, backend, autenticação, sincronização entre dispositivos e endurecimento para produção.
+
+O estado atual também está protegido por um ponto de restauração local documentado em [BACKUP_RESTAURACAO.md](BACKUP_RESTAURACAO.md). O backup de código não substitui o backup JSON dos dados locais do navegador; para isso, use a ação de exportação dentro do painel operacional.
 
 ## O que já foi implementado
 
