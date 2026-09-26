@@ -123,6 +123,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Acesso privado preservado conforme a configuração atual do projeto.
 - Corrigido o CTA do carrinho vazio: “Explorar catálogo” agora fecha o drawer e leva corretamente à página de catálogo; a adição de produtos foi revalidada após a correção.
 - Central do Radar recebeu fontes públicas iniciais para curadoria: GhostBase, Airsoft RS (RSS), Airsoft Company, TacTov e Brasil Airsoft (YouTube). As fontes ficam ativas e enfileiradas apenas quando o operador solicitar sincronização; nenhuma publicação é automática.
+- Radar do hero recebeu pontuação discreta de assistência: indicar alvo vale pontos, traçar rota vale menos e uma neutralização guiada registra bônus; o total fica salvo localmente e aparece apenas como telemetria compacta no HUD.
 
 ## Pendências de desenvolvimento
 

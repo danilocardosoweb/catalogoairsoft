@@ -165,6 +165,8 @@ const seedRadarSources = [
 ];
 
 const storedRadarSources = JSON.parse(localStorage.getItem("fieldops-radar-sources") || "null");
+const defaultRadarAssist = { score: 0, assists: 0, neutralizations: 0, lastAction: "" };
+const storedRadarAssist = JSON.parse(localStorage.getItem("fieldops-radar-assist") || "null");
 
 const radarSourceTypes = { manual: "Entrada manual", rss: "RSS / Atom", newsapi: "News API", youtube: "YouTube", events: "Eventos / API" };
 const radarSourceStatuses = { local: "Local", ready: "Pronta para conectar", queued: "Na fila", needs_backend: "Pede servidor" };
@@ -206,6 +208,7 @@ const state = {
   radarFollowing: JSON.parse(localStorage.getItem("fieldops-radar-following") || "[]"),
   radarContents: JSON.parse(localStorage.getItem("fieldops-radar-content") || "null") || seedRadarContent,
   radarSources: Array.isArray(storedRadarSources) ? storedRadarSources : seedRadarSources,
+  radarAssist: { ...defaultRadarAssist, ...(storedRadarAssist || {}) },
   airdrops: JSON.parse(localStorage.getItem("fieldops-airdrops") || "null") || seedAirdrops,
   appliedAirdropCode: localStorage.getItem("fieldops-airdrop-code") || ""
 };
@@ -233,6 +236,7 @@ state.radarFollowing = Array.isArray(state.radarFollowing) ? state.radarFollowin
 state.radarSources = (Array.isArray(state.radarSources) ? state.radarSources : seedRadarSources).map(ensureRadarSourceShape);
 const existingRadarSourceIds = new Set(state.radarSources.map((source) => source.id));
 state.radarSources.push(...seedRadarSources.filter((source) => !existingRadarSourceIds.has(source.id)).map(ensureRadarSourceShape));
+state.radarAssist = { ...defaultRadarAssist, ...(state.radarAssist || {}), score: Math.max(0, Math.round(Number(state.radarAssist?.score) || 0)), assists: Math.max(0, Math.round(Number(state.radarAssist?.assists) || 0)), neutralizations: Math.max(0, Math.round(Number(state.radarAssist?.neutralizations) || 0)) };
 state.airdrops = (Array.isArray(state.airdrops) ? state.airdrops : seedAirdrops).map((campaign) => ({
   id: campaign.id || `airdrop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
   name: campaign.name || "AIRDROP FIELD OPS",
@@ -397,6 +401,7 @@ function persist() {
   localStorage.setItem("fieldops-radar-following", JSON.stringify(state.radarFollowing));
   localStorage.setItem("fieldops-radar-content", JSON.stringify(state.radarContents));
   localStorage.setItem("fieldops-radar-sources", JSON.stringify(state.radarSources));
+  localStorage.setItem("fieldops-radar-assist", JSON.stringify(state.radarAssist));
   localStorage.setItem("fieldops-airdrops", JSON.stringify(state.airdrops));
   localStorage.setItem("fieldops-airdrop-code", state.appliedAirdropCode || "");
 }
@@ -649,7 +654,7 @@ function heroRadarMarkup() {
       <span class="hero-radar-command" data-radar-command aria-hidden="true"><i></i></span><span class="hero-radar-player" data-radar-player><i></i><b></b><strong data-radar-player-name>${escapeHtml(radarPlayerName())}</strong></span>
       <span class="hero-radar-ping" data-radar-ping></span>
     </div>
-    <div class="hero-radar-readout"><span><strong data-radar-readout>02 HOSTIS</strong><small data-radar-mode>AUTO / CLICK TO GUIDE</small></span><em data-radar-coordinates>GRID 04 / 17</em></div>
+    <div class="hero-radar-readout"><span><strong data-radar-readout>02 HOSTIS</strong><small data-radar-mode>AUTO / CLICK TO GUIDE</small></span><div class="hero-radar-status"><small class="hero-radar-score" data-radar-score>ASSIST ${String(state.radarAssist.score).padStart(3, "0")}</small><em data-radar-coordinates>GRID 04 / 17</em></div></div>
   </button>`;
 }
 
@@ -769,7 +774,7 @@ function exportDataModal() {
 
 function exportBackup() {
   closeModal();
-  const payload = { schemaVersion: 3, exportedAt: new Date().toISOString(), source: "FIELD OPS", products, cart: state.cart, cartShipping: state.cartShipping, shippingCache: state.shippingCache, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, compare: state.compare, loadout: state.loadout, settings: state.settings, profile: state.profile, account: state.account, recentSearches: state.recentSearches, recentProducts: state.recentProducts, importHistory: state.importHistory, theme: state.theme, radar: state.radar, radarFollowing: state.radarFollowing, radarContents: state.radarContents, radarSources: state.radarSources, airdrops: state.airdrops, appliedAirdropCode: state.appliedAirdropCode || "" };
+  const payload = { schemaVersion: 3, exportedAt: new Date().toISOString(), source: "FIELD OPS", products, cart: state.cart, cartShipping: state.cartShipping, shippingCache: state.shippingCache, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, compare: state.compare, loadout: state.loadout, settings: state.settings, profile: state.profile, account: state.account, recentSearches: state.recentSearches, recentProducts: state.recentProducts, importHistory: state.importHistory, theme: state.theme, radar: state.radar, radarFollowing: state.radarFollowing, radarContents: state.radarContents, radarSources: state.radarSources, radarAssist: state.radarAssist, airdrops: state.airdrops, appliedAirdropCode: state.appliedAirdropCode || "" };
   downloadLocalFile(`field-ops-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
   showToast("Backup completo exportado.");
 }
@@ -847,6 +852,7 @@ async function applyBackupRestore() {
   state.radarFollowing = Array.isArray(payload.radarFollowing) ? payload.radarFollowing : [];
   state.radarContents = Array.isArray(payload.radarContents) ? payload.radarContents.map(ensureRadarContentShape) : seedRadarContent.map(ensureRadarContentShape);
   state.radarSources = Array.isArray(payload.radarSources) ? payload.radarSources.map(ensureRadarSourceShape) : seedRadarSources.map(ensureRadarSourceShape);
+  state.radarAssist = { ...defaultRadarAssist, ...(payload.radarAssist && typeof payload.radarAssist === "object" ? payload.radarAssist : {}) };
   state.airdrops = Array.isArray(payload.airdrops) ? payload.airdrops : seedAirdrops;
   state.appliedAirdropCode = String(payload.appliedAirdropCode || "").trim().toUpperCase();
   state.pendingBackupRestore = null;
@@ -1746,7 +1752,7 @@ async function deleteProduct(id) {
 async function resetLocalData() {
   const confirmed = await confirmAction({ eyebrow: "SYSTEM / RESET", title: "Restaurar dados demo?", message: "Todos os dados salvos neste dispositivo serão apagados e a operação voltará ao estado demonstrativo.", detail: "Produtos, carrinho, orçamentos, pedidos, perfil e configurações", confirmLabel: "Restaurar dados", tone: "danger" });
   if (!confirmed) return;
-  ["fieldops-products", "fieldops-cart", "fieldops-cart-shipping", "fieldops-shipping-cache", "fieldops-shipping", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme", "fieldops-radar", "fieldops-radar-following", "fieldops-radar-content", "fieldops-radar-sources", "fieldops-airdrops", "fieldops-airdrop-code"].forEach((key) => localStorage.removeItem(key));
+  ["fieldops-products", "fieldops-cart", "fieldops-cart-shipping", "fieldops-shipping-cache", "fieldops-shipping", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme", "fieldops-radar", "fieldops-radar-following", "fieldops-radar-content", "fieldops-radar-sources", "fieldops-radar-assist", "fieldops-airdrops", "fieldops-airdrop-code"].forEach((key) => localStorage.removeItem(key));
   location.hash = "#admin";
   location.reload();
 }
@@ -2311,8 +2317,12 @@ function bindHeroRadar() {
   let pulseTimeout = 0;
   let nextPingAt = 0;
   let manualScanUntil = 0;
+  let assistNotice = "";
+  let assistNoticeUntil = 0;
+  let assistPulseTimeout = 0;
   const playerName = radarPlayerName();
   const playerNameEl = radar.querySelector("[data-radar-player-name]");
+  const scoreEl = radar.querySelector("[data-radar-score]");
   const commandEl = radar.querySelector("[data-radar-command]");
   if (playerNameEl) playerNameEl.textContent = playerName;
   let active = true;
@@ -2337,6 +2347,24 @@ function bindHeroRadar() {
     element.style.setProperty("--radar-dx", `${actor.x * width - width / 2}px`);
     element.style.setProperty("--radar-dy", `${actor.y * height - height / 2}px`);
   };
+  const awardAssist = (points, label, now, neutralized = false) => {
+    const safePoints = Math.max(0, Math.round(Number(points) || 0));
+    state.radarAssist = { ...defaultRadarAssist, ...(state.radarAssist || {}) };
+    state.radarAssist.score += safePoints;
+    state.radarAssist.assists += 1;
+    if (neutralized) state.radarAssist.neutralizations += 1;
+    state.radarAssist.lastAction = label;
+    persist();
+    assistNotice = `${label} +${String(safePoints).padStart(2, "0")}`;
+    assistNoticeUntil = now + 2600;
+    if (scoreEl) {
+      scoreEl.textContent = `ASSIST ${String(state.radarAssist.score).padStart(3, "0")}`;
+      scoreEl.classList.add("is-awarded");
+      window.clearTimeout(assistPulseTimeout);
+      assistPulseTimeout = window.setTimeout(() => scoreEl.classList.remove("is-awarded"), 2400);
+    }
+    lastReadout = 0;
+  };
   const updateReadout = (now) => {
     if (now - lastReadout < 1000) return;
     lastReadout = now;
@@ -2348,8 +2376,9 @@ function bindHeroRadar() {
     const coordinates = radar.querySelector("[data-radar-coordinates]");
     const clearing = enemies.some((enemy) => enemy.downUntil > now);
     const commandLabel = player.command?.type === "attack" ? `${playerName} / HUNT` : player.command?.type === "move" ? `${playerName} / MOVE` : "";
-    if (readout) readout.textContent = commandLabel || (clearing ? `${playerName} / CLEAR` : manualScan ? "SCAN LOCK" : contacts ? `${contacts} HOSTIS` : "SECTOR CLEAR");
-    if (mode) mode.textContent = player.command?.type === "attack" ? "TARGET LOCK / ENGAGE" : player.command?.type === "move" ? "ROUTE ASSIGNED" : clearing ? "CONTACT NEUTRALIZED" : modes[Math.floor(now / 8000) % modes.length];
+    const recentAssist = now < assistNoticeUntil ? assistNotice : "";
+    if (readout) readout.textContent = recentAssist || commandLabel || (clearing ? `${playerName} / CLEAR` : manualScan ? "SCAN LOCK" : contacts ? `${contacts} HOSTIS` : "SECTOR CLEAR");
+    if (mode) mode.textContent = recentAssist ? "OPERATOR ASSIST" : player.command?.type === "attack" ? "TARGET LOCK / ENGAGE" : player.command?.type === "move" ? "ROUTE ASSIGNED" : clearing ? "CONTACT NEUTRALIZED" : modes[Math.floor(now / 8000) % modes.length];
     if (coordinates) coordinates.textContent = `GRID ${String(Math.round(player.x * 9)).padStart(2, "0")} / ${String(Math.round(player.y * 9)).padStart(2, "0")}`;
     if ((contacts || manualScan) && now > nextPingAt) {
       const contact = enemies.find((enemy) => distance(player, enemy) < .24) || enemies[0];
@@ -2403,11 +2432,13 @@ function bindHeroRadar() {
     const nearest = enemies.filter((enemy) => enemy.downUntil <= now).sort((a, b) => distance(point, a) - distance(point, b))[0];
     const targetDistance = nearest ? distance(point, nearest) : Infinity;
     if (nearest && targetDistance <= .16) {
+      awardAssist(8, "TARGET", now);
       player.command = { type: "attack", enemy: nearest, retargetAt: now };
       radar.classList.add("is-commanding", "is-focus");
       window.setTimeout(() => radar.classList.remove("is-focus"), 2200);
       nextPingAt = now;
     } else {
+      awardAssist(3, "ROUTE", now);
       player.command = { type: "move", x: point.x, y: point.y };
       setTrajectory(player, point, now, Math.max(1800, Math.min(8500, distance(player, point) * 7800)));
       radar.classList.add("is-commanding", "is-focus");
@@ -2482,9 +2513,11 @@ function bindHeroRadar() {
         chooseTarget(actor, now);
       }
       if (distance(player, actor) < .115 && now - actor.lastClearedAt > 18000) {
+        const guided = player.command?.type === "attack" && player.command.enemy === actor;
         actor.lastClearedAt = now;
         actor.downUntil = now + 4800;
         element.classList.add("is-cleared");
+        if (guided) awardAssist(20, "CLEAR", now, true);
         radar.classList.remove("is-hunting");
         void radar.offsetWidth;
         radar.classList.add("is-hunting");
@@ -2527,6 +2560,7 @@ function bindHeroRadar() {
     active = false;
     if (frameId) window.cancelAnimationFrame(frameId);
     window.clearTimeout(pulseTimeout);
+    window.clearTimeout(assistPulseTimeout);
     if (heroRadarPulse === triggerManualScan) heroRadarPulse = null;
     radar.removeEventListener("keydown", onRadarKeyDown);
     radar.removeEventListener("click", onRadarClick);

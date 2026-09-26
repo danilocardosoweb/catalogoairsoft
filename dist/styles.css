@@ -201,6 +201,9 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
 .hero-radar-ping { position: absolute; z-index: 5; top: var(--radar-dy, 50%); left: var(--radar-dx, 50%); width: 12px; height: 12px; border: 1px solid #ffbd84; border-radius: 50%; opacity: 0; transform: translate(-50%, -50%) scale(.35); pointer-events: none; }
 .hero-radar-ping.is-active { animation: radar-ping 2s cubic-bezier(.2,.8,.2,1) forwards; }
 .hero-radar-readout { color: rgba(245,248,239,.62); }
+.hero-radar-status { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 54px; }
+.hero-radar-score { color: rgba(216,255,89,.56); font: 800 7px/1 var(--display); letter-spacing: .12em; transition: color .35s ease, opacity .35s ease; }
+.hero-radar-score.is-awarded { color: var(--accent); opacity: .96; }
 .hero-radar-readout strong, .hero-radar-readout small { display: block; }
 .hero-radar-readout strong { color: #ffbd84; font-size: 8px; }.hero-radar-readout small { margin-top: 2px; color: rgba(245,248,239,.62); font-size: 7px; letter-spacing: .11em; }.hero-radar-readout em { color: var(--accent); font: 800 8px var(--display); font-style: normal; letter-spacing: .12em; }
 @keyframes hero-radar-sweep { to { transform: rotate(360deg); } }
