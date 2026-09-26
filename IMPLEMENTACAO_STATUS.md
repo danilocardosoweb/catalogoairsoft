@@ -19,6 +19,7 @@ A publicação atual é funcional para demonstração, validação de UX e opera
 - Hero com vídeo pausado de operador Airsoft controlado horizontalmente pelo mouse, interpolação via `requestAnimationFrame`, retorno suave ao frame central, fallback visual e suporte a movimento reduzido/mobile.
 - Hero ajustado para usar somente o vídeo do operador, removendo a imagem anterior sobreposta; MP4 reprocessado a 24 fps com quadro-chave em todos os frames e seeks serializados para uma movimentação mais fluida.
 - Radar tático dinâmico no hero inspirado em HUDs de FPS: jogador com rota própria, dois contatos hostis em trajetórias independentes, varredura cônica, grid, pontos cardeais, estados de contato e pings contextuais.
+- Textura vertical central removida do banner principal para não competir com o operador e com a leitura do conteúdo.
 - Animação do radar calculada por `requestAnimationFrame`, com easing por ator, troca de rota não determinística, atualização de setor/coordenadas e suporte a `prefers-reduced-motion`.
 - Sistema visual com modo noturno `NVG / NIGHT` e modo claro `DAY OPS / LIGHT`, preferência persistida no dispositivo e transição radial inspirada em troca de visor/HUD.
 - Contraste revisado em textos de filtro, metadados, descrições, cabeçalho e superfícies claras para melhorar leitura em telas menores.
