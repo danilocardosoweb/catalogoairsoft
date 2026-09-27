@@ -8,6 +8,9 @@
   const labInterface = document.querySelector("[data-lab-interface]");
   const choicePanel = document.querySelector("[data-choice-panel]");
   const choiceList = document.querySelector("[data-choice-list]");
+  const stageRail = document.querySelector("[data-stage-rail]");
+  const stageRailList = document.querySelector("[data-stage-rail-list]");
+  const railStatus = document.querySelector("[data-lab-rail-status]");
   const nextButton = document.querySelector("[data-stage-next]");
   const previousButton = document.querySelector("[data-stage-prev]");
   const debugPanel = document.querySelector("[data-lab-debug]");
@@ -205,6 +208,22 @@
     if (countElement) countElement.textContent = `${String(selectedChoices.length).padStart(2, "0")} decisões registradas · ${paidItems} itens pagos`;
   }
 
+  function renderStageRail() {
+    if (!stageRailList) return;
+    stageRailList.innerHTML = stages.map((stage, index) => {
+      const selectedChoice = flatChoices.find((choice) => choice.id === selection[stage.id]);
+      const isActive = index === activeStage;
+      const isComplete = index < activeStage;
+      const hasImage = Boolean(selectedChoice?.image);
+      const image = hasImage ? `style="background-image: url('${escapeHtml(selectedChoice.image)}')"` : "";
+      const state = isActive ? "is-active" : isComplete ? "is-complete" : "";
+      const current = isActive ? ' aria-current="step"' : "";
+      const choiceName = selectedChoice?.name || "Aguardando escolha";
+      return `<button class="lab-stage-step ${state}" type="button" data-stage-index="${index}" aria-label="${escapeHtml(stage.panelTitle)}: ${escapeHtml(choiceName)}"${current}><span class="lab-stage-marker"><b>${String(index + 1).padStart(2, "0")}</b></span><span class="lab-stage-step-image${hasImage ? "" : " is-empty"}" ${image} aria-hidden="true"></span><span class="lab-stage-step-copy"><strong>${escapeHtml(stage.panelTitle)}</strong><small>${escapeHtml(choiceName)}</small></span></button>`;
+    }).join("");
+    if (railStatus) railStatus.textContent = `${String(activeStage + 1).padStart(2, "0")} / ${String(stages.length).padStart(2, "0")}`;
+  }
+
   function renderStage(index) {
     activeStage = clamp(index, 0, stages.length - 1);
     const stage = stages[activeStage];
@@ -219,7 +238,7 @@
     if (stageTitle) stageTitle.textContent = stage.title;
     if (stageDescription) stageDescription.textContent = stage.description;
     if (panelTitle) panelTitle.textContent = stage.panelTitle;
-    if (choiceHint) choiceHint.textContent = stage.hint;
+    if (choiceHint) choiceHint.textContent = `${stage.choices.length} disponíveis`;
 
     choiceList.innerHTML = stage.choices.map((choice) => {
       const selected = selection[stage.id] === choice.id;
@@ -232,6 +251,7 @@
     nextButton.innerHTML = activeStage === stages.length - 1 ? `Salvar configuração <span>✓</span>` : `Confirmar escolha <span>↗</span>`;
     const saveStatus = document.querySelector("[data-save-status]");
     if (saveStatus) saveStatus.textContent = saveMessage;
+    renderStageRail();
     updateSummary();
   }
 
@@ -421,6 +441,15 @@
     selection[stage.id] = choiceButton.dataset.choiceId;
     saveMessage = "";
     renderStage(activeStage);
+  });
+
+  stageRailList?.addEventListener("click", (event) => {
+    const stageButton = event.target.closest("[data-stage-index]");
+    if (!stageButton) return;
+    const stageIndex = Number(stageButton.dataset.stageIndex);
+    if (!Number.isInteger(stageIndex)) return;
+    if (scrollProgress >= 0.88) renderStage(stageIndex);
+    else scrollToStage(stageIndex);
   });
 
   previousButton.addEventListener("click", () => {

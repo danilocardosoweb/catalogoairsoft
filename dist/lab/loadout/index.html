@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./loadout-lab.css" />
+    <link rel="stylesheet" href="./loadout-lab.css?rev=rail-66" />
   </head>
   <body>
     <main class="lab-experience">
@@ -43,6 +43,14 @@
               <h2 data-lab-stage-title>Escolha sua base.</h2>
               <p data-lab-stage-description>A plataforma define o ritmo da sua operação.</p>
             </div>
+
+            <nav class="lab-stage-rail" data-stage-rail aria-label="Etapas da configuração">
+              <div class="lab-rail-head">
+                <span class="lab-eyebrow">MAPA DO LOADOUT</span>
+                <span class="lab-rail-status" data-lab-rail-status>01 / 05</span>
+              </div>
+              <div class="lab-stage-track" data-stage-rail-list></div>
+            </nav>
 
             <div class="lab-loadout-status" aria-live="polite">
               <span>CONFIGURAÇÃO EM CAMPO</span>
@@ -91,6 +99,6 @@
     <script src="./vendor/lenis.min.js" defer></script>
     <script src="./vendor/gsap.min.js" defer></script>
     <script src="./vendor/ScrollTrigger.min.js" defer></script>
-    <script src="./loadout-lab.js?rev=continuity-63" defer></script>
+    <script src="./loadout-lab.js?rev=rail-66" defer></script>
   </body>
 </html>
