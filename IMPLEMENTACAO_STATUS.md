@@ -132,14 +132,23 @@ O estado atual também está protegido por um ponto de restauração local docum
 - Central do Radar recebeu fontes públicas iniciais para curadoria: GhostBase, Airsoft RS (RSS), Airsoft Company, TacTov e Brasil Airsoft (YouTube). As fontes ficam ativas e enfileiradas apenas quando o operador solicitar sincronização; nenhuma publicação é automática.
 - Radar do hero recebeu pontuação discreta de assistência: indicar alvo vale pontos, traçar rota vale menos e uma neutralização guiada registra bônus; o total fica salvo localmente e aparece apenas como telemetria compacta no HUD.
 
+### Perfis de acesso — v72
+
+- O perfil de conta agora diferencia Consumidor, Lojista e Distribuidor, com descrição do papel e área inicial adequada.
+- Consumidor permanece na jornada de descoberta e compra: catálogo, marcas, Radar, loadout, favoritos, carrinho e orçamentos próprios.
+- Lojista recebe uma central de parceiro com visão comercial da própria loja e acesso a produtos, estoque, preços, orçamentos, pedidos, expedição, clientes, importações, conteúdo, banners e configurações.
+- Distribuidor recebe uma central de abastecimento com catálogo, produtos, estoque, preços de grupo, pedidos, expedição e importações; não recebe a gestão de clientes, campanhas ou configurações da loja.
+- O menu operacional é montado conforme o papel, com mapa visual de permissões, área inicial específica e redirecionamento de rotas não permitidas.
+- O acesso atual é uma camada de experiência e navegação local-first. Para operação real, ainda é obrigatório implementar autenticação, sessão e RBAC no backend antes de considerar os dados protegidos.
+
 ## Pendências de desenvolvimento
 
 ### Prioridade P0 — necessária antes de operação real
 
 - Criar backend persistente para produtos, estoque, preços, clientes, orçamentos, pedidos e histórico.
 - Trocar o `localStorage` por uma base de dados compartilhada entre usuários e dispositivos.
-- Implementar autenticação real e permissões por perfil: administrador, vendedor, lojista e distribuidor.
-- Proteger o painel administrativo no servidor, não apenas pela navegação do frontend.
+- Implementar autenticação real e permissões por perfil no backend: consumidor, lojista, distribuidor, vendedor e administrador.
+- Proteger o painel operacional e os dados por RBAC no servidor; a versão atual já aplica a separação visual e de rotas no frontend, mas ainda é local-first.
 - Validar e sanitizar dados vindos de produtos, importações e formulários antes de renderizar HTML.
 - A restauração de backup aplica normalização mínima a produtos, imagens, quantidades e seções principais; ainda é necessário centralizar a sanitização de todas as entradas do app.
 - Substituir dados demo e valores padrão por catálogo, preços, imagens e estoque reais.

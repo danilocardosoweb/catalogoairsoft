@@ -225,6 +225,87 @@ const state = {
   appliedAirdropCode: localStorage.getItem("fieldops-airdrop-code") || ""
 };
 
+const accessProfiles = {
+  consumer: {
+    label: "Consumidor",
+    kicker: "FIELD OPS / CONSUMIDOR",
+    title: "Seu arsenal.",
+    description: "Explore produtos, salve favoritos, monte seu loadout e acompanhe seus pedidos.",
+    homeRoute: "home",
+    routes: ["home", "catalog", "brands", "radar", "loadout", "favorites", "product", "quote"]
+  },
+  retailer: {
+    label: "Lojista",
+    kicker: "FIELD OPS / PARCEIRO",
+    title: "Sua operação de venda.",
+    description: "Monte pedidos de reposição, acompanhe clientes e consulte a expedição da sua loja.",
+    homeRoute: "partner",
+    routes: ["home", "catalog", "brands", "radar", "loadout", "favorites", "product", "quote", "partner", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings"]
+  },
+  distributor: {
+    label: "Distribuidor",
+    kicker: "FIELD OPS / SUPPLY",
+    title: "Sua cadeia de abastecimento.",
+    description: "Controle catálogo, estoque, preços de parceiro, pedidos e entradas de produtos.",
+    homeRoute: "partner",
+    routes: ["home", "catalog", "brands", "radar", "loadout", "favorites", "product", "quote", "partner", "admin-products", "admin-stock", "admin-prices", "admin-orders", "admin-shipping", "admin-import"]
+  },
+  operator: {
+    label: "Operador",
+    kicker: "SUPRIMENTOS OLIVEIRA / OPS",
+    title: "Command center.",
+    description: "Acesso interno à operação completa da loja.",
+    homeRoute: "admin",
+    routes: ["admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings", "partner", "home", "catalog", "brands", "radar", "loadout", "favorites", "product", "quote"]
+  }
+};
+
+function normalizeAccessRole(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (raw === "operator" || raw.includes("operador") || raw.includes("admin")) return "operator";
+  if (raw === "retailer" || raw.includes("lojista") || raw.includes("varejo")) return "retailer";
+  if (raw === "distributor" || raw.includes("distribuidor") || raw.includes("atacado")) return "distributor";
+  return "consumer";
+}
+
+function currentAccessRole() {
+  return normalizeAccessRole(state.account?.role || state.account?.segment || state.profile?.role);
+}
+
+function currentAccessProfile() {
+  return accessProfiles[currentAccessRole()];
+}
+
+function canAccessRoute(route) {
+  const cleanRoute = String(route || "").replace(/^admin\//, "");
+  const role = currentAccessRole();
+  if (cleanRoute === "product" || cleanRoute === "quote") return true;
+  return currentAccessProfile().routes.includes(cleanRoute);
+}
+
+function roleHomeRoute() {
+  return currentAccessProfile().homeRoute;
+}
+
+function roleAccessMessage(route) {
+  const requested = String(route || "").startsWith("admin") ? "este painel operacional" : "esta área";
+  return `${requested} é reservado para ${currentAccessProfile().label.toLowerCase()}.`;
+}
+
+function resolveAccessRoute(route, announce = false) {
+  if (canAccessRoute(route)) return route;
+  if (announce) window.setTimeout(() => showToast(roleAccessMessage(route)), 40);
+  return roleHomeRoute();
+}
+
+function accessNavItems() {
+  const role = currentAccessRole();
+  if (role === "retailer") return [["partner", "Visão geral"], ["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-content", "Radar / Conteúdo"], ["admin-banners", "Banners"], ["admin-settings", "Configurações"]];
+  if (role === "distributor") return [["partner", "Visão geral"], ["catalog", "Catálogo"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-import", "Importações"]];
+  if (role === "operator") return [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-content", "Radar / Conteúdo"], ["admin-banners", "Banners"], ["admin-settings", "Configurações"]];
+  return [["home", "Início"], ["catalog", "Catálogo"], ["radar", "Radar Airsoft"], ["loadout", "Monte seu loadout"], ["favorites", "Favoritos"]];
+}
+
 const radarTypes = { event: "Eventos", field: "Campos", store: "Lojas", news: "Notícias", release: "Lançamentos" };
 const radarStatuses = { draft: "Rascunho", review: "Em revisão", published: "Publicado", archived: "Arquivado" };
 const radarScopes = { nearby: "Perto de mim", state: "Minha cidade / estado", brazil: "Brasil", world: "Internacional" };
@@ -936,7 +1017,9 @@ function exportQuotes() {
 }
 
 function adminShell(active, kicker, title, body) {
-  return `<section class="page admin-page"><div class="admin-layout">${adminNav(active)}<div class="admin-main"><div class="admin-topbar"><div><span class="eyebrow">${kicker}</span><h1>${title}</h1></div><div class="admin-top-actions"><button class="outline-cta" data-action="export-data">Exportar dados</button><button class="outline-cta" data-route="catalog">Ver catálogo</button><button class="icon-button" data-action="account" aria-label="Abrir conta"><span class="icon icon-user"></span></button></div></div>${body}</div></div></section>`;
+  const role = currentAccessRole();
+  const canExport = role !== "consumer";
+  return `<section class="page admin-page"><div class="admin-layout">${adminNav(active)}<div class="admin-main"><div class="admin-topbar"><div><span class="eyebrow">${kicker}</span><h1>${title}</h1></div><div class="admin-top-actions"><span class="role-access-chip"><i class="status-dot"></i>${currentAccessProfile().label}</span>${canExport ? `<button class="outline-cta" data-action="export-data">Exportar dados</button>` : ""}<button class="outline-cta" data-route="catalog">Ver catálogo</button><button class="icon-button" data-action="account" aria-label="Abrir conta"><span class="icon icon-user"></span></button></div></div>${body}</div></div></section>`;
 }
 
 function adminDashboardPage() {
@@ -1053,8 +1136,34 @@ function radarContentModal(id = null) {
 }
 
 function adminNav(active) {
-  const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-content", "Radar / Conteúdo"], ["admin-banners", "Banners"], ["admin-settings", "Configurações"]];
-  return `<aside class="admin-sidebar"><div class="admin-side-brand"><span class="eyebrow">SUPRIMENTOS OLIVEIRA / OPS</span><strong>Command<br>center.</strong></div><nav class="admin-menu">${items.map(([route, label], index) => `<a href="#${route}" data-route="${route}" class="${active === route ? "active" : ""}"><span class="admin-menu-index">${String(index + 1).padStart(2, "0")}</span>${label}</a>`).join("")}</nav><div class="admin-side-foot"><span class="status-dot"></span><span>OPERATIONAL MODE</span><small>v0.1 / LOCAL-FIRST</small></div></aside>`;
+  const items = accessNavItems();
+  const access = currentAccessProfile();
+  return `<aside class="admin-sidebar"><div class="admin-side-brand"><span class="eyebrow">SUPRIMENTOS OLIVEIRA / ${access.label.toUpperCase()}</span><strong>${currentAccessRole() === "operator" ? "Command<br>center." : "Partner<br>desk."}</strong></div><nav class="admin-menu">${items.map(([route, label], index) => `<a href="#${route}" data-route="${route}" class="${active === route ? "active" : ""}"><span class="admin-menu-index">${String(index + 1).padStart(2, "0")}</span>${label}</a>`).join("")}</nav><div class="admin-side-foot"><span class="status-dot"></span><span>${currentAccessRole() === "operator" ? "OPERATIONAL MODE" : "PARTNER MODE"}</span><small>v0.2 / LOCAL-FIRST</small></div></aside>`;
+}
+
+function partnerDashboardPage() {
+  const role = currentAccessRole();
+  const access = currentAccessProfile();
+  const isRetailer = role === "retailer";
+  const cards = isRetailer ? [
+    ["01", "Orçamentos", `${state.quotes.length || 2}`, "Solicitações para responder", "admin-quotes"],
+    ["02", "Pedidos", `${state.orders.length || 1}`, "Pedidos em acompanhamento", "admin-orders"],
+    ["03", "Clientes", "—", "Relacionamentos da sua loja", "admin-customers"]
+  ] : [
+    ["01", "Produtos", `${activeProducts().length}`, "Itens disponíveis no catálogo", "admin-products"],
+    ["02", "Estoque", `${activeProducts().reduce((sum, product) => sum + product.stockCount, 0)}`, "Unidades monitoradas", "admin-stock"],
+    ["03", "Pedidos", `${state.orders.length || 1}`, "Reposições em acompanhamento", "admin-orders"]
+  ];
+  const actions = isRetailer ? [
+    ["Criar orçamento", "admin-quotes", "Abra uma nova solicitação comercial."],
+    ["Ver pedidos", "admin-orders", "Acompanhe cada etapa da expedição."],
+    ["Falar com atendimento", "home", "Volte ao catálogo e acione o suporte."]
+  ] : [
+    ["Revisar catálogo", "admin-products", "Atualize produtos disponíveis."],
+    ["Conferir estoque", "admin-stock", "Veja níveis e pontos de reposição."],
+    ["Importar produtos", "admin-import", "Prepare uma nova entrada de dados."]
+  ];
+  return adminShell("partner", access.kicker, access.title, `<section class="role-brief-panel"><div><span class="eyebrow">ACCESS / ${access.label.toUpperCase()}</span><h2>${access.description}</h2></div><span class="role-access-chip"><i class="status-dot"></i> Acesso ${access.label}</span></section><div class="admin-kpi-grid">${cards.map(([index, label, value, note, route]) => `<button class="admin-kpi role-kpi" data-route="${route}"><span>${label}</span><strong>${value}</strong><small>${note} ↗</small></button>`).join("")}</div><section class="admin-panel role-permission-panel"><div class="admin-panel-head"><div><span class="eyebrow">PERMISSION MAP</span><h2>O que você pode fazer</h2></div><span class="admin-sync">Perfil ${access.label}</span></div><div class="role-permission-grid">${accessNavItems().filter(([route]) => route !== "partner" && route !== "catalog").map(([route, label], index) => `<button data-route="${route}"><span>${String(index + 1).padStart(2, "0")}</span><strong>${label}</strong><small>${isRetailer ? "Operação comercial da sua loja" : "Operação de abastecimento"}</small><b>↗</b></button>`).join("")}</div></section><section class="admin-panel quick-actions"><div class="admin-panel-head"><div><span class="eyebrow">NEXT MOVE</span><h2>Escolha seu próximo passo.</h2></div></div><div class="quick-action-grid">${actions.map(([label, route, note], index) => `<button data-route="${route}"><span>${String(index + 1).padStart(2, "0")}</span><strong>${label}</strong><small>${note}</small></button>`).join("")}</div></section>`);
 }
 
 function adminDashboardPage() {
@@ -1756,7 +1865,7 @@ function profileSetupModal() {
   document.querySelector("#profile-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    state.profile = { style: form.get("style"), budget: Number(form.get("budget")) };
+    state.profile = { ...(state.profile || {}), style: form.get("style"), budget: Number(form.get("budget")) };
     persist();
     closeModal();
     render();
@@ -1790,11 +1899,19 @@ function searchPalette(initial = "") {
 
 function accountModal() {
   if (state.account) {
-    openModal(`<span class="eyebrow">IDENTITY / PROFILE</span><h2>Olá,<br>${state.account.name.split(" ")[0]}.</h2><p>Seu perfil está salvo neste dispositivo. Favoritos, carrinho e loadouts ficam prontos para continuar quando você voltar.</p><div class="account-summary"><div><span>Favoritos</span><strong>${state.favorites.length}</strong></div><div><span>No carrinho</span><strong>${state.cart.reduce((sum, item) => sum + item.quantity, 0)}</strong></div><div><span>Perfil</span><strong>${state.account.segment || "Cliente"}</strong></div></div><div class="form-grid"><button class="modal-submit" data-action="admin-preview">Abrir painel operacional</button><button class="outline-cta" data-action="account-logout">Trocar perfil</button></div>`);
+    const role = currentAccessRole();
+    const access = currentAccessProfile();
+    const destination = role === "operator" ? "admin" : role === "consumer" ? "catalog" : "partner";
+    const destinationLabel = role === "operator" ? "Abrir painel operacional" : role === "consumer" ? "Continuar no catálogo" : "Abrir central de parceiro";
+    openModal(`<span class="eyebrow">IDENTITY / PROFILE</span><h2>Olá,<br>${escapeHtml(String(state.account.name || "Operador").split(" ")[0])}.</h2><p>Seu acesso está salvo neste dispositivo. O perfil selecionado organiza as áreas que aparecem para você.</p><div class="account-role-card"><div><span>PERFIL ATIVO</span><strong>${access.label}</strong></div><small>${access.description}</small></div><div class="account-summary"><div><span>Favoritos</span><strong>${state.favorites.length}</strong></div><div><span>No carrinho</span><strong>${state.cart.reduce((sum, item) => sum + item.quantity, 0)}</strong></div><div><span>Área inicial</span><strong>${role === "consumer" ? "Catálogo" : role === "operator" ? "Ops" : "Parceiro"}</strong></div></div><div class="form-grid"><button class="modal-submit" data-action="profile-destination" data-role-route="${destination}">${destinationLabel} <span>↗</span></button><button class="outline-cta" data-action="account-logout">Trocar perfil</button></div>`);
     return;
   }
-  openModal(`<span class="eyebrow">IDENTITY / ACCOUNT</span><h2>Seu perfil<br>de campo.</h2><p>Salve um nome e um WhatsApp para acelerar seus próximos orçamentos. Você continua navegando como visitante.</p><form class="form-grid" id="account-form"><label class="form-label">Nome<input name="name" required placeholder="Como podemos chamar você?" /></label><div class="form-row"><label class="form-label">WhatsApp<input name="phone" placeholder="(11) 99999-9999" /></label><label class="form-label">Perfil<select name="segment"><option>Consumidor</option><option>Lojista</option><option>Distribuidor</option></select></label></div><button class="modal-submit" type="submit">Salvar perfil</button></form><button class="outline-cta account-admin-link" data-action="admin-preview">Abrir painel operacional</button>`);
-  document.querySelector("#account-form").addEventListener("submit", (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); state.account = { name: form.get("name"), phone: form.get("phone"), segment: form.get("segment") }; localStorage.setItem("fieldops-account", JSON.stringify(state.account)); closeModal(); render(); showToast("Perfil salvo neste dispositivo."); });
+  openModal(`<span class="eyebrow">IDENTITY / ACCOUNT</span><h2>Seu perfil<br>de campo.</h2><p>Escolha o tipo de acesso para receber uma experiência adequada ao seu papel na cadeia Airsoft.</p><form class="form-grid" id="account-form"><label class="form-label">Nome<input name="name" required placeholder="Como podemos chamar você?" /></label><div class="form-row"><label class="form-label">WhatsApp<input name="phone" placeholder="(11) 99999-9999" /></label><label class="form-label">Perfil<select name="role" id="account-role"><option value="consumer">Consumidor</option><option value="retailer">Lojista</option><option value="distributor">Distribuidor</option></select></label></div><div class="account-role-hint" id="account-role-hint"><strong>Consumidor</strong><span>Catálogo, loadout, favoritos, carrinho e acompanhamento dos seus pedidos.</span></div><button class="modal-submit" type="submit">Salvar perfil</button></form>`);
+  const roleSelect = document.querySelector("#account-role");
+  const roleHint = document.querySelector("#account-role-hint");
+  const updateRoleHint = () => { const selected = accessProfiles[roleSelect.value] || accessProfiles.consumer; roleHint.innerHTML = `<strong>${selected.label}</strong><span>${selected.description}</span>`; };
+  roleSelect?.addEventListener("change", updateRoleHint);
+  document.querySelector("#account-form").addEventListener("submit", (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const role = normalizeAccessRole(form.get("role")); state.account = { name: form.get("name").toString().trim(), phone: form.get("phone").toString().trim(), role, segment: accessProfiles[role].label }; state.profile = { ...(state.profile || {}), name: state.account.name, phone: state.account.phone, role }; localStorage.setItem("fieldops-account", JSON.stringify(state.account)); persist(); closeModal(); go(roleHomeRoute()); showToast(`Perfil ${accessProfiles[role].label.toLowerCase()} salvo neste dispositivo.`); });
 }
 
 function compareModal() {
@@ -2032,6 +2149,7 @@ function render() {
   if (state.route === "favorites") view = favoritesPage();
   if (state.route === "brands") view = brandsPage();
   if (state.route === "radar") view = radarPage();
+  if (state.route === "partner") view = partnerDashboardPage();
   if (state.route === "admin") view = adminDashboardPage();
   if (state.route === "admin-products") view = adminProductsPage();
   if (state.route === "admin-stock") view = adminStockPage();
@@ -2061,6 +2179,7 @@ function updateNav() {
 }
 
 function go(route, product = null) {
+  route = resolveAccessRoute(route, true);
   state.route = route;
   state.selectedProduct = product;
   if (route === "product" && product) { sessionStorage.setItem("fieldops-product", product.id); state.recentProducts = [product.id, ...state.recentProducts.filter((id) => id !== product.id)].slice(0, 4); persist(); }
@@ -3160,19 +3279,20 @@ document.addEventListener("click", (event) => {
   if (action === "compare-open") compareModal();
   if (action === "compare-clear") { state.compare = []; persist(); render(); showToast("Comparação limpa."); }
   if (action === "compare-clear-close") { state.compare = []; persist(); closeModal(); render(); showToast("Comparação limpa."); }
-  if (action === "account") accountModal();
+  if (action === "account") { event.preventDefault(); accountModal(); }
   if (action === "footer-policies") footerPoliciesModal();
   if (action === "footer-shipping") footerShippingModal();
   if (action === "footer-whatsapp") { event.preventDefault(); footerWhatsapp(); }
   if (action === "footer-airdrop") { event.preventDefault(); footerAirdrop(); }
-  if (action === "admin-preview") { closeModal(); go("admin"); }
-  if (action === "account-logout") { state.account = null; localStorage.removeItem("fieldops-account"); accountModal(); }
+  if (action === "profile-destination") { closeModal(); go(event.target.closest("[data-role-route]")?.dataset.roleRoute || roleHomeRoute()); }
+  if (action === "admin-preview") { closeModal(); go(roleHomeRoute()); }
+  if (action === "account-logout") { state.account = null; const { name, phone, role, ...briefing } = state.profile || {}; state.profile = briefing; localStorage.removeItem("fieldops-account"); persist(); accountModal(); }
   if (action === "simulate-import") { const button = event.target.closest(".import-submit"); if (button) { button.textContent = "Arquivo analisado ✓"; button.disabled = true; showToast("Análise concluída: 15 registros precisam de revisão."); } }
   if (action === "commit-import") commitImport();
   if (action === "import-reset") { state.importData = null; render(); }
   if (action === "import-rollback") rollbackImport(event.target.closest("[data-import-id]")?.dataset.importId);
   if (action === "reset-local-data") resetLocalData();
-  if (action === "menu") openModal(`<span class="eyebrow">SUPRIMENTOS OLIVEIRA / MENU</span><h2>Navegue<br>pelo arsenal.</h2><div class="form-grid"><button class="outline-cta" data-route="catalog">Catálogo</button><button class="outline-cta" data-route="radar">Radar Airsoft</button><button class="outline-cta" data-route="loadout">Monte seu loadout</button><button class="outline-cta" data-route="favorites">Favoritos</button><button class="outline-cta" data-route="admin">Painel operacional</button></div>`);
+  if (action === "menu") openModal(`<span class="eyebrow">SUPRIMENTOS OLIVEIRA / MENU</span><h2>Navegue<br>pelo arsenal.</h2><div class="form-grid">${accessNavItems().slice(0, 6).map(([route, label]) => `<button class="outline-cta" data-route="${route}">${label}</button>`).join("")}<button class="outline-cta" data-action="account">Trocar perfil de acesso</button></div>`);
   if (action === "apply-filter-modal") { closeModal(); render(); }
   const loadoutId = event.target.closest("[data-loadout-select]")?.dataset.loadoutSelect;
   const loadoutSlot = event.target.closest("[data-loadout-select]")?.dataset.loadoutSlot;
@@ -3255,12 +3375,14 @@ window.addEventListener("keydown", (event) => {
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   }
 });
-window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); const quoteMatch = route.match(/^quote\/(.+)$/); closeModal(); state.route = productMatch ? "product" : quoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings"].includes(route) ? route : "home"; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; state.selectedQuoteId = quoteMatch ? quoteMatch[1] : null; render(); });
+window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); const quoteMatch = route.match(/^quote\/(.+)$/); closeModal(); const requested = productMatch ? "product" : quoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "partner", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings"].includes(route) ? route : "home"; const resolved = resolveAccessRoute(requested, requested !== "home"); if (resolved !== requested) history.replaceState({}, "", `#${resolved}`); state.route = resolved; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; state.selectedQuoteId = quoteMatch ? quoteMatch[1] : null; render(); });
 
 const initialRoute = location.hash.replace("#", "") || "home";
 const initialProductMatch = initialRoute.match(/^product\/(.+)$/);
 const initialQuoteMatch = initialRoute.match(/^quote\/(.+)$/);
-state.route = initialProductMatch ? "product" : initialQuoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
+const initialRequestedRoute = initialProductMatch ? "product" : initialQuoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "partner", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
+state.route = resolveAccessRoute(initialRequestedRoute, initialRequestedRoute !== "home");
+if (state.route !== initialRequestedRoute) history.replaceState({}, "", `#${state.route}`);
 state.selectedProduct = initialProductMatch ? findProduct(initialProductMatch[1]) : null;
 state.selectedQuoteId = initialQuoteMatch ? initialQuoteMatch[1] : null;
 applyTheme(state.theme);

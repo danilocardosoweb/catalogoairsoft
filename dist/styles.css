@@ -695,6 +695,27 @@ html[data-theme="light"] .site-footer { background: #e8eee6; border-top-color: r
 .account-summary span { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .account-summary strong { margin-top: 8px; font: 600 23px var(--display); }
 .account-admin-link { width: 100%; justify-content: center; margin-top: 12px; }
+.account-role-card { display: grid; gap: 8px; margin: 20px 0 12px; padding: 15px; background: var(--bg-elevated); border: 1px solid var(--line); border-left: 2px solid var(--accent); }
+.account-role-card div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.account-role-card span { color: var(--accent); font-size: 9px; font-weight: 900; letter-spacing: .12em; }
+.account-role-card strong { font: 600 23px/.9 var(--display); text-transform: uppercase; }
+.account-role-card small, .account-role-hint span { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.account-role-hint { display: grid; gap: 4px; padding: 12px 14px; background: var(--bg-elevated); border: 1px solid var(--line); }
+.account-role-hint strong { color: var(--accent); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.role-access-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 0 10px; color: var(--accent); background: rgba(190, 255, 44, .08); border: 1px solid rgba(190, 255, 44, .24); font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.role-access-chip .status-dot { width: 5px; height: 5px; margin: 0; }
+.role-brief-panel { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin-bottom: 16px; padding: 19px 21px; background: var(--surface); border: 1px solid var(--line); border-left: 2px solid var(--accent); }
+.role-brief-panel h2 { max-width: 720px; margin: 7px 0 0; color: var(--ink-soft); font-size: 15px; font-weight: 500; line-height: 1.45; }
+.role-kpi { width: 100%; text-align: left; color: inherit; cursor: pointer; }
+.role-kpi:hover { border-color: var(--accent); transform: translateY(-2px); }
+.role-permission-panel { margin-bottom: 16px; }
+.role-permission-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.role-permission-grid button { display: grid; grid-template-columns: auto 1fr auto; gap: 7px 10px; align-items: center; min-height: 85px; padding: 13px; color: var(--ink); text-align: left; background: var(--bg-elevated); border: 1px solid var(--line); cursor: pointer; }
+.role-permission-grid button:hover { border-color: var(--accent); }
+.role-permission-grid span { color: var(--accent); font: 600 16px var(--display); }
+.role-permission-grid strong { font-size: 11px; text-transform: uppercase; }
+.role-permission-grid small { grid-column: 2 / -1; color: var(--muted); font-size: 10px; }
+.role-permission-grid b { color: var(--accent); font-size: 16px; }
 
 .detail-page { padding: 45px 0 105px; }
 .breadcrumb { display: flex; align-items: center; gap: 9px; margin-bottom: 27px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
@@ -1244,6 +1265,10 @@ html[data-theme="light"] .site-footer { background: #e8eee6; border-top-color: r
   .admin-topbar h1 { font-size: 59px; }
   .admin-top-actions { margin-top: 18px; }
   .admin-top-actions .outline-cta { flex: 1; justify-content: center; }
+  .admin-top-actions .role-access-chip { flex: 1; justify-content: center; }
+  .role-brief-panel { display: block; }
+  .role-brief-panel .role-access-chip { margin-top: 14px; }
+  .role-permission-grid { grid-template-columns: 1fr 1fr; }
   .admin-kpi-grid { gap: 8px; }
   .admin-kpi { min-height: 111px; padding: 13px; }
   .admin-kpi strong { font-size: 35px; }
