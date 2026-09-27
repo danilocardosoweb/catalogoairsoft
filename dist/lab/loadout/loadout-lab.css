@@ -16,12 +16,13 @@ a { color: inherit; text-decoration: none; }
 .lab-back:hover { color: var(--lab-ink); }
 .lab-back span { margin-left: 6px; color: var(--lab-lime); font-size: 15px; }
 
-.lab-story { position: relative; height: 500vh; }
+.lab-story { position: relative; height: 620vh; }
 .lab-story-sticky { position: sticky; top: 0; height: 100dvh; height: 100svh; min-height: 560px; overflow: hidden; background: var(--lab-bg); }
+.lab-experience.is-scrolltrigger .lab-story-sticky { position: relative; top: auto; }
 .lab-video-stage, .lab-video, .lab-video-poster, .lab-video-wash { position: absolute; inset: 0; width: 100%; height: 100%; }
 .lab-video-stage { overflow: hidden; background: #0a0d0b; }
-.lab-video-poster { background: url("./video-poster.jpg") 50% 50% / cover no-repeat; opacity: 1; transition: opacity .65s ease; }
-.lab-video { display: block; object-fit: cover; object-position: 50% 50%; opacity: 0; filter: saturate(.78) contrast(1.05) brightness(.72); transition: opacity .65s ease; }
+.lab-video-poster { background: url("./rifle-poster.jpg") 50% 50% / cover no-repeat; opacity: 1; transition: opacity .65s ease; }
+.lab-video { display: block; object-fit: cover; object-position: 50% 50%; opacity: 0; filter: saturate(.82) contrast(1.05) brightness(.78); transition: opacity .65s ease; will-change: opacity; }
 .lab-story-sticky.is-video-ready .lab-video-poster { opacity: 0; }
 .lab-story-sticky.is-video-ready .lab-video { opacity: 1; }
 .lab-video-wash { pointer-events: none; background: linear-gradient(90deg, rgba(3, 6, 4, .85) 0%, rgba(3, 6, 4, .46) 27%, rgba(3, 6, 4, .08) 68%, rgba(3, 6, 4, .2) 100%), linear-gradient(0deg, rgba(3, 6, 4, .72), transparent 34%, rgba(3, 6, 4, .12)); }
@@ -81,7 +82,7 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 760px) {
   .lab-back { top: 18px; right: 17px; font-size: 8px; }
-  .lab-story { height: 420vh; }
+  .lab-story { height: 560vh; }
   .lab-story-sticky { height: 100dvh; height: 100svh; min-height: 540px; }
   .lab-video { object-position: 44% 50%; }
   .lab-video-poster { background-position: 44% 50%; }

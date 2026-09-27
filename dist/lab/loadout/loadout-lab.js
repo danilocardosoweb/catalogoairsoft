@@ -1,4 +1,5 @@
 (() => {
+  const labExperience = document.querySelector(".lab-experience");
   const story = document.querySelector("[data-lab-story]");
   const sticky = story?.querySelector(".lab-story-sticky");
   const video = document.querySelector("[data-lab-video]");
@@ -11,14 +12,24 @@
   const debugPanel = document.querySelector("[data-lab-debug]");
   if (!story || !sticky || !video || !copy || !labInterface || !choicePanel || !choiceList || !nextButton || !previousButton) return;
 
-  const DEBUG = false;
+  const DEBUG = window.LOADOUT_DEBUG === true || new URLSearchParams(window.location.search).get("debug") === "1";
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const cinematicAssets = Object.freeze({
+    rifleDesktopVideo: video?.dataset.labVideoSrc || "./rifle-experience.mp4",
+    rifleMobileVideo: video?.dataset.labMobileVideoSrc || "",
+    riflePoster: video?.getAttribute("poster") || "./rifle-poster.jpg",
+    pistolDesktopVideo: "",
+    pistolMobileVideo: "",
+    pistolPoster: ""
+  });
   const debug = {
+    section: debugPanel?.querySelector("[data-debug-section]"),
     progress: debugPanel?.querySelector("[data-debug-progress]"),
     duration: debugPanel?.querySelector("[data-debug-duration]"),
     target: debugPanel?.querySelector("[data-debug-target]"),
     current: debugPanel?.querySelector("[data-debug-current]"),
-    fps: debugPanel?.querySelector("[data-debug-fps]")
+    fps: debugPanel?.querySelector("[data-debug-fps]"),
+    ready: debugPanel?.querySelector("[data-debug-ready]")
   };
 
   const stages = [
@@ -111,13 +122,20 @@
   let sourceObjectUrl = "";
   let sourceReady = false;
   let userReady = false;
+  let scrollTriggerInstance = null;
+  let lenis = null;
+  let scrollDriverReady = false;
+  let scrollProgress = 0;
 
   const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
   const formatMoney = (value) => value ? `R$ ${value.toLocaleString("pt-BR")}` : "Sem custo";
   const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;" })[char]);
 
   function sourceUrl() {
-    const declared = video.dataset.labVideoSrc || video.querySelector("source")?.getAttribute("src") || video.getAttribute("src");
+    const isMobileViewport = window.matchMedia("(max-width: 760px)").matches;
+    const declared = isMobileViewport && cinematicAssets.rifleMobileVideo
+      ? cinematicAssets.rifleMobileVideo
+      : cinematicAssets.rifleDesktopVideo || video.querySelector("source")?.getAttribute("src") || video.getAttribute("src");
     if (!declared) return "";
     try {
       return new URL(declared, document.baseURI).href;
@@ -160,8 +178,15 @@
   }
 
   function getProgress() {
+    if (scrollDriverReady) return scrollProgress;
     const travel = Math.max(1, story.offsetHeight - sticky.clientHeight);
     return clamp(-story.getBoundingClientRect().top / travel);
+  }
+
+  function mapRifleProgress(progress) {
+    const motionEnd = 0.94;
+    if (progress >= motionEnd) return 1;
+    return clamp(1 - Math.pow(1 - progress / motionEnd, 1.65));
   }
 
   function getSelectedChoices() {
@@ -209,21 +234,22 @@
   }
 
   function updateInterface(progress) {
-    const interfaceProgress = clamp((progress - 0.045) / 0.11);
-    const stageIndex = Math.min(stages.length - 1, Math.floor(progress * stages.length));
-    if (stageIndex !== activeStage) renderStage(stageIndex);
+    const interfaceProgress = clamp((progress - 0.9) / 0.06);
     labInterface.style.setProperty("--ui-opacity", interfaceProgress.toFixed(4));
     choicePanel.style.setProperty("--panel-y", `${((1 - interfaceProgress) * 16).toFixed(2)}px`);
     choicePanel.style.pointerEvents = interfaceProgress > 0.62 ? "auto" : "none";
+    labInterface.setAttribute("aria-hidden", String(interfaceProgress <= 0.62));
   }
 
   function updateDebug(progress) {
     if (!DEBUG || !debugPanel) return;
+    if (debug.section) debug.section.textContent = "RIFLE";
     debug.progress.textContent = progress.toFixed(2);
     debug.duration.textContent = duration ? `${duration.toFixed(2)}s` : "—";
     debug.target.textContent = targetTime.toFixed(2);
     debug.current.textContent = renderedTime.toFixed(2);
     debug.fps.textContent = measuredFps ? `${measuredFps}` : "—";
+    if (debug.ready) debug.ready.textContent = `${video.readyState}/4`;
   }
 
   function scheduleScrub() {
@@ -272,13 +298,18 @@
   function updateTarget() {
     scrollFrame = 0;
     initializeDuration();
-    const progress = getProgress();
-    targetTime = reducedMotion ? 0 : progress * duration;
-    updateInterface(progress);
-    const copyExit = clamp(progress / 0.12);
+    applyProgress(getProgress());
+  }
+
+  function applyProgress(progress) {
+    scrollProgress = clamp(progress);
+    const progressForVideo = mapRifleProgress(scrollProgress);
+    targetTime = reducedMotion ? 0 : progressForVideo * duration;
+    updateInterface(scrollProgress);
+    const copyExit = clamp(scrollProgress / 0.12);
     copy.style.setProperty("--copy-opacity", (1 - copyExit).toFixed(4));
     copy.style.setProperty("--copy-y", `${(-copyExit * 18).toFixed(2)}px`);
-    updateDebug(progress);
+    updateDebug(scrollProgress);
     scheduleScrub();
   }
 
@@ -287,9 +318,18 @@
   }
 
   function scrollToStage(index) {
+    if (scrollProgress >= 0.88) {
+      renderStage(index);
+      return;
+    }
     const travel = Math.max(1, story.offsetHeight - sticky.clientHeight);
     const progress = clamp((index + 0.18) / stages.length);
-    window.scrollTo({ top: story.offsetTop + travel * progress, behavior: reducedMotion ? "auto" : "smooth" });
+    const top = story.offsetTop + travel * progress;
+    if (lenis) {
+      lenis.scrollTo(top, { duration: reducedMotion ? 0 : 0.85 });
+    } else {
+      window.scrollTo({ top, behavior: reducedMotion ? "auto" : "smooth" });
+    }
   }
 
   function saveLoadout() {
@@ -313,9 +353,41 @@
 
   function prepareVideo() {
     if (!initializeDuration()) return;
-    targetTime = reducedMotion ? 0 : getProgress() * duration;
-    updateDebug(getProgress());
-    requestUpdate();
+    applyProgress(getProgress());
+  }
+
+  function setupSmoothScroll() {
+    if (reducedMotion || !window.gsap || !window.ScrollTrigger) return false;
+    const { gsap, ScrollTrigger } = window;
+    gsap.registerPlugin(ScrollTrigger);
+
+    if (window.Lenis) {
+      lenis = new window.Lenis({
+        autoRaf: false,
+        lerp: 0.085,
+        smoothWheel: true,
+        syncTouch: false
+      });
+      lenis.on("scroll", () => ScrollTrigger.update());
+      gsap.ticker.add((time) => lenis.raf(time * 1000));
+      gsap.ticker.lagSmoothing(0);
+    }
+
+    scrollDriverReady = true;
+    if (labExperience) labExperience.classList.add("is-scrolltrigger");
+    scrollTriggerInstance = ScrollTrigger.create({
+      trigger: story,
+      start: "top top",
+      end: "bottom bottom",
+      pin: sticky,
+      pinSpacing: false,
+      scrub: 0.22,
+      anticipatePin: 1,
+      invalidateOnRefresh: true,
+      onUpdate: (self) => applyProgress(self.progress)
+    });
+    ScrollTrigger.refresh();
+    return true;
   }
 
   function onSeeked() {
@@ -361,8 +433,12 @@
   });
   video.addEventListener("seeked", onSeeked);
   video.addEventListener("error", () => sticky.classList.add("is-video-error"), { once: true });
-  window.addEventListener("scroll", requestUpdate, { passive: true });
-  window.addEventListener("resize", requestUpdate, { passive: true });
+  const smoothDriver = setupSmoothScroll();
+  if (!smoothDriver) window.addEventListener("scroll", requestUpdate, { passive: true });
+  window.addEventListener("resize", () => {
+    if (scrollTriggerInstance && window.ScrollTrigger) window.ScrollTrigger.refresh();
+    requestUpdate();
+  }, { passive: true });
   window.addEventListener("pointerdown", onFirstGesture, { once: true, passive: true });
   window.addEventListener("touchstart", onFirstGesture, { once: true, passive: true });
 

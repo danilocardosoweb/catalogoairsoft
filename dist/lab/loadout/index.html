@@ -16,7 +16,7 @@
     <main class="lab-experience">
       <a class="lab-back" href="../../#loadout">Loadout atual <span>↗</span></a>
 
-      <section class="lab-story" data-lab-story aria-labelledby="lab-title">
+      <section class="lab-story" data-lab-story data-rifle-scene aria-labelledby="lab-title">
         <div class="lab-story-sticky">
           <div class="lab-video-stage">
             <div class="lab-video-poster" aria-hidden="true"></div>
@@ -26,16 +26,17 @@
               muted
               playsinline
               preload="none"
-              data-lab-video-src="./loadout-scroll.mp4?rev=interaction-59"
-              poster="./video-poster.jpg?rev=interaction-59"
+              data-lab-video-src="./rifle-experience.mp4?rev=rifle-62"
+              data-lab-mobile-video-src=""
+              poster="./rifle-poster.jpg?rev=rifle-62"
               aria-label="Operador de airsoft avançando com seu equipamento"
             >
-              <source src="./loadout-scroll.mp4?rev=interaction-59" type="video/mp4" />
+              <source src="./rifle-experience.mp4?rev=rifle-62" type="video/mp4" />
             </video>
             <div class="lab-video-wash" aria-hidden="true"></div>
           </div>
 
-          <div class="lab-interface" data-lab-interface>
+          <div class="lab-interface" data-lab-interface aria-hidden="true">
             <div class="lab-mission-copy">
               <span class="lab-eyebrow" data-lab-stage-kicker>LOADOUT LAB / 01</span>
               <h2 data-lab-stage-title>Escolha sua base.</h2>
@@ -71,11 +72,13 @@
           </div>
 
           <div class="lab-debug-panel" data-lab-debug hidden aria-live="polite">
+            <span>Section: <b data-debug-section>RIFLE</b></span>
             <span>Scroll progress: <b data-debug-progress>0.00</b></span>
             <span>Video duration: <b data-debug-duration>—</b></span>
             <span>Target time: <b data-debug-target>0.00</b></span>
             <span>Current time: <b data-debug-current>0.00</b></span>
             <span>FPS: <b data-debug-fps>—</b></span>
+            <span>Ready state: <b data-debug-ready>—</b></span>
           </div>
         </div>
       </section>
@@ -84,6 +87,9 @@
         <a href="../../#loadout">Voltar para o Loadout atual <span>↗</span></a>
       </section>
     </main>
-    <script src="./loadout-lab.js?rev=interaction-59" defer></script>
+    <script src="./vendor/lenis.min.js" defer></script>
+    <script src="./vendor/gsap.min.js" defer></script>
+    <script src="./vendor/ScrollTrigger.min.js" defer></script>
+    <script src="./loadout-lab.js?rev=rifle-62" defer></script>
   </body>
 </html>
