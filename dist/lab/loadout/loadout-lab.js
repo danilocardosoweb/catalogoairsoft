@@ -103,12 +103,61 @@
   let scrollFrame = 0;
   let scrubFrame = 0;
   let nextSeekAt = 0;
+  let seekInFlight = false;
+  let seekGuardId = 0;
   let previousPaint = performance.now();
   let measuredFps = 0;
+  let sourcePromise = null;
+  let sourceObjectUrl = "";
+  let sourceReady = false;
+  let userReady = false;
 
   const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
   const formatMoney = (value) => value ? `R$ ${value.toLocaleString("pt-BR")}` : "Sem custo";
   const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;" })[char]);
+
+  function sourceUrl() {
+    const declared = video.dataset.labVideoSrc || video.querySelector("source")?.getAttribute("src") || video.getAttribute("src");
+    if (!declared) return "";
+    try {
+      return new URL(declared, document.baseURI).href;
+    } catch {
+      return declared;
+    }
+  }
+
+  function primeVideo() {
+    if (!userReady || reducedMotion || video.readyState < 1) return;
+    try {
+      const playPromise = video.play();
+      if (playPromise?.then) playPromise.then(() => video.pause()).catch(() => {});
+    } catch {}
+  }
+
+  function loadSeekableVideo() {
+    if (sourcePromise || sourceReady || reducedMotion) return sourcePromise;
+    const url = sourceUrl();
+    if (!url) return null;
+    sourcePromise = fetch(url, { cache: "force-cache" })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Video request failed: ${response.status}`);
+        return response.blob();
+      })
+      .then((blob) => {
+        sourceObjectUrl = URL.createObjectURL(blob);
+        video.removeAttribute("src");
+        video.querySelectorAll("source").forEach((source) => source.removeAttribute("src"));
+        video.src = sourceObjectUrl;
+        video.load();
+        sourceReady = true;
+      })
+      .catch(() => {
+        video.src = url;
+        video.load();
+        sourceReady = true;
+      });
+    return sourcePromise;
+  }
 
   function getProgress() {
     const travel = Math.max(1, story.offsetHeight - sticky.clientHeight);
@@ -196,11 +245,19 @@
 
     const nextTime = clamp(renderedTime, 0, Math.max(0, duration - 0.001));
     const now = performance.now();
-    if (!reducedMotion && now >= nextSeekAt && Math.abs(video.currentTime - nextTime) > 0.018) {
+    if (!reducedMotion && !seekInFlight && !video.seeking && now >= nextSeekAt && Math.abs(video.currentTime - nextTime) > 0.018) {
       nextSeekAt = now + 80;
+      seekInFlight = true;
       try {
         video.currentTime = nextTime;
+        window.clearTimeout(seekGuardId);
+        seekGuardId = window.setTimeout(() => {
+          seekInFlight = false;
+          seekGuardId = 0;
+          scheduleScrub();
+        }, 180);
       } catch {
+        seekInFlight = false;
         nextSeekAt = now;
       }
     }
@@ -209,7 +266,7 @@
     if (delta > 0) measuredFps = Math.round(1000 / delta);
     previousPaint = now;
     updateDebug(getProgress());
-    if (!reducedMotion && Math.abs(targetTime - renderedTime) > 0.012) scheduleScrub();
+    if (!reducedMotion && (seekInFlight || Math.abs(targetTime - renderedTime) > 0.012)) scheduleScrub();
   }
 
   function updateTarget() {
@@ -261,6 +318,18 @@
     requestUpdate();
   }
 
+  function onSeeked() {
+    seekInFlight = false;
+    window.clearTimeout(seekGuardId);
+    seekGuardId = 0;
+    scheduleScrub();
+  }
+
+  function onFirstGesture() {
+    userReady = true;
+    primeVideo();
+  }
+
   choiceList.addEventListener("click", (event) => {
     const choiceButton = event.target.closest("[data-choice-id]");
     if (!choiceButton) return;
@@ -284,15 +353,25 @@
 
   renderStage(0);
   if (DEBUG && debugPanel) debugPanel.hidden = false;
-  video.addEventListener("loadedmetadata", prepareVideo, { once: true });
+  video.addEventListener("loadedmetadata", prepareVideo);
   video.addEventListener("loadeddata", () => {
     markReady();
     prepareVideo();
-  }, { once: true });
+    primeVideo();
+  });
+  video.addEventListener("seeked", onSeeked);
   video.addEventListener("error", () => sticky.classList.add("is-video-error"), { once: true });
   window.addEventListener("scroll", requestUpdate, { passive: true });
   window.addEventListener("resize", requestUpdate, { passive: true });
+  window.addEventListener("pointerdown", onFirstGesture, { once: true, passive: true });
+  window.addEventListener("touchstart", onFirstGesture, { once: true, passive: true });
 
-  if (video.readyState >= 1) prepareVideo();
+  loadSeekableVideo();
+  if (video.readyState >= 1 && sourceReady) prepareVideo();
   requestUpdate();
+
+  window.addEventListener("pagehide", () => {
+    window.clearTimeout(seekGuardId);
+    if (sourceObjectUrl) URL.revokeObjectURL(sourceObjectUrl);
+  }, { once: true });
 })();
