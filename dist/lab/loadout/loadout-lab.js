@@ -143,6 +143,8 @@
   let scrollDriverReady = false;
   let scrollProgress = 0;
   const maxScrubStep = 0.34;
+  const choiceProgressStart = 0.08;
+  const choiceProgressEnd = 0.92;
 
   const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
   const formatMoney = (value) => value ? `R$ ${value.toLocaleString("pt-BR")}` : "Sem custo";
@@ -220,6 +222,11 @@
     if (countElement) countElement.textContent = `${String(selectedChoices.length).padStart(2, "0")} decisões registradas · ${paidItems} itens pagos`;
   }
 
+  function stageIndexForProgress(progress) {
+    const normalized = clamp((progress - choiceProgressStart) / (choiceProgressEnd - choiceProgressStart));
+    return clamp(Math.floor(normalized * stages.length), 0, stages.length - 1);
+  }
+
   function renderStageRail() {
     if (!stageRailList) return;
     stageRailList.innerHTML = stages.map((stage, index) => {
@@ -292,7 +299,9 @@
   }
 
   function updateInterface(progress) {
-    const interfaceProgress = clamp((progress - 0.9) / 0.06);
+    const interfaceProgress = clamp((progress - choiceProgressStart) / 0.08);
+    const nextStage = stageIndexForProgress(progress);
+    if (progress >= choiceProgressStart && nextStage !== activeStage) renderStage(nextStage);
     labInterface.style.setProperty("--ui-opacity", interfaceProgress.toFixed(4));
     choicePanel.style.setProperty("--panel-y", `${((1 - interfaceProgress) * 16).toFixed(2)}px`);
     choicePanel.style.pointerEvents = interfaceProgress > 0.62 ? "auto" : "none";
@@ -386,12 +395,9 @@
   }
 
   function scrollToStage(index) {
-    if (scrollProgress >= 0.88) {
-      renderStage(index);
-      return;
-    }
     const travel = Math.max(1, story.offsetHeight - sticky.clientHeight);
-    const progress = clamp((index + 0.18) / stages.length);
+    const segment = (choiceProgressEnd - choiceProgressStart) / stages.length;
+    const progress = clamp(choiceProgressStart + segment * (index + 0.5));
     const top = story.offsetTop + travel * progress;
     if (lenis) {
       lenis.scrollTo(top, { duration: reducedMotion ? 0 : 0.85 });
