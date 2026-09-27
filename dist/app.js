@@ -140,7 +140,7 @@ const categories = [
   { name: "Proteção", count: "27 itens", image: "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=900&q=82" }
 ];
 
-const defaultSettings = { whatsapp: "5511999999999", storeName: "Field Ops", city: "São Paulo", lowStock: 10 };
+const defaultSettings = { whatsapp: "5511999999999", storeName: "Suprimentos Oliveira", city: "São Paulo", lowStock: 10 };
 const storedSettings = JSON.parse(localStorage.getItem("fieldops-settings") || "null");
 const airdropStatuses = { draft: "Em preparo", scheduled: "Agendado", active: "No ar", ended: "Encerrado", archived: "Arquivado" };
 const airdropSeedStart = new Date(Date.now() + 86400000);
@@ -156,7 +156,7 @@ const seedRadarContent = [
 ];
 
 const seedRadarSources = [
-  { id: "source-manual", name: "Entrada manual Field Ops", type: "manual", url: "", cadence: "manual", active: true, status: "local", lastSync: null, itemsFound: 0, notes: "Conteúdo criado pela operação e revisado antes da publicação." },
+  { id: "source-manual", name: "Entrada manual Suprimentos Oliveira", type: "manual", url: "", cadence: "manual", active: true, status: "local", lastSync: null, itemsFound: 0, notes: "Conteúdo criado pela operação e revisado antes da publicação." },
   { id: "source-ghostbase", name: "GhostBase / Agenda Nacional", type: "events", url: "https://www.ghostbase.com.br/", cadence: "daily", active: true, status: "needs_backend", lastSync: null, itemsFound: 0, notes: "Revisar operações, equipes e notícias. Confirmar data, cidade, organizador e disponibilidade antes de publicar." },
   { id: "source-airsoftrs", name: "Airsoft RS / Feed de agenda", type: "rss", url: "https://airsoftrs.com/feed/", cadence: "daily", active: true, status: "needs_backend", lastSync: null, itemsFound: 0, notes: "Feed RSS público de agenda e notícias. Priorizar eventos futuros e validar informações no artigo original." },
   { id: "source-airsoftcompany", name: "Airsoft Company / Eventos", type: "events", url: "https://www.airsoftcompany.com.br/eventos", cadence: "daily", active: true, status: "needs_backend", lastSync: null, itemsFound: 0, notes: "Agenda pública de eventos e torneios. Usar como descoberta e confirmar detalhes com a organização." },
@@ -230,6 +230,7 @@ function ensureRadarSourceShape(source) {
 }
 
 state.radar = { location: { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual" }, scope: "nearby", type: "all", radius: 100, sort: "relevance", view: "feed", ...(state.radar || {}) };
+if (state.settings.storeName === "Field Ops") { state.settings.storeName = defaultSettings.storeName; localStorage.setItem("fieldops-settings", JSON.stringify(state.settings)); }
 state.radar.location = { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual", ...(state.radar.location || {}) };
 state.radarContents = (Array.isArray(state.radarContents) ? state.radarContents : seedRadarContent).map(ensureRadarContentShape).map((content) => content.country !== "Brasil" ? { ...content, state: "" } : content);
 state.radarFollowing = Array.isArray(state.radarFollowing) ? state.radarFollowing : [];
@@ -664,16 +665,16 @@ function airdropHomeSection() {
   const campaign = current || upcoming;
   if (!campaign) return "";
   const live = Boolean(current);
-  return `<section class="airdrop-home-card ${live ? "is-live" : "is-upcoming"}"><div class="airdrop-home-signal"><span class="airdrop-signal-core">✦</span><span class="status-dot"></span><small>${live ? "AIRDROP / NO AR" : "AIRDROP / INCOMING"}</small></div><div class="airdrop-home-copy"><span class="eyebrow">SOCIAL DROP / FIELD OPS</span><h2>${live ? "Um drop caiu no mapa." : "O próximo drop está em rota."}</h2><p>${escapeHtml(campaign.message)}</p></div><div class="airdrop-home-meta"><strong>${live ? airdropDiscountLabel(campaign) : airdropDate(campaign.startsAt)}</strong><small>${live ? "Código liberado nas redes" : "Siga as redes para saber primeiro"}</small><button class="outline-cta" data-action="cart">${live ? "Resgatar no carrinho" : "Abrir central Airdrop"}</button></div></section>`;
+  return `<section class="airdrop-home-card ${live ? "is-live" : "is-upcoming"}"><div class="airdrop-home-signal"><span class="airdrop-signal-core">✦</span><span class="status-dot"></span><small>${live ? "AIRDROP / NO AR" : "AIRDROP / INCOMING"}</small></div><div class="airdrop-home-copy"><span class="eyebrow">SOCIAL DROP / SUPRIMENTOS OLIVEIRA</span><h2>${live ? "Um drop caiu no mapa." : "O próximo drop está em rota."}</h2><p>${escapeHtml(campaign.message)}</p></div><div class="airdrop-home-meta"><strong>${live ? airdropDiscountLabel(campaign) : airdropDate(campaign.startsAt)}</strong><small>${live ? "Código liberado nas redes" : "Siga as redes para saber primeiro"}</small><button class="outline-cta" data-action="cart">${live ? "Resgatar no carrinho" : "Abrir central Airdrop"}</button></div></section>`;
 }
 
 function homePage() {
   const feature = recommendedProducts().slice(0, 4);
   return `<section class="page home-page">
-    <section class="home-hero" data-hero-interactive aria-label="Banner interativo Field Ops">
+    <section class="home-hero" data-hero-interactive aria-label="Banner interativo Suprimentos Oliveira">
       <video class="hero-video" data-hero-video src="videos/operator-airsoft.mp4?v=motion-smooth-21" muted playsinline preload="auto" tabindex="-1" aria-hidden="true"></video>
       <div class="hero-video-shade" aria-hidden="true"></div>
-      <div class="hero-content"><span class="hero-kicker">AIRSOFT EQUIPMENT / 01</span><h1 class="hero-title">DOMINE<br><em>O JOGO</em></h1><p class="hero-subtitle">Equipamentos, precisão e adrenalina para quem vive Airsoft.</p><button class="hero-cta" data-route="catalog">Explorar catálogo</button></div>
+      <div class="hero-content"><div class="hero-store-signature"><img src="/assets/suprimentos-oliveira-logo.webp" alt="Logo Suprimentos Oliveira" /><span><strong>SUPRIMENTOS OLIVEIRA</strong><small>DESDE 2018 · PRODUTOS PARA AIRSOFT</small></span></div><span class="hero-kicker">TACTICAL STORE / 01</span><h1 class="hero-title">DOMINE<br><em>O JOGO</em></h1><p class="hero-subtitle">Equipamentos, precisão e adrenalina para quem vive Airsoft.</p><button class="hero-cta" data-route="catalog">Explorar catálogo</button></div>
       ${heroRadarMarkup()}<button class="hero-sensor-button" data-action="hero-sensor" type="button" aria-label="Ativar movimento por giroscópio"><span class="hero-sensor-glyph" aria-hidden="true">⌁</span><span data-sensor-label>Ativar sensor</span><small data-sensor-status>mobile aim / tap to sync</small></button>
       <div class="hero-coordinates"><span>System // Online</span><span>Stock // Updated</span><span>Field // Ready</span></div><div class="hero-index"><strong>01</strong> / 04</div>
     </section>
@@ -713,7 +714,7 @@ function catalogPage() {
 }
 
 function productPage(product) {
-  return `<section class="page detail-page"><div class="container"><div class="breadcrumb"><a href="#catalog" data-route="catalog">Catálogo</a><span>/</span><a href="#catalog" data-route="catalog">${product.category}</a><span>/</span><b>${product.name}</b></div><div class="detail-grid"><div><div class="detail-gallery-main"><img src="${product.image}" alt="${product.brand} ${product.name}" /><span class="gallery-index">PRODUCT // ${String(products.indexOf(product) + 231).padStart(5, "0")}</span></div><div class="specs-panel"><div class="specs-title"><h2>Tech specs</h2><small>SYSTEM // ${product.system}</small></div><div class="specs-grid">${Object.entries(product.specs).map(([label, value]) => `<div class="spec-item"><span>${label}</span><strong>${value}</strong></div>`).join("")}</div><div class="accordion"><details open><summary>Descrição</summary><p>${product.description}</p></details><details><summary>Conteúdo da embalagem</summary><p>Produto principal, magazine compatível e manual de operação.</p></details><details><summary>Compatibilidade</summary><p>Consulte o time Field Ops para validar acessórios e peças para o seu loadout.</p></details></div></div></div><div class="detail-info"><span class="detail-brand">${product.brand}</span><h1>${product.name}</h1><span class="detail-type">${product.type} / ${product.meta}</span><div class="detail-price">${money(product.price)}</div><div class="detail-stock"><span class="stock ${product.stockCount <= 0 ? "stock-out" : ""}">${stockLabel(product)}</span></div><div class="quantity-row"><div class="quantity-control"><button data-quantity="-" aria-label="Diminuir quantidade">−</button><span data-quantity-value>1</span><button data-quantity="+" aria-label="Aumentar quantidade">+</button></div><button class="primary-wide" data-add-detail="${product.id}" ${product.stockCount <= 0 ? "disabled" : ""}>${product.stockCount <= 0 ? "Indisponível" : "Adicionar ao carrinho"}</button></div><div class="detail-note">Você pode solicitar orçamento pelo WhatsApp no próximo passo.</div></div></div><section class="related-section"><div class="section-label"><div><span class="eyebrow">COMPLETE SEU LOADOUT</span><h2>A próxima<br>peça.</h2></div><a class="text-link" href="#loadout" data-route="loadout">Montar loadout</a></div><div class="product-grid">${activeProducts().filter((item) => item.id !== product.id).slice(0, 4).map(productCard).join("")}</div></section></div></section>`;
+  return `<section class="page detail-page"><div class="container"><div class="breadcrumb"><a href="#catalog" data-route="catalog">Catálogo</a><span>/</span><a href="#catalog" data-route="catalog">${product.category}</a><span>/</span><b>${product.name}</b></div><div class="detail-grid"><div><div class="detail-gallery-main"><img src="${product.image}" alt="${product.brand} ${product.name}" /><span class="gallery-index">PRODUCT // ${String(products.indexOf(product) + 231).padStart(5, "0")}</span></div><div class="specs-panel"><div class="specs-title"><h2>Tech specs</h2><small>SYSTEM // ${product.system}</small></div><div class="specs-grid">${Object.entries(product.specs).map(([label, value]) => `<div class="spec-item"><span>${label}</span><strong>${value}</strong></div>`).join("")}</div><div class="accordion"><details open><summary>Descrição</summary><p>${product.description}</p></details><details><summary>Conteúdo da embalagem</summary><p>Produto principal, magazine compatível e manual de operação.</p></details><details><summary>Compatibilidade</summary><p>Consulte o time Suprimentos Oliveira para validar acessórios e peças para o seu loadout.</p></details></div></div></div><div class="detail-info"><span class="detail-brand">${product.brand}</span><h1>${product.name}</h1><span class="detail-type">${product.type} / ${product.meta}</span><div class="detail-price">${money(product.price)}</div><div class="detail-stock"><span class="stock ${product.stockCount <= 0 ? "stock-out" : ""}">${stockLabel(product)}</span></div><div class="quantity-row"><div class="quantity-control"><button data-quantity="-" aria-label="Diminuir quantidade">−</button><span data-quantity-value>1</span><button data-quantity="+" aria-label="Aumentar quantidade">+</button></div><button class="primary-wide" data-add-detail="${product.id}" ${product.stockCount <= 0 ? "disabled" : ""}>${product.stockCount <= 0 ? "Indisponível" : "Adicionar ao carrinho"}</button></div><div class="detail-note">Você pode solicitar orçamento pelo WhatsApp no próximo passo.</div></div></div><section class="related-section"><div class="section-label"><div><span class="eyebrow">COMPLETE SEU LOADOUT</span><h2>A próxima<br>peça.</h2></div><a class="text-link" href="#loadout" data-route="loadout">Montar loadout</a></div><div class="product-grid">${activeProducts().filter((item) => item.id !== product.id).slice(0, 4).map(productCard).join("")}</div></section></div></section>`;
 }
 
 function loadoutPage() {
@@ -742,7 +743,7 @@ function compareBar() {
 
 function adminNav(active) {
   const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-quotes", "Orçamentos"], ["admin-import", "Importações"]];
-  return `<aside class="admin-sidebar"><div class="admin-side-brand"><span class="eyebrow">FIELD OPS / OPS</span><strong>Command<br>center.</strong></div><nav class="admin-menu">${items.map(([route, label]) => `<a href="#${route}" data-route="${route}" class="${active === route ? "active" : ""}"><span class="admin-menu-index">${String(items.indexOf(items.find((item) => item[0] === route)) + 1).padStart(2, "0")}</span>${label}</a>`).join("")}</nav><div class="admin-side-foot"><span class="status-dot"></span><span>OPERATIONAL MODE</span><small>v0.1 / PREVIEW</small></div></aside>`;
+  return `<aside class="admin-sidebar"><div class="admin-side-brand"><span class="eyebrow">SUPRIMENTOS OLIVEIRA / OPS</span><strong>Command<br>center.</strong></div><nav class="admin-menu">${items.map(([route, label]) => `<a href="#${route}" data-route="${route}" class="${active === route ? "active" : ""}"><span class="admin-menu-index">${String(items.indexOf(items.find((item) => item[0] === route)) + 1).padStart(2, "0")}</span>${label}</a>`).join("")}</nav><div class="admin-side-foot"><span class="status-dot"></span><span>OPERATIONAL MODE</span><small>v0.1 / PREVIEW</small></div></aside>`;
 }
 
 function downloadLocalFile(filename, content, type) {
@@ -768,7 +769,7 @@ function csvDocument(rows) {
 }
 
 function exportDataModal() {
-  openModal(`<span class="eyebrow">DATA / EXPORT</span><h2>Leve sua<br>operação.</h2><p>Exporte os dados salvos neste dispositivo para backup, análise ou migração.</p><div class="form-grid"><button class="modal-submit" data-action="export-backup">Backup completo · JSON</button><button class="outline-cta" data-action="export-products">Produtos e estoque · CSV</button><button class="outline-cta" data-action="export-quotes">Orçamentos e clientes · CSV</button><label class="backup-import-dropzone"><input id="backup-file" type="file" accept=".json,application/json" /><span class="dropzone-mark">↥</span><strong>Restaurar um backup</strong><small>Selecione um JSON exportado pelo FIELD OPS</small><span class="outline-cta">Escolher backup</span></label></div>`);
+  openModal(`<span class="eyebrow">DATA / EXPORT</span><h2>Leve sua<br>operação.</h2><p>Exporte os dados salvos neste dispositivo para backup, análise ou migração.</p><div class="form-grid"><button class="modal-submit" data-action="export-backup">Backup completo · JSON</button><button class="outline-cta" data-action="export-products">Produtos e estoque · CSV</button><button class="outline-cta" data-action="export-quotes">Orçamentos e clientes · CSV</button><label class="backup-import-dropzone"><input id="backup-file" type="file" accept=".json,application/json" /><span class="dropzone-mark">↥</span><strong>Restaurar um backup</strong><small>Selecione um JSON exportado pelo Suprimentos Oliveira</small><span class="outline-cta">Escolher backup</span></label></div>`);
   document.querySelector("#backup-file")?.addEventListener("change", (event) => analyzeBackupFile(event.target.files[0]));
 }
 
@@ -997,7 +998,7 @@ function radarContentModal(id = null) {
 
 function adminNav(active) {
   const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-content", "Radar / Conteúdo"], ["admin-settings", "Configurações"]];
-  return `<aside class="admin-sidebar"><div class="admin-side-brand"><span class="eyebrow">FIELD OPS / OPS</span><strong>Command<br>center.</strong></div><nav class="admin-menu">${items.map(([route, label], index) => `<a href="#${route}" data-route="${route}" class="${active === route ? "active" : ""}"><span class="admin-menu-index">${String(index + 1).padStart(2, "0")}</span>${label}</a>`).join("")}</nav><div class="admin-side-foot"><span class="status-dot"></span><span>OPERATIONAL MODE</span><small>v0.1 / LOCAL-FIRST</small></div></aside>`;
+  return `<aside class="admin-sidebar"><div class="admin-side-brand"><span class="eyebrow">SUPRIMENTOS OLIVEIRA / OPS</span><strong>Command<br>center.</strong></div><nav class="admin-menu">${items.map(([route, label], index) => `<a href="#${route}" data-route="${route}" class="${active === route ? "active" : ""}"><span class="admin-menu-index">${String(index + 1).padStart(2, "0")}</span>${label}</a>`).join("")}</nav><div class="admin-side-foot"><span class="status-dot"></span><span>OPERATIONAL MODE</span><small>v0.1 / LOCAL-FIRST</small></div></aside>`;
 }
 
 function adminDashboardPage() {
@@ -1047,7 +1048,7 @@ function saveAirdrop(event) {
   const expiresAt = form.get("expiresAt") ? new Date(form.get("expiresAt")).toISOString() : new Date(now.getTime() + 72 * 3600000).toISOString();
   if (new Date(expiresAt).getTime() <= new Date(startsAt).getTime()) { showToast("O término precisa ser depois do início."); return; }
   if (action === "launch") state.airdrops.filter((campaign) => airdropPhase(campaign) === "active").forEach((campaign) => { campaign.status = "ended"; });
-  state.airdrops.unshift({ id: `airdrop-${Date.now()}`, name: String(form.get("name") || "AIRDROP FIELD OPS").trim(), code, discountType: form.get("discountType") === "fixed" ? "fixed" : "percent", discountValue: Math.max(1, Number(form.get("discountValue")) || 0), minSubtotal: Math.max(0, Number(form.get("minSubtotal")) || 0), maxUses: Math.max(0, Number(form.get("maxUses")) || 0), redeemed: 0, startsAt, expiresAt, status: action === "launch" ? "active" : "scheduled", message: String(form.get("message") || "Siga as redes da loja para descobrir o próximo drop.").trim() });
+  state.airdrops.unshift({ id: `airdrop-${Date.now()}`, name: String(form.get("name") || "AIRDROP SUPRIMENTOS OLIVEIRA").trim(), code, discountType: form.get("discountType") === "fixed" ? "fixed" : "percent", discountValue: Math.max(1, Number(form.get("discountValue")) || 0), minSubtotal: Math.max(0, Number(form.get("minSubtotal")) || 0), maxUses: Math.max(0, Number(form.get("maxUses")) || 0), redeemed: 0, startsAt, expiresAt, status: action === "launch" ? "active" : "scheduled", message: String(form.get("message") || "Siga as redes da loja para descobrir o próximo drop.").trim() });
   persist();
   render();
   showToast(action === "launch" ? "Airdrop solto no mapa." : "Airdrop agendado.");
@@ -2255,7 +2256,7 @@ function quoteModal() {
     persist();
     updateNav();
     renderDrawer();
-    modalContent.innerHTML = `<div class="success-box"><div class="success-mark">✓</div><span class="eyebrow">QUOTE // READY</span><h2>Orçamento criado.</h2><p>Seu resumo está pronto. Continue no WhatsApp para falar com o time Field Ops.</p><a class="modal-submit" href="${link}" target="_blank" rel="noreferrer">Abrir WhatsApp ↗</a></div>`;
+    modalContent.innerHTML = `<div class="success-box"><div class="success-mark">✓</div><span class="eyebrow">QUOTE // READY</span><h2>Orçamento criado.</h2><p>Seu resumo está pronto. Continue no WhatsApp para falar com o time Suprimentos Oliveira.</p><a class="modal-submit" href="${link}" target="_blank" rel="noreferrer">Abrir WhatsApp ↗</a></div>`;
     showToast("Orçamento criado.");
   });
 }
@@ -2933,7 +2934,7 @@ document.addEventListener("click", (event) => {
   if (action === "import-reset") { state.importData = null; render(); }
   if (action === "import-rollback") rollbackImport(event.target.closest("[data-import-id]")?.dataset.importId);
   if (action === "reset-local-data") resetLocalData();
-  if (action === "menu") openModal(`<span class="eyebrow">FIELD OPS / MENU</span><h2>Navegue<br>pelo arsenal.</h2><div class="form-grid"><button class="outline-cta" data-route="catalog">Catálogo</button><button class="outline-cta" data-route="radar">Radar Airsoft</button><button class="outline-cta" data-route="loadout">Monte seu loadout</button><button class="outline-cta" data-route="favorites">Favoritos</button><button class="outline-cta" data-route="admin">Painel operacional</button></div>`);
+  if (action === "menu") openModal(`<span class="eyebrow">SUPRIMENTOS OLIVEIRA / MENU</span><h2>Navegue<br>pelo arsenal.</h2><div class="form-grid"><button class="outline-cta" data-route="catalog">Catálogo</button><button class="outline-cta" data-route="radar">Radar Airsoft</button><button class="outline-cta" data-route="loadout">Monte seu loadout</button><button class="outline-cta" data-route="favorites">Favoritos</button><button class="outline-cta" data-route="admin">Painel operacional</button></div>`);
   if (action === "apply-filter-modal") { closeModal(); render(); }
   const loadoutId = event.target.closest("[data-loadout-select]")?.dataset.loadoutSelect;
   const loadoutSlot = event.target.closest("[data-loadout-select]")?.dataset.loadoutSlot;
