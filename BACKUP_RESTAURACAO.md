@@ -1,5 +1,16 @@
 # Ponto de restauração — FIELD OPS
 
+## Ponto mais recente — perfis de acesso
+
+- Data: 27/09/2026
+- Versão publicada: v72
+- URL: https://field-ops-airsoft.danilocardoso-web.chatgpt.site
+- Commit do estado funcional: `290421a4306468f0e403be0d943af4c94d8b7150`
+- Arquivo: `site-release-access-roles-v72.tar.gz`
+- SHA-256: `3986F51C5DB8CA9A5D41CA39A01AAAC606660E45DE5369B043622E07F1754B19`
+
+Este ponto adiciona os perfis Consumidor, Lojista e Distribuidor, menus e áreas iniciais por função, mapa de permissões e redirecionamento de rotas não permitidas. O perfil de Lojista recebe a operação completa da loja; o Distribuidor fica limitado ao abastecimento; o Consumidor permanece na jornada de compra. A autenticação e a autorização de servidor continuam pendentes para transformar esta separação local-first em segurança real.
+
 ## Estado protegido
 
 - Data: 26/09/2026
