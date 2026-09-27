@@ -142,6 +142,16 @@ const categories = [
 
 const defaultSettings = { whatsapp: "5511999999999", storeName: "Suprimentos Oliveira", city: "São Paulo", lowStock: 10 };
 const storedSettings = JSON.parse(localStorage.getItem("fieldops-settings") || "null");
+const bannerTypes = { video: "Vídeo", image: "Imagem" };
+const bannerTargets = { catalog: "Explorar catálogo", loadout: "Montar loadout", radar: "Abrir Radar", cart: "Abrir Airdrop" };
+const seedBanners = [
+  { id: "banner-command", name: "Operação principal", type: "video", media: "videos/operator-airsoft.mp4?v=motion-smooth-21", eyebrow: "TACTICAL STORE / 01", title: "DOMINE", titleAccent: "O JOGO", subtitle: "Equipamentos, precisão e adrenalina para quem vive Airsoft.", ctaLabel: "Explorar catálogo", ctaTarget: "catalog", active: true, order: 1 },
+  { id: "banner-novidades", name: "Novidades em campo", type: "image", media: "https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=1800&q=84", eyebrow: "NOVIDADES / 02", title: "NOVA LEITURA", titleAccent: "DE CAMPO.", subtitle: "Descubra equipamentos que chegaram para o próximo jogo.", ctaLabel: "Ver novidades", ctaTarget: "catalog", active: true, order: 2 },
+  { id: "banner-airdrop", name: "Airdrop social", type: "image", media: "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1800&q=84", eyebrow: "AIRDROP / 03", title: "UM DROP", titleAccent: "CAIU NO MAPA.", subtitle: "Acompanhe as redes da loja e seja o primeiro a resgatar.", ctaLabel: "Abrir Airdrop", ctaTarget: "cart", active: true, order: 3 },
+  { id: "banner-promo", name: "Oferta de campo", type: "image", media: "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1800&q=84", eyebrow: "OFERTA / 04", title: "PREÇO DE", titleAccent: "OPERAÇÃO.", subtitle: "Condições especiais para fechar seu próximo setup sem perder o ritmo.", ctaLabel: "Ver ofertas", ctaTarget: "catalog", active: true, order: 4 },
+  { id: "banner-loadout", name: "Loadout Lab", type: "image", media: "https://images.unsplash.com/photo-1687726258745-8546ad8030d6?auto=format&fit=crop&w=1800&q=84", eyebrow: "LOADOUT LAB / 05", title: "MONTE SEU", titleAccent: "LOADOUT.", subtitle: "Combine plataforma, óptica e proteção para entrar em campo preparado.", ctaLabel: "Montar loadout", ctaTarget: "loadout", active: true, order: 5 }
+];
+const storedBanners = JSON.parse(localStorage.getItem("fieldops-banners") || "null");
 const airdropStatuses = { draft: "Em preparo", scheduled: "Agendado", active: "No ar", ended: "Encerrado", archived: "Arquivado" };
 const airdropSeedStart = new Date(Date.now() + 86400000);
 const seedAirdrops = [{ id: "airdrop-nightfall", name: "OPERAÇÃO NIGHTFALL", code: "DROP10", discountType: "percent", discountValue: 10, minSubtotal: 450, maxUses: 80, redeemed: 0, startsAt: airdropSeedStart.toISOString(), expiresAt: new Date(airdropSeedStart.getTime() + 3 * 86400000).toISOString(), status: "scheduled", message: "Siga as redes da loja para saber quando o código entrar no ar." }];
@@ -194,6 +204,8 @@ const state = {
   recentSearches: JSON.parse(localStorage.getItem("fieldops-recent-searches") || "[]"),
   recentProducts: JSON.parse(localStorage.getItem("fieldops-recent-products") || "[]"),
   settings: { ...defaultSettings, ...(storedSettings || {}) },
+  banners: Array.isArray(storedBanners) ? storedBanners : seedBanners,
+  bannerIndex: 0,
   theme: localStorage.getItem("fieldops-theme") === "light" ? "light" : "dark",
   quoteSearch: "",
   quoteStatusFilter: "all",
@@ -221,6 +233,41 @@ function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
 }
 
+function ensureBannerShape(banner, index = 0) {
+  const source = banner && typeof banner === "object" ? banner : {};
+  return {
+    ...source,
+    id: String(source.id || `banner-${Date.now()}-${index}`),
+    name: String(source.name || "Campanha sem nome").trim().slice(0, 80),
+    type: bannerTypes[source.type] ? source.type : "image",
+    media: String(source.media || seedBanners[index % seedBanners.length].media).trim(),
+    eyebrow: String(source.eyebrow || `CAMPANHA / ${String(index + 1).padStart(2, "0")}`).trim().slice(0, 60),
+    title: String(source.title || "NOVA OPERAÇÃO").trim().slice(0, 60),
+    titleAccent: String(source.titleAccent || "EM CAMPO.").trim().slice(0, 60),
+    subtitle: String(source.subtitle || "Uma nova leitura para o seu próximo jogo.").trim().slice(0, 180),
+    ctaLabel: String(source.ctaLabel || "Explorar catálogo").trim().slice(0, 40),
+    ctaTarget: bannerTargets[source.ctaTarget] ? source.ctaTarget : "catalog",
+    active: source.active !== false,
+    order: Math.max(1, Number(source.order) || index + 1)
+  };
+}
+
+function bannerMediaUrl(value, fallback) {
+  const media = String(value || "").trim();
+  if (!media) return fallback;
+  try {
+    const url = new URL(media, window.location.origin);
+    if (["http:", "https:"].includes(url.protocol)) return media;
+    if (media.startsWith("/") || media.startsWith("./") || media.startsWith("../")) return media;
+  } catch {}
+  return fallback;
+}
+
+function homeBanners() {
+  const list = state.banners.filter((banner) => banner.active).sort((a, b) => a.order - b.order);
+  return (list.length ? list : seedBanners).map(ensureBannerShape);
+}
+
 function ensureRadarContentShape(content) {
   return { ...content, type: radarTypes[content.type] ? content.type : "news", status: radarStatuses[content.status] ? content.status : "draft", title: content.title || "Sem título", summary: content.summary || "Conteúdo Radar Airsoft.", description: content.description || content.summary || "", city: content.city || "São Paulo", state: content.state ?? (content.country === "Brasil" ? "SP" : ""), country: content.country || "Brasil", date: content.date || new Date().toISOString().slice(0, 10), time: content.time || "", tags: Array.isArray(content.tags) ? content.tags : String(content.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean), productIds: Array.isArray(content.productIds) ? content.productIds : [], popularity: Number(content.popularity || 0), distanceKm: Number(content.distanceKm || 0), image: content.image || "https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=1200&q=82" };
 }
@@ -237,6 +284,7 @@ state.radarFollowing = Array.isArray(state.radarFollowing) ? state.radarFollowin
 state.radarSources = (Array.isArray(state.radarSources) ? state.radarSources : seedRadarSources).map(ensureRadarSourceShape);
 const existingRadarSourceIds = new Set(state.radarSources.map((source) => source.id));
 state.radarSources.push(...seedRadarSources.filter((source) => !existingRadarSourceIds.has(source.id)).map(ensureRadarSourceShape));
+state.banners = (Array.isArray(state.banners) ? state.banners : seedBanners).map(ensureBannerShape);
 state.radarAssist = { ...defaultRadarAssist, ...(state.radarAssist || {}), score: Math.max(0, Math.round(Number(state.radarAssist?.score) || 0)), assists: Math.max(0, Math.round(Number(state.radarAssist?.assists) || 0)), neutralizations: Math.max(0, Math.round(Number(state.radarAssist?.neutralizations) || 0)) };
 state.airdrops = (Array.isArray(state.airdrops) ? state.airdrops : seedAirdrops).map((campaign) => ({
   id: campaign.id || `airdrop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -330,6 +378,7 @@ const modalLayer = document.querySelector("[data-modal-layer]");
 const modalContent = document.querySelector("[data-modal-content]");
 let heroInteractionCleanup = null;
 let heroRadarCleanup = null;
+let heroCarouselCleanup = null;
 let heroSensorActivate = null;
 let heroRadarPulse = null;
 let modalPreviousFocus = null;
@@ -397,6 +446,7 @@ function persist() {
   localStorage.setItem("fieldops-recent-searches", JSON.stringify(state.recentSearches));
   localStorage.setItem("fieldops-recent-products", JSON.stringify(state.recentProducts));
   localStorage.setItem("fieldops-settings", JSON.stringify(state.settings));
+  localStorage.setItem("fieldops-banners", JSON.stringify(state.banners));
   localStorage.setItem("fieldops-theme", state.theme);
   localStorage.setItem("fieldops-radar", JSON.stringify(state.radar));
   localStorage.setItem("fieldops-radar-following", JSON.stringify(state.radarFollowing));
@@ -670,13 +720,18 @@ function airdropHomeSection() {
 
 function homePage() {
   const feature = recommendedProducts().slice(0, 4);
+  const banners = homeBanners();
+  const activeIndex = Math.min(Math.max(0, state.bannerIndex), banners.length - 1);
+  const banner = banners[activeIndex];
+  const bannerImage = banner.type === "image" ? bannerMediaUrl(banner.media, seedBanners[1].media) : "";
+  const bannerVideo = banner.type === "video" ? bannerMediaUrl(banner.media, seedBanners[0].media) : seedBanners[0].media;
   return `<section class="page home-page">
-    <section class="home-hero" data-hero-interactive aria-label="Banner interativo Suprimentos Oliveira">
-      <video class="hero-video" data-hero-video src="videos/operator-airsoft.mp4?v=motion-smooth-21" muted playsinline preload="auto" tabindex="-1" aria-hidden="true"></video>
+    <section class="home-hero" data-hero-interactive data-banner-type="${banner.type}" data-banner-image="${escapeHtml(bannerImage)}" data-banner-video="${escapeHtml(bannerVideo)}" aria-label="${escapeHtml(banner.name)}">
+      <video class="hero-video" data-hero-video src="${escapeHtml(bannerVideo)}" muted playsinline preload="auto" tabindex="-1" aria-hidden="true"></video>
       <div class="hero-video-shade" aria-hidden="true"></div>
-      <div class="hero-content"><div class="hero-store-signature"><img src="/assets/suprimentos-oliveira-logo.webp" alt="Logo Suprimentos Oliveira" /><span><strong>SUPRIMENTOS OLIVEIRA</strong><small>DESDE 2018 · PRODUTOS PARA AIRSOFT</small></span></div><span class="hero-kicker">TACTICAL STORE / 01</span><h1 class="hero-title">DOMINE<br><em>O JOGO</em></h1><p class="hero-subtitle">Equipamentos, precisão e adrenalina para quem vive Airsoft.</p><button class="hero-cta" data-route="catalog">Explorar catálogo</button></div>
+      <div class="hero-content"><div class="hero-store-signature"><img src="/assets/suprimentos-oliveira-logo.webp" alt="Logo Suprimentos Oliveira" /><span><strong>SUPRIMENTOS OLIVEIRA</strong><small>DESDE 2018 · PRODUTOS PARA AIRSOFT</small></span></div><span class="hero-kicker" data-hero-kicker>${escapeHtml(banner.eyebrow)}</span><h1 class="hero-title"><span data-hero-title>${escapeHtml(banner.title)}</span><br><em data-hero-title-accent>${escapeHtml(banner.titleAccent)}</em></h1><p class="hero-subtitle" data-hero-subtitle>${escapeHtml(banner.subtitle)}</p><button class="hero-cta" data-action="hero-cta" data-hero-target="${escapeHtml(banner.ctaTarget)}" data-hero-cta>${escapeHtml(banner.ctaLabel)}</button></div>
       ${heroRadarMarkup()}<button class="hero-sensor-button" data-action="hero-sensor" type="button" aria-label="Ativar movimento por giroscópio"><span class="hero-sensor-glyph" aria-hidden="true">⌁</span><span data-sensor-label>Ativar sensor</span><small data-sensor-status>mobile aim / tap to sync</small></button>
-      <div class="hero-coordinates"><span>System // Online</span><span>Stock // Updated</span><span>Field // Ready</span></div><div class="hero-index"><strong>01</strong> / 04</div>
+      <div class="hero-coordinates"><span>System // Online</span><span>Stock // Updated</span><span>Field // Ready</span></div><div class="hero-carousel-controls" aria-label="Escolher campanha"><button type="button" class="hero-carousel-arrow" data-banner-prev aria-label="Banner anterior">←</button><div class="hero-carousel-dots">${banners.map((item, index) => `<button type="button" class="hero-carousel-dot ${index === activeIndex ? "is-active" : ""}" data-banner-index="${index}" aria-label="Abrir banner ${index + 1}: ${escapeHtml(item.name)}" aria-current="${index === activeIndex ? "true" : "false"}"><strong>${String(index + 1).padStart(2, "0")}</strong><span>${escapeHtml(item.name)}</span></button>`).join("")}</div><button type="button" class="hero-carousel-arrow" data-banner-next aria-label="Próximo banner">→</button></div><div class="hero-index"><strong data-hero-index>${String(activeIndex + 1).padStart(2, "0")}</strong> / ${String(banners.length).padStart(2, "0")}</div>
     </section>
     ${searchBar()}
     <div class="container">
@@ -742,7 +797,7 @@ function compareBar() {
 }
 
 function adminNav(active) {
-  const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-quotes", "Orçamentos"], ["admin-import", "Importações"]];
+  const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-content", "Radar / Conteúdo"], ["admin-banners", "Banners"], ["admin-settings", "Configurações"]];
   return `<aside class="admin-sidebar"><div class="admin-side-brand"><span class="eyebrow">SUPRIMENTOS OLIVEIRA / OPS</span><strong>Command<br>center.</strong></div><nav class="admin-menu">${items.map(([route, label]) => `<a href="#${route}" data-route="${route}" class="${active === route ? "active" : ""}"><span class="admin-menu-index">${String(items.indexOf(items.find((item) => item[0] === route)) + 1).padStart(2, "0")}</span>${label}</a>`).join("")}</nav><div class="admin-side-foot"><span class="status-dot"></span><span>OPERATIONAL MODE</span><small>v0.1 / PREVIEW</small></div></aside>`;
 }
 
@@ -775,7 +830,7 @@ function exportDataModal() {
 
 function exportBackup() {
   closeModal();
-  const payload = { schemaVersion: 3, exportedAt: new Date().toISOString(), source: "FIELD OPS", products, cart: state.cart, cartShipping: state.cartShipping, shippingCache: state.shippingCache, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, compare: state.compare, loadout: state.loadout, settings: state.settings, profile: state.profile, account: state.account, recentSearches: state.recentSearches, recentProducts: state.recentProducts, importHistory: state.importHistory, theme: state.theme, radar: state.radar, radarFollowing: state.radarFollowing, radarContents: state.radarContents, radarSources: state.radarSources, radarAssist: state.radarAssist, airdrops: state.airdrops, appliedAirdropCode: state.appliedAirdropCode || "" };
+  const payload = { schemaVersion: 4, exportedAt: new Date().toISOString(), source: "FIELD OPS", products, cart: state.cart, cartShipping: state.cartShipping, shippingCache: state.shippingCache, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, compare: state.compare, loadout: state.loadout, settings: state.settings, banners: state.banners, profile: state.profile, account: state.account, recentSearches: state.recentSearches, recentProducts: state.recentProducts, importHistory: state.importHistory, theme: state.theme, radar: state.radar, radarFollowing: state.radarFollowing, radarContents: state.radarContents, radarSources: state.radarSources, radarAssist: state.radarAssist, airdrops: state.airdrops, appliedAirdropCode: state.appliedAirdropCode || "" };
   downloadLocalFile(`field-ops-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
   showToast("Backup completo exportado.");
 }
@@ -843,6 +898,7 @@ async function applyBackupRestore() {
   state.orders = (Array.isArray(payload.orders) ? payload.orders : []).map(ensureOrderShape);
   state.loadout = payload.loadout && typeof payload.loadout === "object" ? payload.loadout : { Rifle: restoredProducts[0].id };
   state.settings = { ...defaultSettings, ...(payload.settings && typeof payload.settings === "object" ? payload.settings : {}) };
+  state.banners = (Array.isArray(payload.banners) ? payload.banners : seedBanners).map(ensureBannerShape);
   state.shipping = { ...defaultShippingSettings, ...(payload.shipping && typeof payload.shipping === "object" ? payload.shipping : {}), packages: Array.isArray(payload.shipping?.packages) && payload.shipping.packages.length ? payload.shipping.packages : defaultShippingPackages };
   state.profile = payload.profile && typeof payload.profile === "object" ? payload.profile : null;
   state.account = payload.account && typeof payload.account === "object" ? payload.account : null;
@@ -997,7 +1053,7 @@ function radarContentModal(id = null) {
 }
 
 function adminNav(active) {
-  const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-content", "Radar / Conteúdo"], ["admin-settings", "Configurações"]];
+  const items = [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-content", "Radar / Conteúdo"], ["admin-banners", "Banners"], ["admin-settings", "Configurações"]];
   return `<aside class="admin-sidebar"><div class="admin-side-brand"><span class="eyebrow">SUPRIMENTOS OLIVEIRA / OPS</span><strong>Command<br>center.</strong></div><nav class="admin-menu">${items.map(([route, label], index) => `<a href="#${route}" data-route="${route}" class="${active === route ? "active" : ""}"><span class="admin-menu-index">${String(index + 1).padStart(2, "0")}</span>${label}</a>`).join("")}</nav><div class="admin-side-foot"><span class="status-dot"></span><span>OPERATIONAL MODE</span><small>v0.1 / LOCAL-FIRST</small></div></aside>`;
 }
 
@@ -1077,6 +1133,69 @@ async function endAirdrop(id) {
   persist();
   render();
   showToast("Airdrop encerrado.");
+}
+
+function bannerStatusClass(banner) {
+  return banner.active ? "status-live" : "status-low";
+}
+
+function adminBannersPage() {
+  const active = state.banners.filter((banner) => banner.active).length;
+  const videoCount = state.banners.filter((banner) => banner.type === "video").length;
+  return adminShell("admin-banners", "07 / HOME EXPERIENCE", "Banners.", `<div class="admin-toolbar banner-toolbar"><div><span class="admin-sync"><i class="status-dot"></i> ${active} ativos · ${videoCount} em vídeo · local-first</span></div><button class="hero-cta" data-action="admin-banner-new">Novo banner</button></div><section class="admin-panel banner-command-panel"><div class="admin-panel-head"><div><span class="eyebrow">CAMPAIGN CONTROL / HOME</span><h2>Campanhas em movimento.</h2></div><span class="admin-sync">Transição automática · pausa no hover</span></div><p class="admin-content-note">Cadastre novidades, promoções, drops e chamadas para o Loadout Lab. A Home alterna os banners ativos em uma transição suave; cada CTA pode apontar para uma área diferente da loja.</p><div class="banner-pipeline"><div><span>01</span><strong>Escolha a mídia</strong><small>Imagem ou vídeo</small></div><div><span>02</span><strong>Escreva a chamada</strong><small>Título, apoio e CTA</small></div><div><span>03</span><strong>Publique no radar</strong><small>Ative quando estiver pronto</small></div></div></section><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">BANNER REGISTER / ${state.banners.length}</span><h2>Biblioteca visual.</h2></div><span class="admin-sync">A ordem define a sequência</span></div><div class="banner-config-grid">${state.banners.slice().sort((a, b) => a.order - b.order).map((banner, index) => { const media = bannerMediaUrl(banner.media, banner.type === "video" ? seedBanners[0].media : seedBanners[1].media); return `<article class="banner-config-card ${banner.active ? "is-active" : "is-paused"}"><div class="banner-config-media"><img src="${escapeHtml(media)}" alt="Prévia do banner ${escapeHtml(banner.name)}" loading="lazy" />${banner.type === "video" ? `<span class="banner-media-badge">Vídeo</span>` : `<span class="banner-media-badge">Imagem</span>`}<span class="banner-order">${String(index + 1).padStart(2, "0")}</span></div><div class="banner-config-copy"><div class="banner-config-head"><div><span class="eyebrow">${escapeHtml(banner.eyebrow)}</span><h3>${escapeHtml(banner.name)}</h3></div><span class="admin-status ${bannerStatusClass(banner)}">${banner.active ? "Ativo" : "Pausado"}</span></div><strong class="banner-config-title">${escapeHtml(banner.title)} <em>${escapeHtml(banner.titleAccent)}</em></strong><p>${escapeHtml(banner.subtitle)}</p><div class="banner-config-meta"><span>CTA: ${escapeHtml(bannerTargets[banner.ctaTarget])}</span><span>Posição ${banner.order}</span></div><div class="admin-row-actions banner-config-actions"><button data-action="admin-banner-edit" data-banner-id="${escapeHtml(banner.id)}">Editar</button><button data-action="admin-banner-duplicate" data-banner-id="${escapeHtml(banner.id)}">Duplicar</button><button data-action="admin-banner-toggle" data-banner-id="${escapeHtml(banner.id)}">${banner.active ? "Pausar" : "Ativar"}</button><button data-action="admin-banner-delete" data-banner-id="${escapeHtml(banner.id)}">Excluir</button></div></div></article>`; }).join("") || `<div class="admin-inline-empty">Nenhum banner cadastrado. Crie a primeira campanha visual.</div>`}</div></section>`);
+}
+
+function bannerModal(id = null) {
+  const current = state.banners.find((banner) => banner.id === id) || ensureBannerShape({ id: `banner-${Date.now()}`, name: "", type: "image", media: seedBanners[1].media, eyebrow: "NOVIDADES / 05", title: "NOVA CAMPANHA", titleAccent: "EM CAMPO.", subtitle: "Uma nova chamada para o catálogo.", ctaLabel: "Explorar catálogo", ctaTarget: "catalog", active: true, order: state.banners.length + 1 }, state.banners.length);
+  const mediaHelp = current.type === "video" ? "Use um caminho local como videos/operator-airsoft.mp4 ou uma URL HTTPS." : "Cole a URL HTTPS da imagem ou use um caminho local dentro de /assets.";
+  openModal(`<span class="eyebrow">HOME / BANNER ${id ? "EDIT" : "NEW"}</span><h2>${id ? "Editar campanha." : "Nova campanha."}</h2><p>Monte uma chamada visual para a Home. Nada é publicado fora deste dispositivo sem você ativar o banner.</p><form class="form-grid banner-form" id="banner-form"><div class="form-row"><label class="form-label">Nome interno<input name="name" required value="${escapeHtml(current.name)}" placeholder="Ex.: Promoção de primavera" /></label><label class="form-label">Mídia<select name="type">${Object.entries(bannerTypes).map(([key, label]) => `<option value="${key}" ${current.type === key ? "selected" : ""}>${label}</option>`).join("")}</select></label></div><label class="form-label">Imagem ou vídeo<input name="media" required value="${escapeHtml(current.media)}" placeholder="https://... ou videos/operator-airsoft.mp4" /><small class="form-help">${mediaHelp}</small></label><div class="form-row"><label class="form-label">Etiqueta<input name="eyebrow" required value="${escapeHtml(current.eyebrow)}" placeholder="NOVIDADES / 02" /></label><label class="form-label">Posição<input name="order" type="number" min="1" step="1" required value="${current.order}" /></label></div><div class="form-row"><label class="form-label">Título principal<input name="title" required value="${escapeHtml(current.title)}" placeholder="NOVA LEITURA" /></label><label class="form-label">Título em destaque<input name="titleAccent" required value="${escapeHtml(current.titleAccent)}" placeholder="DE CAMPO." /></label></div><label class="form-label">Texto de apoio<textarea name="subtitle" rows="3" required placeholder="Explique a campanha em uma frase.">${escapeHtml(current.subtitle)}</textarea></label><div class="form-row"><label class="form-label">Texto do botão<input name="ctaLabel" required value="${escapeHtml(current.ctaLabel)}" placeholder="Ver novidades" /></label><label class="form-label">Destino<select name="ctaTarget">${Object.entries(bannerTargets).map(([key, label]) => `<option value="${key}" ${current.ctaTarget === key ? "selected" : ""}>${label}</option>`).join("")}</select></label></div><label class="banner-active-toggle"><input name="active" type="checkbox" ${current.active ? "checked" : ""} /><span><strong>Exibir na sequência da Home</strong><small>Você pode pausar sem apagar a campanha.</small></span></label><button class="modal-submit" type="submit">${id ? "Salvar banner" : "Adicionar banner"}</button></form>`);
+  document.querySelector("#banner-form")?.addEventListener("submit", (event) => saveBanner(event, id));
+}
+
+function saveBanner(event, id = null) {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const current = state.banners.find((banner) => banner.id === id);
+  const record = ensureBannerShape({ ...current, id: current?.id || `banner-${Date.now()}`, name: String(form.get("name") || "").trim(), type: String(form.get("type") || "image"), media: String(form.get("media") || "").trim(), eyebrow: String(form.get("eyebrow") || "").trim(), order: Math.max(1, Number(form.get("order")) || state.banners.length + 1), title: String(form.get("title") || "").trim(), titleAccent: String(form.get("titleAccent") || "").trim(), subtitle: String(form.get("subtitle") || "").trim(), ctaLabel: String(form.get("ctaLabel") || "").trim(), ctaTarget: String(form.get("ctaTarget") || "catalog"), active: form.get("active") === "on" });
+  if (!record.name || !record.media || !record.title || !record.subtitle) { showToast("Preencha nome, mídia, título e texto de apoio."); return; }
+  const existingIndex = state.banners.findIndex((banner) => banner.id === id);
+  if (existingIndex >= 0) state.banners[existingIndex] = record;
+  else state.banners.push(record);
+  persist();
+  closeModal();
+  state.bannerIndex = 0;
+  render();
+  showToast(id ? "Banner atualizado na biblioteca." : "Banner adicionado à sequência.");
+}
+
+function duplicateBanner(id) {
+  const source = state.banners.find((banner) => banner.id === id);
+  if (!source) return;
+  const copy = ensureBannerShape({ ...source, id: `banner-${Date.now()}`, name: `${source.name} / cópia`, order: Math.max(...state.banners.map((banner) => banner.order), 0) + 1, active: false }, state.banners.length);
+  state.banners.push(copy);
+  persist();
+  render();
+  showToast("Cópia criada e pausada para revisão.");
+}
+
+function toggleBanner(id) {
+  const banner = state.banners.find((item) => item.id === id);
+  if (!banner) return;
+  banner.active = !banner.active;
+  persist();
+  render();
+  showToast(banner.active ? "Banner ativado na Home." : "Banner pausado.");
+}
+
+async function deleteBanner(id) {
+  const banner = state.banners.find((item) => item.id === id);
+  if (!banner) return;
+  const confirmed = await confirmAction({ eyebrow: "HOME / BANNER", title: "Excluir esta campanha?", message: "O banner será removido da biblioteca local e não aparecerá mais na sequência.", detail: banner.name, confirmLabel: "Excluir banner", tone: "danger" });
+  if (!confirmed) return;
+  state.banners = state.banners.filter((item) => item.id !== id);
+  persist();
+  render();
+  showToast("Banner excluído.");
 }
 
 function adminSettingsPage() {
@@ -1904,6 +2023,8 @@ function render() {
   heroInteractionCleanup = null;
   heroRadarCleanup?.();
   heroRadarCleanup = null;
+  heroCarouselCleanup?.();
+  heroCarouselCleanup = null;
   let view = homePage();
   if (state.route === "catalog") view = catalogPage();
   if (state.route === "product" && state.selectedProduct) view = productPage(state.selectedProduct);
@@ -1923,6 +2044,7 @@ function render() {
   if (state.route === "quote" && state.selectedQuoteId) view = publicQuotePage(state.selectedQuoteId);
   if (state.route === "admin-import") view = adminImportPage();
   if (state.route === "admin-content") view = adminContentPage();
+  if (state.route === "admin-banners") view = adminBannersPage();
   if (state.route === "admin-settings") view = adminSettingsPage();
   app.innerHTML = view + compareBar();
   updateNav();
@@ -2570,6 +2692,88 @@ function bindHeroRadar() {
   };
 }
 
+function bindHeroCarousel() {
+  const hero = document.querySelector("[data-hero-interactive]");
+  const video = hero?.querySelector("[data-hero-video]");
+  const banners = homeBanners();
+  if (!hero || banners.length < 1) return;
+
+  let index = Math.min(Math.max(0, state.bannerIndex), banners.length - 1);
+  let timerId = 0;
+  let transitionId = 0;
+  let paused = false;
+  const reducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+  const dots = [...hero.querySelectorAll("[data-banner-index]")];
+  const cssUrl = (value) => `url("${String(value || "").replace(/["\\]/g, "\\$&")}")`;
+  const updateDots = () => dots.forEach((dot, dotIndex) => { const active = dotIndex === index; dot.classList.toggle("is-active", active); dot.setAttribute("aria-current", active ? "true" : "false"); });
+  const applyBanner = (nextIndex, animate = true) => {
+    index = (nextIndex + banners.length) % banners.length;
+    const banner = banners[index];
+    const media = bannerMediaUrl(banner.media, banner.type === "video" ? seedBanners[0].media : seedBanners[1].media);
+    state.bannerIndex = index;
+    hero.dataset.bannerType = banner.type;
+    hero.dataset.bannerImage = banner.type === "image" ? media : "";
+    hero.setAttribute("aria-label", banner.name);
+    hero.style.setProperty("--hero-image", banner.type === "image" ? cssUrl(media) : "none");
+    const kicker = hero.querySelector("[data-hero-kicker]");
+    const title = hero.querySelector("[data-hero-title]");
+    const accent = hero.querySelector("[data-hero-title-accent]");
+    const subtitle = hero.querySelector("[data-hero-subtitle]");
+    const cta = hero.querySelector("[data-hero-cta]");
+    const number = hero.querySelector("[data-hero-index]");
+    if (kicker) kicker.textContent = banner.eyebrow;
+    if (title) title.textContent = banner.title;
+    if (accent) accent.textContent = banner.titleAccent;
+    if (subtitle) subtitle.textContent = banner.subtitle;
+    if (cta) { cta.textContent = banner.ctaLabel; cta.dataset.heroTarget = banner.ctaTarget; }
+    if (number) number.textContent = String(index + 1).padStart(2, "0");
+    updateDots();
+    if (video && banner.type === "video") {
+      const currentSrc = video.getAttribute("src") || "";
+      if (currentSrc !== media) { video.setAttribute("src", media); video.load(); }
+    }
+    if (animate) {
+      hero.classList.remove("is-banner-transitioning");
+      void hero.offsetWidth;
+      hero.classList.add("is-banner-transitioning");
+      window.clearTimeout(transitionId);
+      transitionId = window.setTimeout(() => hero.classList.remove("is-banner-transitioning"), 640);
+    }
+  };
+  const stopTimer = () => { window.clearInterval(timerId); timerId = 0; };
+  const startTimer = () => { stopTimer(); if (banners.length < 2 || paused || reducedMotionQuery?.matches) return; timerId = window.setInterval(() => applyBanner(index + 1), 7200); };
+  const onPrev = (event) => { event.stopPropagation(); applyBanner(index - 1); startTimer(); };
+  const onNext = (event) => { event.stopPropagation(); applyBanner(index + 1); startTimer(); };
+  const onDot = (event) => { event.stopPropagation(); applyBanner(Number(event.currentTarget.dataset.bannerIndex) || 0); startTimer(); };
+  const onEnter = () => { paused = true; stopTimer(); };
+  const onLeave = () => { paused = false; startTimer(); };
+  const onMotionChange = () => startTimer();
+  hero.querySelector("[data-banner-prev]")?.addEventListener("click", onPrev);
+  hero.querySelector("[data-banner-next]")?.addEventListener("click", onNext);
+  dots.forEach((dot) => dot.addEventListener("click", onDot));
+  hero.addEventListener("pointerenter", onEnter);
+  hero.addEventListener("pointerleave", onLeave);
+  hero.addEventListener("focusin", onEnter);
+  hero.addEventListener("focusout", onLeave);
+  reducedMotionQuery?.addEventListener?.("change", onMotionChange);
+  if (reducedMotionQuery && !reducedMotionQuery.addEventListener) reducedMotionQuery.addListener(onMotionChange);
+  applyBanner(index, false);
+  startTimer();
+  heroCarouselCleanup = () => {
+    stopTimer();
+    window.clearTimeout(transitionId);
+    hero.querySelector("[data-banner-prev]")?.removeEventListener("click", onPrev);
+    hero.querySelector("[data-banner-next]")?.removeEventListener("click", onNext);
+    dots.forEach((dot) => dot.removeEventListener("click", onDot));
+    hero.removeEventListener("pointerenter", onEnter);
+    hero.removeEventListener("pointerleave", onLeave);
+    hero.removeEventListener("focusin", onEnter);
+    hero.removeEventListener("focusout", onLeave);
+    reducedMotionQuery?.removeEventListener?.("change", onMotionChange);
+    if (reducedMotionQuery && !reducedMotionQuery.removeEventListener) reducedMotionQuery.removeListener(onMotionChange);
+  };
+}
+
 function bindHeroVideo() {
   heroInteractionCleanup?.();
   heroInteractionCleanup = null;
@@ -2827,6 +3031,7 @@ function bindSearch() {
 }
 
 function bindViewEvents() {
+  bindHeroCarousel();
   bindHeroVideo();
   bindHeroRadar();
   bindSearch();
@@ -2906,6 +3111,7 @@ document.addEventListener("click", (event) => {
   if (action === "toggle-theme") toggleTheme(event);
   if (action === "hero-sensor") heroSensorActivate?.();
   if (action === "hero-radar") heroRadarPulse?.();
+  if (action === "hero-cta") { event.preventDefault(); const target = event.target.closest("[data-hero-cta]")?.dataset.heroTarget || "catalog"; if (target === "cart") { renderDrawer(); openDrawer(); } else go(target); }
   if (action === "open-search") searchPalette();
   if (action === "profile-setup") profileSetupModal();
   if (action === "radar-location") radarLocationModal();
@@ -2943,6 +3149,12 @@ document.addEventListener("click", (event) => {
   if (action === "airdrop-clear") clearAirdrop();
   if (action === "airdrop-launch") launchAirdrop(event.target.closest("[data-airdrop-id]")?.dataset.airdropId);
   if (action === "airdrop-end") endAirdrop(event.target.closest("[data-airdrop-id]")?.dataset.airdropId);
+  const bannerId = event.target.closest("[data-banner-id]")?.dataset.bannerId;
+  if (action === "admin-banner-new") bannerModal();
+  if (action === "admin-banner-edit" && bannerId) bannerModal(bannerId);
+  if (action === "admin-banner-duplicate" && bannerId) duplicateBanner(bannerId);
+  if (action === "admin-banner-toggle" && bannerId) toggleBanner(bannerId);
+  if (action === "admin-banner-delete" && bannerId) deleteBanner(bannerId);
   if (action === "close-modal") closeModal();
   if (action === "quote") quoteModal();
   if (action === "compare-open") compareModal();
@@ -3043,12 +3255,12 @@ window.addEventListener("keydown", (event) => {
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   }
 });
-window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); const quoteMatch = route.match(/^quote\/(.+)$/); closeModal(); state.route = productMatch ? "product" : quoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-settings"].includes(route) ? route : "home"; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; state.selectedQuoteId = quoteMatch ? quoteMatch[1] : null; render(); });
+window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); const quoteMatch = route.match(/^quote\/(.+)$/); closeModal(); state.route = productMatch ? "product" : quoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings"].includes(route) ? route : "home"; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; state.selectedQuoteId = quoteMatch ? quoteMatch[1] : null; render(); });
 
 const initialRoute = location.hash.replace("#", "") || "home";
 const initialProductMatch = initialRoute.match(/^product\/(.+)$/);
 const initialQuoteMatch = initialRoute.match(/^quote\/(.+)$/);
-state.route = initialProductMatch ? "product" : initialQuoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
+state.route = initialProductMatch ? "product" : initialQuoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
 state.selectedProduct = initialProductMatch ? findProduct(initialProductMatch[1]) : null;
 state.selectedQuoteId = initialQuoteMatch ? initialQuoteMatch[1] : null;
 applyTheme(state.theme);
