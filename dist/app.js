@@ -2877,6 +2877,28 @@ function bindViewEvents() {
   if (airdropForm) airdropForm.addEventListener("submit", saveAirdrop);
 }
 
+function footerPoliciesModal() {
+  openModal(`<span class="eyebrow">SUPRIMENTOS OLIVEIRA / SUPORTE</span><h2>Compra<br>sem dúvida.</h2><p>Antes de fechar seu loadout, fale com a equipe para confirmar compatibilidade, disponibilidade e condições do produto.</p><div class="footer-modal-list"><div><strong>Trocas e devoluções</strong><span>Solicite orientação pelo atendimento antes de enviar qualquer item.</span></div><div><strong>Garantia</strong><span>Tenha o pedido e a nota em mãos para agilizar a análise.</span></div><div><strong>Suporte de campo</strong><span>Nosso time ajuda a cruzar plataforma, acessórios e seu estilo de jogo.</span></div></div><button class="modal-submit" data-action="footer-whatsapp">Falar com atendimento ↗</button>`);
+}
+
+function footerShippingModal() {
+  openModal(`<span class="eyebrow">LOGÍSTICA / FIELD READY</span><h2>Receba seu<br>equipamento.</h2><p>Informe o CEP no carrinho para comparar as opções disponíveis para sua região.</p><div class="footer-modal-list"><div><strong>Entrega</strong><span>O prazo e o valor aparecem depois da simulação do CEP.</span></div><div><strong>Retirada</strong><span>Quando disponível, a retirada local aparece como opção no carrinho.</span></div><div><strong>Orçamento</strong><span>Você recebe um resumo com itens, frete e condições pelo WhatsApp.</span></div></div><button class="modal-submit" data-action="cart">Abrir carrinho ↗</button>`);
+}
+
+function footerWhatsapp() {
+  const number = normalizeWhatsAppNumber(state.settings.whatsapp);
+  if (!number || number === "5511999999999") {
+    openModal(`<span class="eyebrow">ATENDIMENTO / WHATSAPP</span><h2>Canal em<br>configuração.</h2><p>O número da loja ainda não foi configurado. O responsável pode cadastrá-lo em Configurações.</p><button class="modal-submit" data-route="admin-settings">Abrir configurações ↗</button>`);
+    return;
+  }
+  window.open(`https://wa.me/${number}?text=${encodeURIComponent("Olá, vim pelo site da Suprimentos Oliveira e preciso de ajuda com meu loadout.")}`, "_blank", "noopener,noreferrer");
+}
+
+function footerAirdrop() {
+  go("home");
+  window.setTimeout(() => document.querySelector(".airdrop-home-card")?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
+}
+
 document.addEventListener("click", (event) => {
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (action === "confirm-accept" && pendingConfirmation) { closeModal(true); return; }
@@ -2927,6 +2949,10 @@ document.addEventListener("click", (event) => {
   if (action === "compare-clear") { state.compare = []; persist(); render(); showToast("Comparação limpa."); }
   if (action === "compare-clear-close") { state.compare = []; persist(); closeModal(); render(); showToast("Comparação limpa."); }
   if (action === "account") accountModal();
+  if (action === "footer-policies") footerPoliciesModal();
+  if (action === "footer-shipping") footerShippingModal();
+  if (action === "footer-whatsapp") { event.preventDefault(); footerWhatsapp(); }
+  if (action === "footer-airdrop") { event.preventDefault(); footerAirdrop(); }
   if (action === "admin-preview") { closeModal(); go("admin"); }
   if (action === "account-logout") { state.account = null; localStorage.removeItem("fieldops-account"); accountModal(); }
   if (action === "simulate-import") { const button = event.target.closest(".import-submit"); if (button) { button.textContent = "Arquivo analisado ✓"; button.disabled = true; showToast("Análise concluída: 15 registros precisam de revisão."); } }
