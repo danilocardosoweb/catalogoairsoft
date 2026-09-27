@@ -3,6 +3,7 @@
   const story = document.querySelector("[data-lab-story]");
   const sticky = story?.querySelector(".lab-story-sticky");
   const video = document.querySelector("[data-lab-video]");
+  const videoLock = document.querySelector("[data-lab-video-lock]");
   const copy = document.querySelector("[data-lab-copy]");
   const labInterface = document.querySelector("[data-lab-interface]");
   const choicePanel = document.querySelector("[data-choice-panel]");
@@ -126,6 +127,7 @@
   let lenis = null;
   let scrollDriverReady = false;
   let scrollProgress = 0;
+  const maxScrubStep = 0.34;
 
   const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
   const formatMoney = (value) => value ? `R$ ${value.toLocaleString("pt-BR")}` : "Sem custo";
@@ -241,6 +243,14 @@
     labInterface.setAttribute("aria-hidden", String(interfaceProgress <= 0.62));
   }
 
+  function updateContinuityGuard(progress) {
+    if (!videoLock) return;
+    const lockProgress = clamp((progress - 0.72) / 0.18);
+    const easedLock = lockProgress * lockProgress * (3 - 2 * lockProgress);
+    videoLock.style.setProperty("--lock-opacity", easedLock.toFixed(4));
+    videoLock.style.setProperty("--lock-scale", (1 + lockProgress * 0.018).toFixed(4));
+  }
+
   function updateDebug(progress) {
     if (!DEBUG || !debugPanel) return;
     if (debug.section) debug.section.textContent = "RIFLE";
@@ -265,7 +275,8 @@
       targetTime = 0;
     } else {
       const difference = targetTime - renderedTime;
-      renderedTime += difference * 0.2;
+      const step = Math.min(Math.abs(difference) * 0.2, maxScrubStep);
+      renderedTime += Math.sign(difference) * step;
       if (Math.abs(difference) < 0.012) renderedTime = targetTime;
     }
 
@@ -306,6 +317,7 @@
     const progressForVideo = mapRifleProgress(scrollProgress);
     targetTime = reducedMotion ? 0 : progressForVideo * duration;
     updateInterface(scrollProgress);
+    updateContinuityGuard(scrollProgress);
     const copyExit = clamp(scrollProgress / 0.12);
     copy.style.setProperty("--copy-opacity", (1 - copyExit).toFixed(4));
     copy.style.setProperty("--copy-y", `${(-copyExit * 18).toFixed(2)}px`);
