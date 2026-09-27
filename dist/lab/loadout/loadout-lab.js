@@ -11,6 +11,10 @@
   const stageRail = document.querySelector("[data-stage-rail]");
   const stageRailList = document.querySelector("[data-stage-rail-list]");
   const railStatus = document.querySelector("[data-lab-rail-status]");
+  const calloutLines = document.querySelector("[data-callout-lines]");
+  const calloutPath = document.querySelector("[data-callout-path]");
+  const calloutTarget = document.querySelector("[data-callout-target]");
+  const calloutEnd = document.querySelector("[data-callout-end]");
   const nextButton = document.querySelector("[data-stage-next]");
   const previousButton = document.querySelector("[data-stage-prev]");
   const debugPanel = document.querySelector("[data-lab-debug]");
@@ -98,6 +102,14 @@
       ]
     }
   ];
+
+  const calloutTargets = {
+    platform: { desktop: [43, 52], mobile: [62, 57] },
+    optic: { desktop: [49, 34], mobile: [83, 38] },
+    protection: { desktop: [26, 49], mobile: [30, 51] },
+    ammo: { desktop: [45, 72], mobile: [74, 76] },
+    sidearm: { desktop: [35, 83], mobile: [42, 83] }
+  };
 
   const flatChoices = stages.flatMap((stage) => stage.choices);
   const firstChoiceByStage = Object.fromEntries(stages.map((stage) => [stage.id, stage.choices[0].id]));
@@ -224,6 +236,29 @@
     if (railStatus) railStatus.textContent = `${String(activeStage + 1).padStart(2, "0")} / ${String(stages.length).padStart(2, "0")}`;
   }
 
+  function updateCallout() {
+    if (!calloutLines || !calloutPath || !calloutTarget || !calloutEnd || !stageRailList) return;
+    const stage = stages[activeStage];
+    const activeStep = stageRailList.querySelector(`[data-stage-index="${activeStage}"]`);
+    const endpoint = activeStep?.querySelector(".lab-stage-step-image") || activeStep;
+    const stickyRect = sticky.getBoundingClientRect();
+    const endpointRect = endpoint?.getBoundingClientRect();
+    const targetSet = calloutTargets[stage.id];
+    if (!endpointRect || !targetSet || !stickyRect.width || !stickyRect.height) return;
+
+    const isMobile = window.matchMedia("(max-width: 760px)").matches;
+    const [targetX, targetY] = targetSet[isMobile ? "mobile" : "desktop"];
+    const endX = ((endpointRect.left + endpointRect.width / 2 - stickyRect.left) / stickyRect.width) * 100;
+    const endY = ((endpointRect.top + endpointRect.height / 2 - stickyRect.top) / stickyRect.height) * 100;
+    const elbowX = targetX + (endX - targetX) * 0.52;
+    calloutPath.setAttribute("d", `M ${targetX.toFixed(2)} ${targetY.toFixed(2)} L ${elbowX.toFixed(2)} ${targetY.toFixed(2)} L ${elbowX.toFixed(2)} ${endY.toFixed(2)} L ${endX.toFixed(2)} ${endY.toFixed(2)}`);
+    calloutTarget.setAttribute("cx", targetX.toFixed(2));
+    calloutTarget.setAttribute("cy", targetY.toFixed(2));
+    calloutEnd.setAttribute("cx", endX.toFixed(2));
+    calloutEnd.setAttribute("cy", endY.toFixed(2));
+    calloutLines.classList.add("is-visible");
+  }
+
   function renderStage(index) {
     activeStage = clamp(index, 0, stages.length - 1);
     const stage = stages[activeStage];
@@ -252,6 +287,7 @@
     const saveStatus = document.querySelector("[data-save-status]");
     if (saveStatus) saveStatus.textContent = saveMessage;
     renderStageRail();
+    updateCallout();
     updateSummary();
   }
 
@@ -478,6 +514,7 @@
   if (!smoothDriver) window.addEventListener("scroll", requestUpdate, { passive: true });
   window.addEventListener("resize", () => {
     if (scrollTriggerInstance && window.ScrollTrigger) window.ScrollTrigger.refresh();
+    updateCallout();
     requestUpdate();
   }, { passive: true });
   window.addEventListener("pointerdown", onFirstGesture, { once: true, passive: true });
