@@ -2591,6 +2591,7 @@ function bindHeroVideo() {
   let lastSeekAt = 0;
   let renderedTime = 0;
   let seekInFlight = false;
+  let seekGuardId = 0;
   let initialFrameSyncId = 0;
 
   const clampProgress = (value) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0.5));
@@ -2627,6 +2628,8 @@ function bindHeroVideo() {
     lastFrameTime = 0;
     lastSeekAt = 0;
     seekInFlight = false;
+    window.clearTimeout(seekGuardId);
+    seekGuardId = 0;
   };
   const frameLoop = (timestamp) => {
     frameId = 0;
@@ -2648,6 +2651,12 @@ function bindHeroVideo() {
       video.currentTime = safeTime;
       renderedTime = safeTime;
       lastSeekAt = timestamp;
+      window.clearTimeout(seekGuardId);
+      seekGuardId = window.setTimeout(() => {
+        seekInFlight = false;
+        seekGuardId = 0;
+        startFrameLoop();
+      }, 180);
       return;
     }
     if (Math.abs(targetProgress - currentProgress) > 0.001 || Math.abs(renderedTime - targetTime) > 0.006) frameId = requestAnimationFrame(frameLoop);
@@ -2663,7 +2672,9 @@ function bindHeroVideo() {
     hasPointer = true;
     const pointerProgress = clampProgress((event.clientX - bounds.left) / bounds.width);
     const tabletScale = tabletQuery?.matches ? 0.72 : 1;
-    targetProgress = clampProgress(0.5 + (pointerProgress - 0.5) * tabletScale);
+    const nextProgress = clampProgress(0.5 + (pointerProgress - 0.5) * tabletScale);
+    if (Math.abs(nextProgress - targetProgress) < 0.004) return;
+    targetProgress = nextProgress;
     startFrameLoop();
   };
   const onPointerLeave = () => {
@@ -2738,6 +2749,8 @@ function bindHeroVideo() {
   };
   const onSeeked = () => {
     seekInFlight = false;
+    window.clearTimeout(seekGuardId);
+    seekGuardId = 0;
     if (!reducedMotion() && metadataReady && (hasPointer || Math.abs(targetProgress - 0.5) > 0.001)) startFrameLoop();
   };
   const onMotionPreferenceChange = () => {
@@ -2750,6 +2763,7 @@ function bindHeroVideo() {
   };
 
   video.pause();
+  video.preload = "auto";
   hero.style.setProperty("--hero-operator-shift", "10px");
   updateSensorButton(false, typeof window.DeviceOrientationEvent === "undefined");
   heroSensorActivate = enableHeroSensor;
@@ -2768,6 +2782,7 @@ function bindHeroVideo() {
   heroInteractionCleanup = () => {
     stopFrameLoop();
     window.clearTimeout(initialFrameSyncId);
+    window.clearTimeout(seekGuardId);
     video.pause();
     video.removeEventListener("loadedmetadata", onMetadata);
     video.removeEventListener("loadeddata", onMetadata);
