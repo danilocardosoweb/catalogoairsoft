@@ -1,10 +1,10 @@
 # FIELD OPS — Status de implementação
 
-Última revisão: 26/09/2026  
-Última versão publicada: v50 — Home reorganizada para descoberta comercial, atalhos de categoria e CTAs de compra mais claros
+Última revisão: 27/09/2026  
+Última versão publicada: v76 — categorias gerenciáveis pelo lojista, integradas ao catálogo e aos produtos
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
-Ponto de restauração: tag `restore-v47-radar-score` · commit `96cbc2e4d8e09ddedff85abdf28e5bb4eb4dd7dd`
+Ponto de restauração: tag `restore-v76-catalog-categories` · commit `1f9a06a97833e4ed186cfc53749a908da74a3019`
 
 ## Resumo
 

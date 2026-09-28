@@ -1,5 +1,18 @@
 # Ponto de restauração — FIELD OPS
 
+## Ponto mais recente — categorias gerenciáveis pelo lojista
+
+- Data: 27/09/2026
+- Versão publicada: v76
+- URL: https://field-ops-airsoft.danilocardoso-web.chatgpt.site
+- Tag Git: `restore-v76-catalog-categories`
+- Commit do estado funcional: `1f9a06a97833e4ed186cfc53749a908da74a3019`
+- Arquivo: `backups/field-ops-restore-v76-catalog-categories.tar.gz`
+- SHA-256 local: `9A7A4D22CA3963FE0A48C708C637BFE0C7B3541D1B3CFE2168141BD23B084E2E`
+- Hash da versão arquivada no Sites: `sha256:e9501ec1c99a2c4ce6efc9e67e9e95ed62d1c82c5737b2561d8ac677baaae248`
+
+Este ponto preserva o gerenciador de categorias do perfil Lojista. O lojista pode cadastrar nome, descrição e imagem opcional, ativar ou ocultar frentes e excluir categorias personalizadas sem remover produtos vinculados. “Roupas” e “Acessórios” já ficam disponíveis, e as categorias passam a alimentar a Home, os atalhos, os filtros, o cadastro/edição de produtos e o backup JSON.
+
 ## Ponto mais recente — acesso e pedidos do consumidor
 
 - Data: 27/09/2026
