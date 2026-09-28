@@ -264,6 +264,8 @@ const state = {
   appliedAirdropCode: ""
 };
 
+const cartExpandedIds = new Set();
+
 const accessProfiles = {
   consumer: {
     label: "Consumidor",
@@ -3011,6 +3013,13 @@ function calculateCartShipping() {
   showToast(quote.fromCache ? "Cotação recuperada do cache." : "Opções de frete calculadas.");
 }
 
+function toggleCartItem(id) {
+  if (!id || !state.cart.some((item) => item.id === id)) return;
+  if (cartExpandedIds.has(id)) cartExpandedIds.delete(id);
+  else cartExpandedIds.add(id);
+  renderDrawer();
+}
+
 function renderDrawer() {
   const itemsEl = document.querySelector("[data-cart-items]");
   const footerEl = document.querySelector("[data-cart-footer]");
@@ -3020,7 +3029,23 @@ function renderDrawer() {
     footerEl.innerHTML = "";
     return;
   }
-  itemsEl.innerHTML = state.cart.map((item) => { const product = findProduct(item.id); return `<div class="cart-item"><img src="${product.image}" alt="${product.name}" /><div><strong>${product.name}</strong><small>${money(product.price)} por unidade</small><div class="cart-item-controls"><div class="cart-qty-control"><button type="button" data-cart-dec="${item.id}" aria-label="Diminuir quantidade">−</button><b>${item.quantity}</b><button type="button" data-cart-inc="${item.id}" aria-label="Aumentar quantidade" ${item.quantity >= product.stockCount ? "disabled" : ""}>+</button></div><button class="cart-item-remove" data-remove-cart="${item.id}">Remover</button></div></div><div class="cart-item-price">${money(product.price * item.quantity)}</div></div>`; }).join("");
+  itemsEl.innerHTML = state.cart.map((item) => {
+    const product = findProduct(item.id);
+    if (!product) return "";
+    const expanded = cartExpandedIds.has(item.id);
+    const detailsId = `cart-item-details-${item.id}`;
+    return `<article class="cart-item ${expanded ? "is-expanded" : ""}">
+      <button class="cart-item-summary" type="button" data-action="cart-item-toggle" data-cart-item-id="${escapeHtml(item.id)}" aria-expanded="${expanded ? "true" : "false"}" aria-controls="${escapeHtml(detailsId)}">
+        <img src="${escapeHtml(product.image)}" alt="" />
+        <span class="cart-item-summary-copy"><strong>${escapeHtml(product.name)}</strong><small>${item.quantity} ${item.quantity === 1 ? "unidade" : "unidades"} · ${money(product.price)} cada</small></span>
+        <span class="cart-item-summary-meta"><b>${money(product.price * item.quantity)}</b><i aria-hidden="true">${expanded ? "⌃" : "⌄"}</i></span>
+      </button>
+      <div class="cart-item-details" id="${escapeHtml(detailsId)}" aria-hidden="${expanded ? "false" : "true"}">
+        <div><small>Preço por unidade</small><strong>${money(product.price)}</strong></div>
+        <div class="cart-item-controls"><div class="cart-qty-control"><button type="button" data-cart-dec="${escapeHtml(item.id)}" aria-label="Diminuir quantidade">−</button><b>${item.quantity}</b><button type="button" data-cart-inc="${escapeHtml(item.id)}" aria-label="Aumentar quantidade" ${item.quantity >= product.stockCount ? "disabled" : ""}>+</button></div><button class="cart-item-remove" data-remove-cart="${escapeHtml(item.id)}">Remover item</button></div>
+      </div>
+    </article>`;
+  }).join("");
   const totals = cartTotals();
   footerEl.innerHTML = `${cartShippingMarkup()}${airdropCartMarkup()}<div class="summary-row"><span>Subtotal</span><strong>${moneyDetailed(totals.subtotal)}</strong></div>${totals.discount ? `<div class="summary-row airdrop-discount-row"><span>Desconto Airdrop</span><strong>− ${moneyDetailed(totals.discount)}</strong></div>` : ""}<div class="summary-row"><span>Frete</span><strong>${state.cartShipping ? (totals.freight ? moneyDetailed(totals.freight) : "Grátis") : "Informe seu CEP"}</strong></div><div class="summary-row total"><span>Total estimado</span><strong>${moneyDetailed(totals.total)}</strong></div><button class="quote-button" data-action="quote" ${state.cartShipping ? "" : "disabled"}>Solicitar orçamento</button>`;
 }
@@ -3869,6 +3894,7 @@ document.addEventListener("click", (event) => {
   if (action === "backup-cancel") { state.pendingBackupRestore = null; exportDataModal(); }
   if (action === "backup-apply") applyBackupRestore();
   if (action === "cart") { renderDrawer(); openDrawer(); }
+  if (action === "cart-item-toggle") { toggleCartItem(event.target.closest("[data-cart-item-id]")?.dataset.cartItemId); return; }
   if (action === "cart-catalog") { closeDrawer(); go("catalog"); }
   if (action === "close-drawer") closeDrawer();
   if (action === "calculate-shipping") calculateCartShipping();
