@@ -213,6 +213,7 @@ Conforme o prompt mestre, não são prioridades desta fase: pagamento online, em
 - Adicionado login/cadastro por e-mail e senha, com perfil Consumidor, Lojista ou Distribuidor.
 - Adicionada a migração `supabase/migrations/20260928010000_app_state_and_account_bootstrap.sql`, que cria `user_app_state`, RLS por usuário e a função segura `ensure_account` para criar o perfil e reivindicar a organização inicial da loja.
 - O catálogo público tenta carregar produtos, categorias, banners, Radar e Airdrops das tabelas relacionais do Supabase; enquanto o banco estiver sem registros, a interface usa os dados demo em memória para não apresentar uma tela vazia.
+- Ao sincronizar como Lojista/Operador, o catálogo também grava categorias, marcas, produtos, preços de varejo e estoque nas tabelas relacionais correspondentes; o snapshot de usuário funciona apenas como ponte para os módulos ainda não migrados.
 - O estado autenticado é salvo no Supabase com debounce de 700 ms, reduzindo gravações repetidas durante edição, filtros e montagem do loadout.
 
 Antes do primeiro acesso autenticado, execute a migração complementar no SQL Editor do projeto Supabase. A migração inicial já executada anteriormente não é alterada.

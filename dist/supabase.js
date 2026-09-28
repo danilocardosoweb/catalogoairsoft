@@ -96,6 +96,68 @@
     });
   }
 
+  function slugify(value) {
+    return String(value || "item").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "item";
+  }
+
+  async function upsertRows(path, rows, conflict) {
+    if (!rows.length) return [];
+    return dataRequest(`${path}?on_conflict=${encodeURIComponent(conflict)}`, {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+      body: JSON.stringify(rows)
+    });
+  }
+
+  async function syncRelationalCatalog(snapshot) {
+    const role = snapshot?.account?.role;
+    if (!organizationId || !["retailer", "operator", "admin"].includes(role)) return;
+    const categoryRows = (snapshot.categories || []).map((category, index) => ({
+      organization_id: organizationId,
+      name: String(category.name || "Categoria").trim(),
+      slug: slugify(category.name),
+      description: category.description || null,
+      image_url: category.image || null,
+      is_active: category.active !== false,
+      sort_order: Number(category.order || index + 1)
+    }));
+    const savedCategories = await upsertRows("/categories", categoryRows, "organization_id,slug");
+    const categoryIds = new Map((savedCategories || []).map((row) => [row.slug, row.id]));
+    const brands = [...new Map((snapshot.products || []).map((product) => [String(product.brand || "FIELD OPS").trim().toUpperCase(), String(product.brand || "FIELD OPS").trim().toUpperCase()])).values()];
+    const brandRows = brands.map((name) => ({ organization_id: organizationId, name, slug: slugify(name), is_active: true }));
+    const savedBrands = await upsertRows("/brands", brandRows, "organization_id,slug");
+    const brandIds = new Map((savedBrands || []).map((row) => [row.slug, row.id]));
+    const sourceProducts = (snapshot.products || []).filter((product) => product.name);
+    const productRows = sourceProducts.map((product, index) => {
+      const sku = String(product.sku || `FO-${String(index + 1).padStart(5, "0")}`).trim().toUpperCase();
+      const categorySlug = slugify(product.category || "Gear");
+      const brandSlug = slugify(product.brand || "FIELD OPS");
+      return {
+        organization_id: organizationId,
+        brand_id: brandIds.get(brandSlug) || null,
+        category_id: categoryIds.get(categorySlug) || null,
+        sku,
+        barcode: product.barcode || null,
+        name: String(product.name).trim(),
+        slug: `${slugify(product.name)}-${slugify(sku)}`,
+        description: product.description || null,
+        system: product.system || null,
+        product_type: product.type || null,
+        specs: product.specs || {},
+        shipping: product.shipping || {},
+        is_active: product.active !== false
+      };
+    });
+    const savedProducts = await upsertRows("/products", productRows, "organization_id,sku");
+    const productIds = new Map((savedProducts || []).map((row) => [row.sku, row.id]));
+    const prices = productRows.map((row, index) => ({ product_id: productIds.get(row.sku), tier: "retail", amount: Math.max(0, Number(sourceProducts[index]?.price || 0)), currency: "BRL", is_active: true })).filter((row) => row.product_id);
+    const inventory = productRows.map((row, index) => ({ product_id: productIds.get(row.sku), available_quantity: Math.max(0, Math.round(Number(sourceProducts[index]?.stockCount || 0))), reserved_quantity: 0, low_stock_threshold: 3 })).filter((row) => row.product_id);
+    await Promise.all([
+      upsertRows("/product_prices", prices, "product_id,tier"),
+      upsertRows("/inventory", inventory, "product_id")
+    ]);
+  }
+
   function queueSave(snapshot) {
     pendingSnapshot = snapshot;
     clearTimeout(saveTimer);
@@ -104,7 +166,7 @@
       pendingSnapshot = null;
       if (!next || !session?.user?.id) return;
       try {
-        await saveUserState(next);
+        await Promise.all([saveUserState(next), syncRelationalCatalog(next)]);
         emitStatus("connected");
       } catch (error) {
         emitStatus("error", error.message);
