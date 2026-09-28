@@ -1,5 +1,16 @@
 # Ponto de restauração — FIELD OPS
 
+## Ponto mais recente — acesso e pedidos do consumidor
+
+- Data: 27/09/2026
+- Versão publicada: v74
+- URL: https://field-ops-airsoft.danilocardoso-web.chatgpt.site
+- Commit do estado funcional: `8cf116fab630998b7e65677f793d6c2aee017543`
+- Arquivo: `site-release-access-roles-v74.tar.gz`
+- SHA-256: `8333365B0732B7FCFC63A6B375B5283F72A14C61555EF740D500C93A1B9B1DE9`
+
+Este ponto preserva os perfis Consumidor, Lojista e Distribuidor, os menus e permissões por função, o redirecionamento de rotas protegidas e a área pública “Meus pedidos”.
+
 ## Ponto mais recente — perfis de acesso
 
 - Data: 27/09/2026
