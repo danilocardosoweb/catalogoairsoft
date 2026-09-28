@@ -181,7 +181,7 @@
         description: product.description || null,
         system: product.system || null,
         product_type: product.type || null,
-        specs: product.specs || {},
+        specs: { ...(product.specs || {}), fornecedor: product.supplier || product.specs?.fornecedor || "" },
         shipping: product.shipping || {},
         is_active: product.active !== false
       };
@@ -237,6 +237,7 @@
         dbId: row.id,
         sku: row.sku,
         brand: brand?.name || "FIELD OPS",
+        supplier: row.specs?.fornecedor || row.specs?.supplier || "",
         name: row.name,
         type: `${row.system || row.product_type || "FIELD GEAR"} · FIELD READY`,
         meta: row.product_type || "FIELD READY",

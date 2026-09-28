@@ -757,6 +757,9 @@ function filteredProducts() {
 
 function productCard(product) {
   const favorite = state.favorites.includes(product.id);
+  const supplier = product.supplier || "Não informado";
+  const brand = product.brand || "Marca não informada";
+  const system = product.system && !["FIELD GEAR", "—"].includes(String(product.system).toUpperCase()) ? product.system : "Não informado";
   return `<article class="product-card">
     <div class="product-image-wrap" data-product="${product.id}">
       ${product.tag ? `<span class="product-tag">${product.tag}</span>` : ""}
@@ -766,16 +769,17 @@ function productCard(product) {
       </div>
       <img class="product-image" src="${product.image}" alt="${product.brand} ${product.name}" loading="lazy" />
       <div class="product-hover-specs">
-        <div><span>Power</span><b>${product.specs.FPS}</b></div>
-        <div><span>System</span><b>${product.specs.Sistema}</b></div>
-        <div><span>Weight</span><b>${product.specs.Peso}</b></div>
-        <div><span>Gear</span><b>${product.specs.Gearbox}</b></div>
+        <div><span>Categoria</span><b>${product.category || "Não informada"}</b></div>
+        <div><span>Sistema</span><b>${system}</b></div>
+        <div><span>Fornecedor</span><b>${supplier}</b></div>
+        <div><span>Estoque</span><b>${stockLabel(product)}</b></div>
       </div>
     </div>
     <div class="product-body">
-      <span class="product-brand">${product.brand}</span>
+      <span class="product-brand">${brand}</span>
       <strong class="product-name" data-product="${product.id}">${product.name}</strong>
-      <span class="product-meta">${product.type} · ${product.meta}</span>
+      <span class="product-meta">${product.category || "Produto para Airsoft"}</span>
+      <span class="product-supplier">Fornecedor: ${supplier}</span>
       <div class="product-foot"><div><strong class="price">${money(product.price)}</strong><span class="stock ${product.stockCount <= 0 ? "stock-out" : ""}">${stockLabel(product)}</span></div><button class="product-add" type="button" data-add="${product.id}" aria-label="Adicionar ${product.name}" title="Adicionar ao carrinho" ${product.stockCount <= 0 ? "disabled" : ""}><span class="product-add-label">Adicionar</span><span class="product-add-icon" aria-hidden="true">+</span></button></div>
     </div>
   </article>`;
@@ -1136,7 +1140,7 @@ function safeBackupImage(value) {
 
 function restoreProductShape(raw, index) {
   if (!raw || typeof raw !== "object" || !String(raw.name || "").trim()) return null;
-  const product = { ...raw, id: String(raw.id || `restored-${Date.now()}-${index}`), brand: String(raw.brand || "IMPORTADO").trim().slice(0, 80), name: String(raw.name).trim().slice(0, 120), type: String(raw.type || "FIELD GEAR").trim().slice(0, 100), meta: String(raw.meta || "FIELD READY").trim().slice(0, 100), price: Math.max(0, Number(raw.price) || 0), stockCount: Math.max(0, Math.round(Number(raw.stockCount ?? raw.stock ?? 0) || 0)), category: String(raw.category || "Equipamentos").trim().slice(0, 60), system: String(raw.system || "FIELD GEAR").trim().slice(0, 60), image: safeBackupImage(raw.image), specs: raw.specs && typeof raw.specs === "object" ? raw.specs : {}, description: String(raw.description || "").trim().slice(0, 600), tag: String(raw.tag || "").trim().slice(0, 40), sku: normalizeCatalogSku(raw.sku) || `REST-${String(index + 1).padStart(4, "0")}`, active: raw.active !== false };
+  const product = { ...raw, id: String(raw.id || `restored-${Date.now()}-${index}`), brand: String(raw.brand || "IMPORTADO").trim().slice(0, 80), supplier: String(raw.supplier || raw.specs?.fornecedor || "").trim().slice(0, 100), name: String(raw.name).trim().slice(0, 120), type: String(raw.type || "FIELD GEAR").trim().slice(0, 100), meta: String(raw.meta || "FIELD READY").trim().slice(0, 100), price: Math.max(0, Number(raw.price) || 0), stockCount: Math.max(0, Math.round(Number(raw.stockCount ?? raw.stock ?? 0) || 0)), category: String(raw.category || "Equipamentos").trim().slice(0, 60), system: String(raw.system || "FIELD GEAR").trim().slice(0, 60), image: safeBackupImage(raw.image), specs: raw.specs && typeof raw.specs === "object" ? raw.specs : {}, description: String(raw.description || "").trim().slice(0, 600), tag: String(raw.tag || "").trim().slice(0, 40), sku: normalizeCatalogSku(raw.sku) || `REST-${String(index + 1).padStart(4, "0")}`, active: raw.active !== false };
   ensureProductShipping(product);
   return product;
 }
@@ -1214,7 +1218,7 @@ async function applyBackupRestore() {
 
 function exportProducts() {
   closeModal();
-  const rows = activeProducts().map((product) => ({ sku: product.sku, marca: product.brand, nome: product.name, categoria: product.category, sistema: product.system, preco: product.price, estoque: product.stockCount, peso_kg: product.shipping?.packagedWeight || "", comprimento_cm: product.shipping?.packagedLength || "", largura_cm: product.shipping?.packagedWidth || "", altura_cm: product.shipping?.packagedHeight || "", status: stockLabel(product) }));
+  const rows = activeProducts().map((product) => ({ sku: product.sku, marca: product.brand, fornecedor: product.supplier || "", nome: product.name, categoria: product.category, sistema: product.system, preco: product.price, estoque: product.stockCount, peso_kg: product.shipping?.packagedWeight || "", comprimento_cm: product.shipping?.packagedLength || "", largura_cm: product.shipping?.packagedWidth || "", altura_cm: product.shipping?.packagedHeight || "", status: stockLabel(product) }));
   downloadLocalFile(`field-ops-produtos-${new Date().toISOString().slice(0, 10)}.csv`, csvDocument(rows), "text/csv;charset=utf-8");
   showToast("Produtos e estoque exportados.");
 }
@@ -2323,13 +2327,15 @@ function compareModal() {
   const selected = state.compare.map(findProduct).filter(Boolean);
   if (selected.length < 2) { showToast("Selecione pelo menos dois produtos para comparar."); return; }
   const specKeys = ["FPS", "Gearbox", "Peso", "Sistema", "Hop-Up", "Material"];
-  openModal(`<span class="eyebrow">COMPARE // LOADOUT</span><h2>Compare<br>plataformas.</h2><p>Coloque as especificações lado a lado antes de decidir.</p><div class="compare-table-wrap"><table class="compare-table"><thead><tr><th>Specs</th>${selected.map((product) => `<th><span>${product.brand}</span><strong>${product.name}</strong><small>${money(product.price)}</small></th>`).join("")}</tr></thead><tbody>${specKeys.map((key) => `<tr><td>${key}</td>${selected.map((product) => `<td>${product.specs[key] || "—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div><button class="modal-submit" data-action="compare-clear-close">Limpar comparação</button>`);
+  openModal(`<span class="eyebrow">COMPARAÇÃO // LOADOUT</span><h2>Compare<br>plataformas.</h2><p>Coloque as especificações lado a lado antes de decidir.</p><div class="compare-table-wrap"><table class="compare-table"><thead><tr><th>Especificações</th>${selected.map((product) => `<th><span>${product.brand}</span><strong>${product.name}</strong><small>${money(product.price)}</small></th>`).join("")}</tr></thead><tbody>${specKeys.map((key) => `<tr><td>${key}</td>${selected.map((product) => `<td>${product.specs[key] || "Não informado"}</td>`).join("")}</tr>`).join("")}</tbody></table></div><button class="modal-submit" data-action="compare-clear-close">Limpar comparação</button>`);
 }
 
 function productModal(product = null) {
   const editing = Boolean(product);
   const shipping = product?.shipping || productShippingDefaults(product || { category: "Gear" });
   openModal(`<span class="eyebrow">PRODUCT REGISTER / ${editing ? "EDIT" : "NEW"}</span><h2>${editing ? "Editar produto." : "Novo produto."}</h2><p>Atualize as informações essenciais para manter o catálogo pronto para o campo.</p><form class="form-grid" id="product-form"><div class="form-row"><label class="form-label">Marca<input name="brand" required value="${product?.brand || ""}" placeholder="ROSSI" /></label><label class="form-label">Nome<input name="name" required value="${product?.name || ""}" placeholder="NEPTUNE 10\"" /></label></div><div class="form-row"><label class="form-label">SKU<input name="sku" required value="${product?.sku || ""}" placeholder="FO-00231" /></label><label class="form-label">Sistema<input name="system" value="${product?.system || "AEG"}" placeholder="AEG" /></label></div><div class="form-row"><label class="form-label">Categoria<select name="category"><option ${product?.category === "Rifles" ? "selected" : ""}>Rifles</option><option ${product?.category === "Pistolas" ? "selected" : ""}>Pistolas</option><option ${product?.category === "Ópticas" ? "selected" : ""}>Ópticas</option><option ${product?.category === "Gear" ? "selected" : ""}>Gear</option><option ${product?.category === "Munição" ? "selected" : ""}>Munição</option><option ${product?.category === "Proteção" ? "selected" : ""}>Proteção</option></select></label><label class="form-label">Preço<input name="price" type="number" min="0" step="1" required value="${product?.price || ""}" placeholder="1899" /></label></div><label class="form-label">Estoque<input name="stockCount" type="number" min="0" step="1" required value="${product?.stockCount ?? 0}" placeholder="38" /></label><label class="form-label">Imagem<input name="image" value="${product?.image || "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"} /></label><label class="form-label">Descrição<textarea name="description" placeholder="Resumo do produto">${product?.description || ""}</textarea></label><fieldset class="shipping-fieldset"><legend>Dados de envio</legend><p class="form-help">Use centímetros para dimensões e quilogramas para peso. Esses dados alimentam o cálculo de frete.</p><div class="form-row"><label class="form-label">Peso (kg)<input name="weight" type="number" min="0" step="0.01" required value="${shipping.weight}" /></label><label class="form-label">Dimensões (C × L × A cm)<div class="form-row form-row-tight"><input name="length" type="number" min="0.1" step="0.1" required value="${shipping.length}" aria-label="Comprimento sem embalagem" /><input name="width" type="number" min="0.1" step="0.1" required value="${shipping.width}" aria-label="Largura sem embalagem" /><input name="height" type="number" min="0.1" step="0.1" required value="${shipping.height}" aria-label="Altura sem embalagem" /></div></label></div><div class="form-row"><label class="form-label">Peso com embalagem (kg)<input name="packagedWeight" type="number" min="0" step="0.01" required value="${shipping.packagedWeight}" /></label><label class="form-label">Dimensões com embalagem (C × L × A cm)<div class="form-row form-row-tight"><input name="packagedLength" type="number" min="0.1" step="0.1" required value="${shipping.packagedLength}" aria-label="Comprimento com embalagem" /><input name="packagedWidth" type="number" min="0.1" step="0.1" required value="${shipping.packagedWidth}" aria-label="Largura com embalagem" /><input name="packagedHeight" type="number" min="0.1" step="0.1" required value="${shipping.packagedHeight}" aria-label="Altura com embalagem" /></div></label></div><div class="form-row"><label class="form-label">Frágil<select name="fragile"><option value="false" ${!shipping.fragile ? "selected" : ""}>Não</option><option value="true" ${shipping.fragile ? "selected" : ""}>Sim</option></select></label><label class="form-label">Pode combinar<select name="canCombine"><option value="true" ${shipping.canCombine ? "selected" : ""}>Sim</option><option value="false" ${!shipping.canCombine ? "selected" : ""}>Não</option></select></label></div><div class="form-row"><label class="form-label">Enviar separado<select name="separate"><option value="false" ${!shipping.separate ? "selected" : ""}>Não</option><option value="true" ${shipping.separate ? "selected" : ""}>Sim</option></select></label><label class="form-label">Empilhável<select name="stackable"><option value="true" ${shipping.stackable ? "selected" : ""}>Sim</option><option value="false" ${!shipping.stackable ? "selected" : ""}>Não</option></select></label></div><label class="form-label">Embalagem recomendada<input name="recommendedPackage" value="${shipping.recommendedPackage || ""}" placeholder="Caixa Acessórios M" /></label><label class="form-label">Observações logísticas<textarea name="logisticsNote" placeholder="Cuidados para separação e embalagem">${shipping.logisticsNote || ""}</textarea></label></fieldset><button class="modal-submit" type="submit">${editing ? "Salvar alterações" : "Cadastrar produto"}</button></form>`);
+  const productNameField = document.querySelector("#product-form input[name=name]")?.closest(".form-label");
+  if (productNameField && !document.querySelector("#product-form input[name=supplier]")) productNameField.insertAdjacentHTML("afterend", `<label class="form-label">Fornecedor<input name="supplier" value="${product?.supplier || ""}" placeholder="Nome do fornecedor" /></label>`);
   const categorySelect = document.querySelector("#product-form select[name=category]");
   if (categorySelect) categorySelect.innerHTML = productCategoryOptions(product?.category || "Rifles");
   document.querySelector("#product-form").addEventListener("submit", (event) => {
@@ -2566,7 +2572,7 @@ function importNumber(value) {
 
 function importedProductData(row, index, batchId) {
   const name = importedProductName(row);
-  const brand = importValue(row, ["marca", "brand", "fornecedor", "fabricante", "supplier"], "IMPORTADO");
+  const brand = importValue(row, ["marca", "brand", "fabricante", "manufacturer"], "");
   const category = importedProductCategory(row);
   const system = importValue(row, ["sistema", "system"], "FIELD GEAR");
   const sku = importedProductSku(row, index);
@@ -2593,6 +2599,10 @@ function commitImport() {
   const summary = { added: 0, updated: 0 };
   state.importData.validRows.forEach((row, index) => {
     const data = importedProductData(row, index, batchId);
+    data.supplier = importValue(row, ["fornecedor", "supplier", "distribuidor", "distributor"], "");
+    data.type = importValue(row, ["tipo", "type", "product_type"], "Produto para Airsoft");
+    data.meta = importValue(row, ["meta", "modelo", "linha"], data.category);
+    data.description = importValue(row, ["descricao", "description"], `Produto da categoria ${data.category.toLowerCase()} para uso em Airsoft.`);
     const existing = products.find((product) => normalizeCatalogSku(product.sku) === data.sku);
     if (existing) {
       Object.assign(existing, data, { id: existing.id, tag: existing.tag || "Importado" });
@@ -2655,8 +2665,32 @@ function render() {
   app.innerHTML = view + compareBar();
   updateNav();
   bindViewEvents();
+  translateCatalogTechnicalLabels();
   if (state.route === "admin-access" && !state.accessGrantsLoaded && !state.accessGrantsLoading) hydrateAccessGrants();
   window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+function translateCatalogTechnicalLabels() {
+  const labels = { FPS: "Velocidade (FPS)", Gearbox: "Caixa interna", Peso: "Peso", Sistema: "Sistema", "Hop-Up": "Hop-up", Material: "Material" };
+  document.querySelectorAll(".specs-title h2").forEach((element) => {
+    if (element.textContent.trim().toLowerCase() === "tech specs") element.textContent = "Especificações técnicas";
+  });
+  document.querySelectorAll(".specs-title small").forEach((element) => {
+    element.textContent = element.textContent.replace(/^SYSTEM\s*\/\//i, "SISTEMA //");
+  });
+  document.querySelectorAll(".spec-item span").forEach((element) => {
+    const label = element.textContent.trim();
+    if (labels[label]) element.textContent = labels[label];
+  });
+  document.querySelectorAll(".spec-item strong").forEach((element) => {
+    if (element.textContent.trim() === "—") element.textContent = "Não informado";
+  });
+  document.querySelectorAll(".detail-type").forEach((element) => {
+    element.textContent = element.textContent.replace(/\bFIELD GEAR\b/g, "Produto para Airsoft").replace(/\bFIELD READY\b/g, "Pronto para o campo").replace(/\bIMPORTED\b/g, "Importado");
+  });
+  const supplier = state.selectedProduct?.supplier;
+  const detailType = document.querySelector(".detail-type");
+  if (supplier && detailType && !document.querySelector(".detail-supplier")) detailType.insertAdjacentHTML("afterend", `<span class="detail-supplier">Fornecedor: ${escapeHtml(supplier)}</span>`);
 }
 
 function updateNav() {
@@ -3898,6 +3932,20 @@ document.addEventListener("submit", (event) => {
   if (event.target?.id !== "airdrop-claim-form") return;
   event.preventDefault();
   applyAirdropCode();
+});
+
+document.addEventListener("submit", (event) => {
+  if (event.target?.id !== "product-form") return;
+  const form = event.target;
+  const sku = String(form.querySelector("input[name=sku]")?.value || "").trim().toUpperCase();
+  const supplier = String(form.querySelector("input[name=supplier]")?.value || "").trim().toUpperCase();
+  window.setTimeout(() => {
+    const product = products.find((item) => String(item.sku || "").toUpperCase() === sku);
+    if (!product) return;
+    product.supplier = supplier;
+    persist();
+    render();
+  }, 0);
 });
 
 modalLayer.addEventListener("click", (event) => { if (event.target === modalLayer) closeModal(); });
