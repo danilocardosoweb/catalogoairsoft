@@ -1695,7 +1695,7 @@ function adminImportPage() {
   const summary = preview ? summarizeImportRows(preview.validRows) : null;
   const lastImport = state.importHistory[0];
   const historyBlock = !preview && lastImport ? `<div class="import-file-banner"><span class="dropzone-mark">↶</span><div><strong>Última carga: ${lastImport.fileName}</strong><small>${lastImport.added} novos · ${lastImport.updated} atualizados · ${new Date(lastImport.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></div><button class="outline-cta" data-action="import-rollback" data-import-id="${lastImport.id}">Desfazer carga</button></div>` : "";
-  const body = preview ? `<div class="import-file-banner"><span class="dropzone-mark">✓</span><div><strong>${preview.fileName}</strong><small>${preview.validCount} registros válidos · ${preview.errorCount} erros de linha</small></div><button class="outline-cta" data-action="import-reset">Escolher outro</button></div><div class="import-preview"><div><span>Encontrados</span><strong>${preview.rows.length}</strong></div><div><span>Novos</span><strong>${summary.added}</strong></div><div><span>Atualizações</span><strong>${summary.updated}</strong></div><div><span>Erros</span><strong class="import-error-count">${preview.errorCount}</strong></div></div><div class="admin-table-wrap import-table"><table class="admin-table"><thead><tr>${preview.headers.slice(0, 6).map((header) => `<th>${header}</th>`).join("")}</tr></thead><tbody>${preview.rows.slice(0, 6).map((row) => `<tr>${preview.headers.slice(0, 6).map((header) => `<td>${row[header.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_")] || "—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div><div class="import-actions"><button class="outline-cta" data-action="import-reset">Cancelar</button><button class="hero-cta" data-action="commit-import" ${preview.validCount ? "" : "disabled"}>Aplicar ${preview.validCount} registros</button></div>` : `<label class="dropzone"><input id="import-file" type="file" accept=".csv,.xlsx,.xls" /><span class="dropzone-mark">↑</span><strong>Solte sua planilha aqui</strong><small>CSV ou Excel até 10 MB</small><span class="outline-cta">Escolher arquivo</span></label><div class="import-preview"><div><span>Última análise</span><strong>—</strong></div><div><span>Novos</span><strong>—</strong></div><div><span>Atualizações</span><strong>—</strong></div><div><span>Erros</span><strong>—</strong></div></div><p class="import-help">O arquivo precisa conter pelo menos uma coluna <strong>Nome Produto</strong> ou <strong>product_name</strong>. Outras colunas aceitas: marca, categoria, preço, estoque, sistema, sku, fps.</p>${historyBlock}`;
+  const body = preview ? `<div class="import-file-banner"><span class="dropzone-mark">✓</span><div><strong>${preview.fileName}</strong><small>${preview.validCount} registros válidos · ${preview.errorCount} erros de linha</small></div><button class="outline-cta" data-action="import-reset">Escolher outro</button></div><div class="import-preview"><div><span>Encontrados</span><strong>${preview.rows.length}</strong></div><div><span>Novos</span><strong>${summary.added}</strong></div><div><span>Atualizações</span><strong>${summary.updated}</strong></div><div><span>Erros</span><strong class="import-error-count">${preview.errorCount}</strong></div></div><div class="admin-table-wrap import-table"><table class="admin-table"><thead><tr>${preview.headers.slice(0, 6).map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${preview.rows.slice(0, 6).map((row) => `<tr>${preview.headers.slice(0, 6).map((header) => `<td>${escapeHtml(importCellValue(row, header, preview.headerKeys))}</td>`).join("")}</tr>`).join("")}</tbody></table></div><div class="import-actions"><button class="outline-cta" data-action="import-reset">Cancelar</button><button class="hero-cta" data-action="commit-import" ${preview.validCount ? "" : "disabled"}>Aplicar ${preview.validCount} registros</button></div>` : `<label class="dropzone"><input id="import-file" type="file" accept=".csv,.xlsx,.xls" /><span class="dropzone-mark">↑</span><strong>Solte sua planilha aqui</strong><small>CSV ou Excel até 10 MB</small><span class="outline-cta">Escolher arquivo</span></label><div class="import-preview"><div><span>Última análise</span><strong>—</strong></div><div><span>Novos</span><strong>—</strong></div><div><span>Atualizações</span><strong>—</strong></div><div><span>Erros</span><strong>—</strong></div></div><p class="import-help">Aceita as colunas da sua planilha: Produto, Quant, Cód.Barra, FORNECEDOR e Valor de Venda. Também reconhece nomes equivalentes em português ou inglês.</p>${historyBlock}`;
   return adminShell("admin-import", "05 / DATA INTAKE", "Importar.", `<div class="import-steps"><div class="import-step ${preview ? "done" : "active"}"><span>01</span><strong>Upload</strong><small>Enviar arquivo</small></div><div class="import-step ${preview ? "active" : ""}"><span>02</span><strong>Analisar</strong><small>Detectar colunas</small></div><div class="import-step"><span>03</span><strong>Validar</strong><small>Revisar erros</small></div><div class="import-step"><span>04</span><strong>Importar</strong><small>Publicar registros</small></div></div><section class="admin-panel import-panel"><div class="admin-panel-head"><div><span class="eyebrow">EXCEL / CSV</span><h2>${preview ? "Revise sua carga." : "Traga seu inventário."}</h2></div><span class="admin-sync">SKU é usado para atualizar itens existentes</span></div>${body}</section>`);
 }
 
@@ -2443,6 +2443,27 @@ function parseCsv(text) {
   return { headers, rows: lines.slice(1).map(split).filter((row) => row.some(Boolean)) };
 }
 
+function normalizeImportHeader(value) {
+  return String(value ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+function importCellValue(row, header, headerKeys = []) {
+  const index = Array.isArray(headerKeys) ? headerKeys.indexOf(header) : -1;
+  const key = index >= 0 ? headerKeys[index] : normalizeImportHeader(header);
+  const value = row?.[key];
+  return value === undefined || value === null || String(value).trim() === "" ? "—" : String(value).trim();
+}
+
+function uniqueImportHeaderKeys(headers) {
+  const used = new Map();
+  return headers.map((header, index) => {
+    const base = normalizeImportHeader(header) || `coluna_${index + 1}`;
+    const count = used.get(base) || 0;
+    used.set(base, count + 1);
+    return count ? `${base}_${count + 1}` : base;
+  });
+}
+
 function analyzeImportFile(file) {
   if (!file) return;
   const reader = new FileReader();
@@ -2453,15 +2474,21 @@ function analyzeImportFile(file) {
       const workbook = window.XLSX.read(reader.result, { type: "array" });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const matrix = window.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: "" });
-      parsed = { headers: (matrix.shift() || []).map(String), rows: matrix };
+      const headerIndex = matrix.findIndex((row) => row.filter((value) => String(value ?? "").trim()).length >= 2);
+      const safeHeaderIndex = headerIndex >= 0 ? headerIndex : 0;
+      const rawHeaders = (matrix[safeHeaderIndex] || []).map((value) => String(value ?? ""));
+      const lastHeaderIndex = rawHeaders.reduce((last, header, index) => String(header).trim() ? index : last, -1);
+      const headers = (lastHeaderIndex >= 0 ? rawHeaders.slice(0, lastHeaderIndex + 1) : rawHeaders).map(String);
+      const rows = matrix.slice(safeHeaderIndex + 1).filter((row) => row.some((value) => String(value ?? "").trim()));
+      parsed = { headers, rows };
     } else if (isExcel) {
       showToast("O leitor Excel não carregou. Use CSV ou tente novamente.");
       return;
     } else parsed = parseCsv(reader.result.toString());
-    const normalized = parsed.headers.map((header) => header.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_"));
-    const rows = parsed.rows.map((values) => Object.fromEntries(normalized.map((header, index) => [header, values[index] || ""])));
-    const valid = rows.filter((row) => row.nome_produto || row.product_name || row.nome || row.name);
-    state.importData = { fileName: file.name, headers: parsed.headers, rows, validCount: valid.length, errorCount: rows.length - valid.length, validRows: valid };
+    const headerKeys = uniqueImportHeaderKeys(parsed.headers);
+    const rows = parsed.rows.map((values) => Object.fromEntries(headerKeys.map((header, index) => [header, values[index] ?? ""])));
+    const valid = rows.filter((row) => importValue(row, ["produto", "nome_produto", "product_name", "nome", "name", "descricao_produto", "item"]));
+    state.importData = { fileName: file.name, headers: parsed.headers, headerKeys, rows, validCount: valid.length, errorCount: rows.length - valid.length, validRows: valid };
     render();
     showToast(`${valid.length} registros prontos para revisão.`);
   };
@@ -2474,8 +2501,32 @@ function importValue(row, aliases, fallback = "") {
   return key ? String(row[key]).trim() : fallback;
 }
 
+function importedProductName(row) {
+  return importValue(row, ["produto", "nome_produto", "product_name", "nome", "name", "descricao_produto", "item"]);
+}
+
+function inferImportCategory(name) {
+  const value = String(name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (/rifle|carabina|ak\b|m4\b|fuzil|sniper|shotgun|escopeta/.test(value)) return "Rifles";
+  if (/pistola|glock|hi[- ]?capa|1911|revolver/.test(value)) return "Pistolas";
+  if (/red dot|red-dot|optica|luneta|scope|mira|holografica|magnifier/.test(value)) return "Ópticas";
+  if (/bb\b|municao|esfera|0[.,]20|0[.,]25|0[.,]28|0[.,]30|0[.,]32|0[.,]40/.test(value)) return "Munição";
+  if (/plate|colete|protecao|oculos|mascara|capacete|joelheira|cotoveleira/.test(value)) return "Proteção";
+  if (/camisa|calca|short|uniforme|farda|roupa|jaqueta|moletom|bon[eé]/.test(value)) return "Roupas";
+  return "Acessórios";
+}
+
 function normalizeCatalogSku(value) {
   return String(value || "").trim().toUpperCase().replace(/\s+/g, "-");
+}
+
+function importedProductSku(row, index = 0) {
+  const explicit = importValue(row, ["sku", "codigo", "codigo_produto", "product_sku"]);
+  const barcode = importValue(row, ["codigo_barras", "codigo_de_barras", "cod_barras", "cod_barra", "c_d_barra", "barcode", "ean", "ean13"]);
+  const name = importedProductName(row) || `produto-${index + 1}`;
+  const source = explicit || barcode;
+  if (source) return normalizeCatalogSku(source);
+  return `IMP-${categorySlug(name).slice(0, 42)}-${String(index + 1).padStart(3, "0")}`.toUpperCase();
 }
 
 function importNumber(value) {
@@ -2486,20 +2537,21 @@ function importNumber(value) {
 }
 
 function importedProductData(row, index, batchId) {
-  const name = importValue(row, ["nome_produto", "product_name", "nome", "name"]);
-  const brand = importValue(row, ["marca", "brand"], "IMPORTADO");
-  const category = importValue(row, ["categoria", "category"], "Equipamentos");
+  const name = importedProductName(row);
+  const brand = importValue(row, ["marca", "brand", "fornecedor", "fabricante", "supplier"], "IMPORTADO");
+  const category = importValue(row, ["categoria", "category"], "") || inferImportCategory(name);
   const system = importValue(row, ["sistema", "system"], "FIELD GEAR");
-  const sku = normalizeCatalogSku(importValue(row, ["sku", "codigo", "codigo_produto", "product_sku"])) || `IMP-${batchId}-${String(index + 1).padStart(3, "0")}`;
-  const price = importNumber(importValue(row, ["preco", "price"]));
-  const stockCount = Math.max(0, Math.round(importNumber(importValue(row, ["estoque", "stock", "quantidade"]))));
-  return { sku, brand: brand.toUpperCase(), name: name.toUpperCase(), type: `${system} · IMPORTED`, meta: importValue(row, ["meta", "modelo"], "FIELD READY"), price, stockCount, stock: stockLabel({ stockCount }), category, system, image: importValue(row, ["imagem", "image"], "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"), specs: { FPS: importValue(row, ["fps"], "—"), Gearbox: importValue(row, ["gearbox", "gearbox_type"], "—"), Peso: importValue(row, ["peso", "weight"], "—"), Sistema: system, "Hop-Up": importValue(row, ["hop_up", "hopup"], "—"), Material: importValue(row, ["material"], "—") }, shipping: productShippingDefaults({ category }), description: importValue(row, ["descricao", "description"], "Produto importado para revisão."), tag: "Importado", active: true };
+  const sku = importedProductSku(row, index);
+  const barcode = importValue(row, ["codigo_barras", "codigo_de_barras", "cod_barras", "cod_barra", "c_d_barra", "barcode", "ean", "ean13"]);
+  const price = importNumber(importValue(row, ["valor_de_venda", "valor_venda", "preco_venda", "preco", "price", "valor"]));
+  const stockCount = Math.max(0, Math.round(importNumber(importValue(row, ["estoque", "stock", "quantidade", "quant", "qtd"]))) || 0);
+  return { sku, barcode, brand: brand.toUpperCase(), name: name.toUpperCase(), type: `${system} · IMPORTED`, meta: importValue(row, ["meta", "modelo"], "FIELD READY"), price, stockCount, stock: stockLabel({ stockCount }), category, system, image: importValue(row, ["imagem", "image"], "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"), specs: { FPS: importValue(row, ["fps"], "—"), Gearbox: importValue(row, ["gearbox", "gearbox_type"], "—"), Peso: importValue(row, ["peso", "weight"], "—"), Sistema: system, "Hop-Up": importValue(row, ["hop_up", "hopup"], "—"), Material: importValue(row, ["material"], "—") }, shipping: productShippingDefaults({ category }), description: importValue(row, ["descricao", "description"], "Produto importado para revisão."), tag: "Importado", active: true };
 }
 
 function summarizeImportRows(rows) {
   const existingSkus = new Set(products.map((product) => normalizeCatalogSku(product.sku)).filter(Boolean));
-  return (rows || []).reduce((summary, row) => {
-    const sku = normalizeCatalogSku(importValue(row, ["sku", "codigo", "codigo_produto", "product_sku"]));
+  return (rows || []).reduce((summary, row, index) => {
+    const sku = importedProductSku(row, index);
     if (sku && existingSkus.has(sku)) summary.updated += 1;
     else summary.added += 1;
     return summary;

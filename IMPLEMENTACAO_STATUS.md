@@ -222,6 +222,7 @@ Conforme o prompt mestre, não são prioridades desta fase: pagamento online, em
 - Ao sincronizar como Lojista/Operador, o catálogo também grava categorias, marcas, produtos, preços de varejo e estoque nas tabelas relacionais correspondentes; o snapshot de usuário funciona apenas como ponte para os módulos ainda não migrados.
 - Adicionada recuperação única dos dados legados que ainda estejam no navegador: se o Supabase estiver vazio, o catálogo antigo é reidratado em memória e pode ser enviado para a conta Supabase após o login.
 - O estado autenticado é salvo no Supabase com debounce de 700 ms, reduzindo gravações repetidas durante edição, filtros e montagem do loadout.
+- Corrigido o importador da planilha `LISTA DE PRODUTOS 25.09.2026.xlsx`: agora ele ignora linhas vazias antes do cabeçalho, reconhece `Produto`, `Quant`, `Cód.Barra`, `FORNECEDOR` e `Valor de Venda`, usa o código de barras como SKU quando disponível e remove linhas vazias do total de erros.
 
 Antes do primeiro acesso autenticado, execute a migração complementar no SQL Editor do projeto Supabase. A migração inicial já executada anteriormente não é alterada.
 
