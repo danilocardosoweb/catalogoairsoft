@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 28/09/2026  
-Última versão publicada: v93 — vídeo institucional com logo em destaque
+Próxima versão: importação assistida da lista de produtos com categorias e SKUs consistentes
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
 Ponto de restauração: tag `restore-v79-banner-layout` · commit `7e36c42eae023223f5d103829477fc6ac2c75be5`
@@ -79,6 +79,7 @@ O estado atual também está protegido por um ponto de restauração local docum
 - Edição local de logística do pedido: transportadora, modalidade, prazo, volumes e rastreamento.
 - Lista de clientes derivada dos orçamentos locais.
 - Importação de CSV e XLSX com análise, pré-visualização, validação básica, atualização por SKU, criação de novos itens e confirmação da carga.
+- Importação preparada para a lista de produtos da loja: identifica categorias pelo nome, preserva códigos de barras duplicados com SKUs internos únicos e usa imagem de conferência quando a planilha não fornece uma URL confirmada.
 - Histórico local das últimas cargas de catálogo com resumo de novos/atualizados e ação para desfazer a carga anterior.
 - Cadastro de produtos com SKU editável e SKU exibido de forma consistente no catálogo operacional e no estoque.
 - Configurações da operação: nome da loja, cidade, WhatsApp e limite de estoque baixo.

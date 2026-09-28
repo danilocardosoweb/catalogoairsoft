@@ -2489,6 +2489,16 @@ function analyzeImportFile(file) {
     const headerKeys = uniqueImportHeaderKeys(parsed.headers);
     const rows = parsed.rows.map((values) => Object.fromEntries(headerKeys.map((header, index) => [header, values[index] ?? ""])));
     const valid = rows.filter((row) => importValue(row, ["produto", "nome_produto", "product_name", "nome", "name", "descricao_produto", "item"]));
+    const barcodeCounts = new Map();
+    valid.forEach((row) => {
+      const barcode = importedProductBarcode(row);
+      if (barcode) barcodeCounts.set(barcode, (barcodeCounts.get(barcode) || 0) + 1);
+    });
+    valid.forEach((row, index) => {
+      const barcode = importedProductBarcode(row);
+      if (barcode && barcodeCounts.get(barcode) > 1) row.__import_barcode_duplicate = "true";
+      row.__import_sku = importedProductSku(row, index);
+    });
     state.importData = { fileName: file.name, headers: parsed.headers, headerKeys, rows, validCount: valid.length, errorCount: rows.length - valid.length, validRows: valid };
     render();
     showToast(`${valid.length} registros prontos para revisão.`);
@@ -2506,15 +2516,24 @@ function importedProductName(row) {
   return importValue(row, ["produto", "nome_produto", "product_name", "nome", "name", "descricao_produto", "item"]);
 }
 
+function importedProductBarcode(row) {
+  return importValue(row, ["codigo_barras", "codigo_de_barras", "cod_barras", "cod_barra", "c_d_barra", "barcode", "ean", "ean13"]);
+}
+
 function inferImportCategory(name) {
   const value = String(name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (/rifle|carabina|ak\b|m4\b|fuzil|sniper|shotgun|escopeta/.test(value)) return "Rifles";
-  if (/pistola|glock|hi[- ]?capa|1911|revolver/.test(value)) return "Pistolas";
+  if (/^pistola\b|^glock\b|^hi[- ]?capa\b|^1911\b|^revolver\b/.test(value)) return "Pistolas";
   if (/red dot|red-dot|optica|luneta|scope|mira|holografica|magnifier/.test(value)) return "Ópticas";
-  if (/bb\b|municao|esfera|0[.,]20|0[.,]25|0[.,]28|0[.,]30|0[.,]32|0[.,]40/.test(value)) return "Munição";
-  if (/plate|colete|protecao|oculos|mascara|capacete|joelheira|cotoveleira/.test(value)) return "Proteção";
-  if (/camisa|calca|short|uniforme|farda|roupa|jaqueta|moletom|bon[eé]/.test(value)) return "Roupas";
+  if (/^bb\b|^bbs\b|green gas|municao|esfera|0[.,]20|0[.,]25|0[.,]28|0[.,]30|0[.,]32|0[.,]40/.test(value)) return "Munição";
+  if (/plate|colete|oculos|mascara|balaclava|balamascara|capacete|joelheira|cotoveleira|^luva\b/.test(value)) return "Proteção";
+  if (/camisa|calca|short|uniforme|farda|roupa|jaqueta|moletom|bone|bon[eé]|boonie|shemagh/.test(value)) return "Roupas";
+  if (/bandoleira|chest rig|cinto|coldre|bolso|porta magazine|porta carregador|porta radio|dropmag|colete/.test(value)) return "Gear";
   return "Acessórios";
+}
+
+function importedProductCategory(row) {
+  return importValue(row, ["categoria", "category"], "") || inferImportCategory(importedProductName(row));
 }
 
 function normalizeCatalogSku(value) {
@@ -2522,12 +2541,20 @@ function normalizeCatalogSku(value) {
 }
 
 function importedProductSku(row, index = 0) {
+  const prepared = importValue(row, ["__import_sku"]);
+  if (prepared) return normalizeCatalogSku(prepared);
   const explicit = importValue(row, ["sku", "codigo", "codigo_produto", "product_sku"]);
-  const barcode = importValue(row, ["codigo_barras", "codigo_de_barras", "cod_barras", "cod_barra", "c_d_barra", "barcode", "ean", "ean13"]);
+  const barcode = importedProductBarcode(row);
   const name = importedProductName(row) || `produto-${index + 1}`;
   const source = explicit || barcode;
-  if (source) return normalizeCatalogSku(source);
-  return `IMP-${categorySlug(name).slice(0, 42)}-${String(index + 1).padStart(3, "0")}`.toUpperCase();
+  if (explicit || (barcode && String(row.__import_barcode_duplicate) !== "true")) return normalizeCatalogSku(source);
+  const barcodePrefix = barcode ? `EAN-${barcode}-` : "IMP-";
+  return `${barcodePrefix}${categorySlug(name).slice(0, 42)}-${String(index + 1).padStart(3, "0")}`.toUpperCase();
+}
+
+function importedProductImage(row) {
+  const image = importValue(row, ["imagem", "image", "image_url", "url_imagem"]);
+  return image || "/assets/product-image-pending.svg";
 }
 
 function importNumber(value) {
@@ -2540,13 +2567,13 @@ function importNumber(value) {
 function importedProductData(row, index, batchId) {
   const name = importedProductName(row);
   const brand = importValue(row, ["marca", "brand", "fornecedor", "fabricante", "supplier"], "IMPORTADO");
-  const category = importValue(row, ["categoria", "category"], "") || inferImportCategory(name);
+  const category = importedProductCategory(row);
   const system = importValue(row, ["sistema", "system"], "FIELD GEAR");
   const sku = importedProductSku(row, index);
-  const barcode = importValue(row, ["codigo_barras", "codigo_de_barras", "cod_barras", "cod_barra", "c_d_barra", "barcode", "ean", "ean13"]);
+  const barcode = importedProductBarcode(row);
   const price = importNumber(importValue(row, ["valor_de_venda", "valor_venda", "preco_venda", "preco", "price", "valor"]));
   const stockCount = Math.max(0, Math.round(importNumber(importValue(row, ["estoque", "stock", "quantidade", "quant", "qtd"]))) || 0);
-  return { sku, barcode, brand: brand.toUpperCase(), name: name.toUpperCase(), type: `${system} · IMPORTED`, meta: importValue(row, ["meta", "modelo"], "FIELD READY"), price, stockCount, stock: stockLabel({ stockCount }), category, system, image: importValue(row, ["imagem", "image"], "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"), specs: { FPS: importValue(row, ["fps"], "—"), Gearbox: importValue(row, ["gearbox", "gearbox_type"], "—"), Peso: importValue(row, ["peso", "weight"], "—"), Sistema: system, "Hop-Up": importValue(row, ["hop_up", "hopup"], "—"), Material: importValue(row, ["material"], "—") }, shipping: productShippingDefaults({ category }), description: importValue(row, ["descricao", "description"], "Produto importado para revisão."), tag: "Importado", active: true };
+  return { sku, barcode, brand: brand.toUpperCase(), name: name.toUpperCase(), type: `${system} · IMPORTED`, meta: importValue(row, ["meta", "modelo"], "FIELD READY"), price, stockCount, stock: stockLabel({ stockCount }), category, system, image: importedProductImage(row), specs: { FPS: importValue(row, ["fps"], "—"), Gearbox: importValue(row, ["gearbox", "gearbox_type"], "—"), Peso: importValue(row, ["peso", "weight"], "—"), Sistema: system, "Hop-Up": importValue(row, ["hop_up", "hopup"], "—"), Material: importValue(row, ["material"], "—") }, shipping: productShippingDefaults({ category }), description: importValue(row, ["descricao", "description"], "Produto importado para revisão."), tag: "Importado", active: true };
 }
 
 function summarizeImportRows(rows) {
