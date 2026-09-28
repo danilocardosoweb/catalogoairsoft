@@ -1217,10 +1217,62 @@ function partnerDashboardPage() {
   const role = currentAccessRole();
   const access = currentAccessProfile();
   const isRetailer = role === "retailer";
+  const quotes = state.quotes || [];
+  const orders = state.orders || [];
+  const openQuoteStatuses = ["Novo", "Em análise", "Proposta enviada", "Aguardando cliente"];
+  const wonQuoteStatuses = ["Aprovado", "Convertido em pedido"];
+  const lostQuoteStatuses = ["Rejeitado", "Expirado", "Cancelado"];
+  const openQuotes = quotes.filter((quote) => openQuoteStatuses.includes(quote.status));
+  const wonQuotes = quotes.filter((quote) => wonQuoteStatuses.includes(quote.status));
+  const lostQuotes = quotes.filter((quote) => lostQuoteStatuses.includes(quote.status));
+  const convertedOrders = orders.filter((order) => order.status !== "Cancelado");
+  const openOrders = orders.filter((order) => !["Entregue", "Cancelado"].includes(order.status));
+  const cancelledOrders = orders.filter((order) => order.status === "Cancelado");
+  const salesValue = convertedOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+  const openPipeline = openQuotes.reduce((sum, quote) => sum + Number(quote.total || 0), 0);
+  const averageTicket = convertedOrders.length ? salesValue / convertedOrders.length : 0;
+  const customers = new Set([...quotes, ...orders].map((record) => String(record.customer || "").trim().toLowerCase()).filter(Boolean));
+  const lostCommercial = lostQuotes.length + cancelledOrders.length;
+  const closedQuotes = wonQuotes.length + lostQuotes.length;
+  const conversion = closedQuotes ? Math.round((wonQuotes.length / closedQuotes) * 100) : null;
+  const lowStock = activeProducts().filter((product) => product.stockCount <= state.settings.lowStock).length;
+  const regionMap = new Map();
+  const addRegion = (record, kind) => {
+    const rawName = String(record.city || "").trim();
+    const name = !rawName || rawName === "—" ? "Não informada" : rawName;
+    const current = regionMap.get(name) || { name, quotes: 0, orders: 0, value: 0 };
+    if (kind === "quote") current.quotes += 1;
+    if (kind === "order") { current.orders += 1; current.value += Number(record.total || 0); }
+    regionMap.set(name, current);
+  };
+  quotes.forEach((quote) => addRegion(quote, "quote"));
+  convertedOrders.forEach((order) => addRegion(order, "order"));
+  const regions = [...regionMap.values()].sort((a, b) => b.value - a.value || b.quotes - a.quotes).slice(0, 8);
+  const trendMonths = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date();
+    date.setDate(1);
+    date.setMonth(date.getMonth() - (5 - index));
+    return { key: `${date.getFullYear()}-${date.getMonth()}`, label: date.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""), quotes: 0, orders: 0, value: 0 };
+  });
+  const trendByKey = new Map(trendMonths.map((month) => [month.key, month]));
+  [...quotes.map((record) => ({ ...record, kind: "quote" })), ...convertedOrders.map((record) => ({ ...record, kind: "order" }))].forEach((record) => {
+    const date = new Date(record.createdAt || 0);
+    const month = trendByKey.get(`${date.getFullYear()}-${date.getMonth()}`);
+    if (!month) return;
+    if (record.kind === "quote") month.quotes += 1;
+    else { month.orders += 1; month.value += Number(record.total || 0); }
+  });
+  const trendMax = Math.max(...trendMonths.map((month) => Math.max(month.quotes, month.orders)), 1);
   const cards = isRetailer ? [
-    ["01", "Orçamentos", `${state.quotes.length || 2}`, "Solicitações para responder", "admin-quotes"],
-    ["02", "Pedidos", `${state.orders.length || 1}`, "Pedidos em acompanhamento", "admin-orders"],
-    ["03", "Clientes", "—", "Relacionamentos da sua loja", "admin-customers"]
+    ["01", "Consultas", `${quotes.length}`, "Orçamentos recebidos", "admin-quotes"],
+    ["02", "Em aberto", `${openQuotes.length}`, `${moneyDetailed(openPipeline)} no funil`, "admin-quotes"],
+    ["03", "Vendas", salesValue ? money(salesValue) : "—", `${convertedOrders.length} pedido(s) concretizado(s)`, "admin-orders"],
+    ["04", "Perdidos", `${lostCommercial}`, "Rejeitados, expirados ou cancelados", "admin-quotes"],
+    ["05", "Pedidos abertos", `${openOrders.length}`, "Aguardando conclusão", "admin-orders"],
+    ["06", "Conversão", conversion === null ? "—" : `${conversion}%`, "Sobre consultas encerradas", "admin-quotes"],
+    ["07", "Ticket médio", averageTicket ? money(averageTicket) : "—", "Por pedido concretizado", "admin-orders"],
+    ["08", "Clientes", `${customers.size}`, "Relacionamentos identificados", "admin-customers"],
+    ["09", "Estoque baixo", `${lowStock}`, "Itens para revisão", "admin-stock"]
   ] : [
     ["01", "Produtos", `${activeProducts().length}`, "Itens disponíveis no catálogo", "admin-products"],
     ["02", "Estoque", `${activeProducts().reduce((sum, product) => sum + product.stockCount, 0)}`, "Unidades monitoradas", "admin-stock"],
@@ -1235,7 +1287,8 @@ function partnerDashboardPage() {
     ["Conferir estoque", "admin-stock", "Veja níveis e pontos de reposição."],
     ["Importar produtos", "admin-import", "Prepare uma nova entrada de dados."]
   ];
-  return adminShell("partner", access.kicker, access.title, `<section class="role-brief-panel"><div><span class="eyebrow">ACCESS / ${access.label.toUpperCase()}</span><h2>${access.description}</h2></div><span class="role-access-chip"><i class="status-dot"></i> Acesso ${access.label}</span></section><div class="admin-kpi-grid">${cards.map(([index, label, value, note, route]) => `<button class="admin-kpi role-kpi" data-route="${route}"><span>${label}</span><strong>${value}</strong><small>${note} ↗</small></button>`).join("")}</div><section class="admin-panel role-permission-panel"><div class="admin-panel-head"><div><span class="eyebrow">PERMISSION MAP</span><h2>O que você pode fazer</h2></div><span class="admin-sync">Perfil ${access.label}</span></div><div class="role-permission-grid">${accessNavItems().filter(([route]) => route !== "partner" && route !== "catalog").map(([route, label], index) => `<button data-route="${route}"><span>${String(index + 1).padStart(2, "0")}</span><strong>${label}</strong><small>${isRetailer ? "Operação comercial da sua loja" : "Operação de abastecimento"}</small><b>↗</b></button>`).join("")}</div></section><section class="admin-panel quick-actions"><div class="admin-panel-head"><div><span class="eyebrow">NEXT MOVE</span><h2>Escolha seu próximo passo.</h2></div></div><div class="quick-action-grid">${actions.map(([label, route, note], index) => `<button data-route="${route}"><span>${String(index + 1).padStart(2, "0")}</span><strong>${label}</strong><small>${note}</small></button>`).join("")}</div></section>`);
+  const salesInsights = isRetailer ? `<div class="sales-section-label"><span class="eyebrow">SALES CONTROL / LOCAL-FIRST</span><strong>Indicadores comerciais.</strong><small>Os números são calculados com os orçamentos e pedidos salvos nesta operação.</small></div><div class="sales-insights-grid"><section class="admin-panel sales-funnel-panel"><div class="admin-panel-head"><div><span class="eyebrow">COMMERCIAL FUNNEL</span><h2>Funil de vendas.</h2></div><span class="admin-sync">${closedQuotes ? `${conversion}% de conversão fechada` : "Ainda sem fechamento"}</span></div><div class="sales-funnel">${[["Consultas", quotes.length, "Todas as solicitações"], ["Em atendimento", openQuotes.length, "Aguardando avanço"], ["Ganhas", wonQuotes.length, "Aprovadas ou convertidas"], ["Perdidas", lostQuotes.length, "Sem conversão"]].map(([label, value, note]) => `<div class="sales-funnel-row"><div><strong>${label}</strong><small>${note}</small></div><b>${value}</b><span class="sales-funnel-bar"><i style="--bar:${Math.max(4, Math.round((value / Math.max(quotes.length, 1)) * 100))}%"></i></span></div>`).join("")}</div><div class="sales-panel-foot"><span>Pipeline em aberto</span><strong>${moneyDetailed(openPipeline)}</strong></div></section><section class="admin-panel sales-trend-panel"><div class="admin-panel-head"><div><span class="eyebrow">EVOLUTION / 6 MONTHS</span><h2>Ritmo comercial.</h2></div><span class="admin-sync">Consultas e pedidos</span></div><div class="sales-trend-chart" role="img" aria-label="Evolução de consultas e pedidos nos últimos seis meses">${trendMonths.map((month) => { const quoteHeight = Math.max(month.quotes ? 10 : 2, Math.round((month.quotes / trendMax) * 100)); const orderHeight = Math.max(month.orders ? 10 : 2, Math.round((month.orders / trendMax) * 100)); return `<div class="sales-trend-column"><div class="sales-trend-bars"><i class="sales-trend-bar sales-trend-quote" style="height:${quoteHeight}%" title="${month.quotes} consulta(s)"></i><i class="sales-trend-bar sales-trend-order" style="height:${orderHeight}%" title="${month.orders} pedido(s)"></i></div><strong>${month.label}</strong><small>${month.orders ? money(month.value) : "—"}</small></div>`; }).join("")}</div><div class="sales-trend-legend"><span><i class="sales-trend-quote"></i> Consultas</span><span><i class="sales-trend-order"></i> Pedidos</span></div></section></div><section class="admin-panel sales-regions-panel"><div class="admin-panel-head"><div><span class="eyebrow">REGIONAL SALES</span><h2>Vendas por região.</h2></div><span class="admin-sync">${regions.length ? `${regions.length} região(ões) identificada(s)` : "Aguardando registros"}</span></div><div class="admin-table-wrap"><table class="admin-table sales-region-table"><thead><tr><th>Região</th><th>Consultas</th><th>Pedidos</th><th>Vendas</th></tr></thead><tbody>${regions.length ? regions.map((region) => `<tr><td><strong>${escapeHtml(region.name)}</strong></td><td>${region.quotes}</td><td>${region.orders}</td><td><strong>${money(region.value)}</strong></td></tr>`).join("") : `<tr><td colspan="4"><div class="sales-empty">As regiões aparecem quando um orçamento ou pedido informar a cidade.</div></td></tr>`}</tbody></table></div></section>` : "";
+  return adminShell("partner", access.kicker, access.title, `<section class="role-brief-panel"><div><span class="eyebrow">ACCESS / ${access.label.toUpperCase()}</span><h2>${access.description}</h2></div><span class="role-access-chip"><i class="status-dot"></i> Acesso ${access.label}</span></section><div class="admin-kpi-grid sales-kpi-grid">${cards.map(([index, label, value, note, route]) => `<button class="admin-kpi role-kpi" data-route="${route}"><span>${label}</span><strong>${value}</strong><small>${note} ↗</small></button>`).join("")}</div>${salesInsights}<section class="admin-panel role-permission-panel"><div class="admin-panel-head"><div><span class="eyebrow">PERMISSION MAP</span><h2>O que você pode fazer</h2></div><span class="admin-sync">Perfil ${access.label}</span></div><div class="role-permission-grid">${accessNavItems().filter(([route]) => route !== "partner" && route !== "catalog").map(([route, label], index) => `<button data-route="${route}"><span>${String(index + 1).padStart(2, "0")}</span><strong>${label}</strong><small>${isRetailer ? "Operação comercial da sua loja" : "Operação de abastecimento"}</small><b>↗</b></button>`).join("")}</div></section><section class="admin-panel quick-actions"><div class="admin-panel-head"><div><span class="eyebrow">NEXT MOVE</span><h2>Escolha seu próximo passo.</h2></div></div><div class="quick-action-grid">${actions.map(([label, route, note], index) => `<button data-route="${route}"><span>${String(index + 1).padStart(2, "0")}</span><strong>${label}</strong><small>${note}</small></button>`).join("")}</div></section>`);
 }
 
 function adminDashboardPage() {
