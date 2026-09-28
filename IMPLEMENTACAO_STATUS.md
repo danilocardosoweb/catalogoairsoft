@@ -1,10 +1,10 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 27/09/2026  
-Última versão publicada: v78 — filme institucional silencioso acionado pelo logo da loja
+Última versão publicada: v79 — hero simplificado e opções de banner centralizadas
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
-Ponto de restauração: tag `restore-v78-brand-film` · commit `e8453cac2f1423cec4120e9b8b7da31480c279f6`
+Ponto de restauração: tag `restore-v79-banner-layout` · commit `7e36c42eae023223f5d103829477fc6ac2c75be5`
 
 ## Resumo
 
@@ -22,6 +22,8 @@ O estado atual também está protegido por um ponto de restauração local docum
 - Hero com vídeo pausado de operador Airsoft controlado horizontalmente pelo mouse, interpolação via `requestAnimationFrame`, retorno suave ao frame central, fallback visual e suporte a movimento reduzido/mobile.
 - Logo da Suprimentos Oliveira abre um filme institucional em modal cinematográfico, sem áudio, com autoplay, loop, replay e fechamento acessível no cabeçalho, rodapé e assinatura da Home.
 - Filme institucional preparado em MP4 1920×1080/24 fps com a trilha de áudio removida para garantir reprodução silenciosa e reduzir processamento do navegador.
+- Assinatura visual da marca removida do primeiro banner para liberar a leitura do hero; o logo permanece disponível no cabeçalho e rodapé para abrir o filme institucional.
+- Opções de campanha do banner centralizadas horizontalmente no hero, com largura adaptada para desktop e mobile.
 - Hero ajustado para usar somente o vídeo do operador, removendo a imagem anterior sobreposta; MP4 reprocessado a 24 fps com quadro-chave em todos os frames e seeks serializados para uma movimentação mais fluida.
 - Radar tático dinâmico no hero inspirado em HUDs de FPS: jogador com rota própria, dois contatos hostis em trajetórias independentes, varredura cônica, grid, pontos cardeais, estados de contato e pings contextuais.
 - Textura vertical central removida do banner principal para não competir com o operador e com a leitura do conteúdo.

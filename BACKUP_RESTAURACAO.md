@@ -1,5 +1,17 @@
 # Ponto de restauração — FIELD OPS
 
+## Ponto mais recente — composição do hero e controles de banner
+
+- Data: 27/09/2026
+- Versão publicada: v79
+- URL: https://field-ops-airsoft.danilocardoso-web.chatgpt.site
+- Tag Git: `restore-v79-banner-layout`
+- Commit do estado funcional: `7e36c42eae023223f5d103829477fc6ac2c75be5`
+- Arquivo: `backups/field-ops-restore-v79-banner-layout.tar.gz`
+- SHA-256: `028C0E7E7F20408876780B6BF5E8CDFED521649159E00CC54CF32C3D8CDDD8FB`
+
+Este ponto remove a assinatura/logo do primeiro banner e centraliza as opções de campanha no hero, mantendo o seletor acessível e responsivo em desktop e mobile. O logo do cabeçalho e do rodapé continua abrindo o filme institucional da marca.
+
 ## Ponto mais recente — filme institucional da marca
 
 - Data: 27/09/2026
