@@ -544,8 +544,24 @@ let modalPreviousFocus = null;
 let pendingConfirmation = null;
 let storeVideoHoldTimer = 0;
 
-const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
+const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0);
 const moneyDetailed = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0);
+function formatPriceInput(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(numeric) : "";
+}
+
+function safeProductImage(value) {
+  const image = String(value || "").trim();
+  if (!image || /[<>"']/.test(image)) return "/assets/product-image-pending.svg";
+  try {
+    const url = new URL(image, window.location.origin);
+    return ["http:", "https:", "data:"].includes(url.protocol) ? image : "/assets/product-image-pending.svg";
+  } catch {
+    return "/assets/product-image-pending.svg";
+  }
+}
+
 const findProduct = (id) => products.find((product) => product.id === id);
 const stockLabel = (product) => product.stockCount <= 0 ? "Indisponível" : product.stockCount <= state.settings.lowStock ? "Poucas unidades" : "Em estoque";
 const catalogPriceMax = () => Math.max(2500, Math.ceil(Math.max(...activeProducts().map((product) => product.price), 2500) / 500) * 500);
@@ -2334,8 +2350,13 @@ function compareModal() {
 
 function productModal(product = null) {
   const editing = Boolean(product);
+  if (product) product.image = safeProductImage(product.image);
   const shipping = product?.shipping || productShippingDefaults(product || { category: "Gear" });
   openModal(`<span class="eyebrow">PRODUCT REGISTER / ${editing ? "EDIT" : "NEW"}</span><h2>${editing ? "Editar produto." : "Novo produto."}</h2><p>Atualize as informações essenciais para manter o catálogo pronto para o campo.</p><form class="form-grid" id="product-form"><div class="form-row"><label class="form-label">Marca<input name="brand" required value="${product?.brand || ""}" placeholder="ROSSI" /></label><label class="form-label">Nome<input name="name" required value="${product?.name || ""}" placeholder="NEPTUNE 10\"" /></label></div><div class="form-row"><label class="form-label">SKU<input name="sku" required value="${product?.sku || ""}" placeholder="FO-00231" /></label><label class="form-label">Sistema<input name="system" value="${product?.system || "AEG"}" placeholder="AEG" /></label></div><div class="form-row"><label class="form-label">Categoria<select name="category"><option ${product?.category === "Rifles" ? "selected" : ""}>Rifles</option><option ${product?.category === "Pistolas" ? "selected" : ""}>Pistolas</option><option ${product?.category === "Ópticas" ? "selected" : ""}>Ópticas</option><option ${product?.category === "Gear" ? "selected" : ""}>Gear</option><option ${product?.category === "Munição" ? "selected" : ""}>Munição</option><option ${product?.category === "Proteção" ? "selected" : ""}>Proteção</option></select></label><label class="form-label">Preço<input name="price" type="number" min="0" step="1" required value="${product?.price || ""}" placeholder="1899" /></label></div><label class="form-label">Estoque<input name="stockCount" type="number" min="0" step="1" required value="${product?.stockCount ?? 0}" placeholder="38" /></label><label class="form-label">Imagem<input name="image" value="${product?.image || "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"} /></label><label class="form-label">Descrição<textarea name="description" placeholder="Resumo do produto">${product?.description || ""}</textarea></label><fieldset class="shipping-fieldset"><legend>Dados de envio</legend><p class="form-help">Use centímetros para dimensões e quilogramas para peso. Esses dados alimentam o cálculo de frete.</p><div class="form-row"><label class="form-label">Peso (kg)<input name="weight" type="number" min="0" step="0.01" required value="${shipping.weight}" /></label><label class="form-label">Dimensões (C × L × A cm)<div class="form-row form-row-tight"><input name="length" type="number" min="0.1" step="0.1" required value="${shipping.length}" aria-label="Comprimento sem embalagem" /><input name="width" type="number" min="0.1" step="0.1" required value="${shipping.width}" aria-label="Largura sem embalagem" /><input name="height" type="number" min="0.1" step="0.1" required value="${shipping.height}" aria-label="Altura sem embalagem" /></div></label></div><div class="form-row"><label class="form-label">Peso com embalagem (kg)<input name="packagedWeight" type="number" min="0" step="0.01" required value="${shipping.packagedWeight}" /></label><label class="form-label">Dimensões com embalagem (C × L × A cm)<div class="form-row form-row-tight"><input name="packagedLength" type="number" min="0.1" step="0.1" required value="${shipping.packagedLength}" aria-label="Comprimento com embalagem" /><input name="packagedWidth" type="number" min="0.1" step="0.1" required value="${shipping.packagedWidth}" aria-label="Largura com embalagem" /><input name="packagedHeight" type="number" min="0.1" step="0.1" required value="${shipping.packagedHeight}" aria-label="Altura com embalagem" /></div></label></div><div class="form-row"><label class="form-label">Frágil<select name="fragile"><option value="false" ${!shipping.fragile ? "selected" : ""}>Não</option><option value="true" ${shipping.fragile ? "selected" : ""}>Sim</option></select></label><label class="form-label">Pode combinar<select name="canCombine"><option value="true" ${shipping.canCombine ? "selected" : ""}>Sim</option><option value="false" ${!shipping.canCombine ? "selected" : ""}>Não</option></select></label></div><div class="form-row"><label class="form-label">Enviar separado<select name="separate"><option value="false" ${!shipping.separate ? "selected" : ""}>Não</option><option value="true" ${shipping.separate ? "selected" : ""}>Sim</option></select></label><label class="form-label">Empilhável<select name="stackable"><option value="true" ${shipping.stackable ? "selected" : ""}>Sim</option><option value="false" ${!shipping.stackable ? "selected" : ""}>Não</option></select></label></div><label class="form-label">Embalagem recomendada<input name="recommendedPackage" value="${shipping.recommendedPackage || ""}" placeholder="Caixa Acessórios M" /></label><label class="form-label">Observações logísticas<textarea name="logisticsNote" placeholder="Cuidados para separação e embalagem">${shipping.logisticsNote || ""}</textarea></label></fieldset><button class="modal-submit" type="submit">${editing ? "Salvar alterações" : "Cadastrar produto"}</button></form>`);
+  const priceField = document.querySelector("#product-form input[name=price]");
+  if (priceField) { priceField.type = "text"; priceField.inputMode = "decimal"; priceField.removeAttribute("step"); priceField.value = formatPriceInput(product?.price); priceField.placeholder = "1.400,00"; }
+  const imageField = document.querySelector("#product-form input[name=image]");
+  if (imageField) { imageField.value = product?.image === "/assets/product-image-pending.svg" ? "" : product?.image || ""; imageField.placeholder = "https://..."; }
   const productNameField = document.querySelector("#product-form input[name=name]")?.closest(".form-label");
   if (productNameField && !document.querySelector("#product-form input[name=supplier]")) productNameField.insertAdjacentHTML("afterend", `<label class="form-label">Fornecedor<input name="supplier" value="${product?.supplier || ""}" placeholder="Nome do fornecedor" /></label>`);
   const categorySelect = document.querySelector("#product-form select[name=category]");
@@ -2345,7 +2366,10 @@ function productModal(product = null) {
     const form = new FormData(event.currentTarget);
     const shippingData = { weight: Number(form.get("weight")), length: Number(form.get("length")), width: Number(form.get("width")), height: Number(form.get("height")), packagedWeight: Number(form.get("packagedWeight")), packagedLength: Number(form.get("packagedLength")), packagedWidth: Number(form.get("packagedWidth")), packagedHeight: Number(form.get("packagedHeight")), fragile: form.get("fragile") === "true", stackable: form.get("stackable") === "true", canCombine: form.get("canCombine") === "true", separate: form.get("separate") === "true", originalPackaging: Boolean(product?.shipping?.originalPackaging), recommendedPackage: form.get("recommendedPackage")?.toString().trim() || "", logisticsNote: form.get("logisticsNote")?.toString().trim() || "" };
     if ([shippingData.weight, shippingData.length, shippingData.width, shippingData.height, shippingData.packagedWeight, shippingData.packagedLength, shippingData.packagedWidth, shippingData.packagedHeight].some((value) => !Number.isFinite(value) || value < 0) || [shippingData.length, shippingData.width, shippingData.height, shippingData.packagedLength, shippingData.packagedWidth, shippingData.packagedHeight].some((value) => value <= 0)) { showToast("Revise peso e dimensões de envio antes de salvar."); return; }
-    const data = { brand: form.get("brand").toString().toUpperCase(), name: form.get("name").toString().toUpperCase(), sku: form.get("sku").toString().trim().toUpperCase(), category: form.get("category"), system: form.get("system").toString().toUpperCase(), price: Number(form.get("price")), stockCount: Number(form.get("stockCount")), image: form.get("image"), description: form.get("description") || "Equipamento pronto para completar seu próximo loadout.", type: `${form.get("system")} · FIELD GEAR`, meta: "FIELD READY", stock: stockLabel({ stockCount: Number(form.get("stockCount")) }), specs: { FPS: "—", Gearbox: "—", Peso: "—", Sistema: form.get("system"), "Hop-Up": "—", Material: "—" }, shipping: shippingData, tag: editing ? product.tag : "Novo", active: true };
+    const parsedPrice = importNumber(form.get("price"));
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) { showToast("Informe um preço válido, por exemplo: 1.400,00."); return; }
+    const parsedStock = Math.max(0, Math.round(importNumber(form.get("stockCount"))));
+    const data = { brand: form.get("brand").toString().toUpperCase(), name: form.get("name").toString().toUpperCase(), sku: form.get("sku").toString().trim().toUpperCase(), category: form.get("category"), system: form.get("system").toString().toUpperCase(), price: parsedPrice, stockCount: parsedStock, image: safeProductImage(form.get("image")), description: form.get("description") || "Equipamento pronto para completar seu próximo loadout.", type: `${form.get("system")} · FIELD GEAR`, meta: "FIELD READY", stock: stockLabel({ stockCount: parsedStock }), specs: { FPS: "—", Gearbox: "—", Peso: "—", Sistema: form.get("system"), "Hop-Up": "—", Material: "—" }, shipping: shippingData, tag: editing ? product.tag : "Novo", active: true };
     if (editing) Object.assign(product, data);
     else products.unshift({ id: `${data.brand.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`, ...data });
     persist(); closeModal(); render(); showToast(editing ? "Produto atualizado." : "Produto cadastrado.");
@@ -2369,10 +2393,12 @@ function stockModal(product) {
 
 function priceModal(product) {
   if (!product) return;
-  openModal(`<span class="eyebrow">PRICING / ${product.brand}</span><h2>Atualizar<br>preço.</h2><p>O novo valor será usado no catálogo, no loadout e nos orçamentos futuros.</p><form class="form-grid" id="price-form"><label class="form-label">Preço de varejo<input name="price" type="number" min="0" step="1" required value="${product.price}" /></label><button class="modal-submit" type="submit">Salvar preço</button></form>`);
+  openModal(`<span class="eyebrow">PRICING / ${escapeHtml(product.brand)}</span><h2>Atualizar<br>preço.</h2><p>Use o padrão brasileiro: <strong>1.400,00</strong>. O valor será usado no catálogo, no loadout e nos orçamentos futuros.</p><form class="form-grid" id="price-form"><label class="form-label">Preço de varejo (R$)<input name="price" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(formatPriceInput(product.price))}" placeholder="1.400,00" /></label><button class="modal-submit" type="submit">Salvar preço</button></form>`);
   document.querySelector("#price-form").addEventListener("submit", (event) => {
     event.preventDefault();
-    product.price = Math.max(0, Number(new FormData(event.currentTarget).get("price")) || 0);
+    const parsedPrice = importNumber(new FormData(event.currentTarget).get("price"));
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) { showToast("Informe um preço válido, por exemplo: 1.400,00."); return; }
+    product.price = parsedPrice;
     persist();
     closeModal();
     render();
@@ -2460,7 +2486,11 @@ function importCellValue(row, header, headerKeys = []) {
   const index = Array.isArray(headerKeys) ? headerKeys.indexOf(header) : -1;
   const key = index >= 0 ? headerKeys[index] : normalizeImportHeader(header);
   const value = row?.[key];
-  return value === undefined || value === null || String(value).trim() === "" ? "—" : String(value).trim();
+  if (value === undefined || value === null || String(value).trim() === "") return "—";
+  const normalizedHeader = normalizeImportHeader(header);
+  if (["valor_de_venda", "valor_venda", "preco_venda", "preco", "price", "valor"].includes(normalizedHeader)) return moneyDetailed(importNumber(value));
+  if (["quant", "quantidade", "qtd", "estoque", "stock"].includes(normalizedHeader)) return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(Math.max(0, Math.round(importNumber(value))));
+  return String(value).trim();
 }
 
 function uniqueImportHeaderKeys(headers) {
@@ -2607,9 +2637,21 @@ function findExistingProductForImport(data, row) {
 }
 
 function importNumber(value) {
-  const raw = String(value ?? "").trim().replace(/[^0-9,.-]/g, "");
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const raw = String(value ?? "").trim().replace(/\s/g, "").replace(/R\$/gi, "").replace(/[^0-9,.-]/g, "");
   if (!raw) return 0;
-  const normalized = raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw.replace(/,/g, "");
+  const lastComma = raw.lastIndexOf(",");
+  const lastDot = raw.lastIndexOf(".");
+  let normalized = raw;
+  if (lastComma >= 0 && lastDot >= 0) {
+    normalized = lastComma > lastDot ? raw.replace(/\./g, "").replace(",", ".") : raw.replace(/,/g, "");
+  } else if (lastComma >= 0) {
+    const parts = raw.split(",");
+    normalized = parts.length === 2 && parts[1].length === 3 ? raw.replace(",", "") : raw.replace(/,/g, ".");
+  } else if (lastDot >= 0) {
+    const parts = raw.split(".");
+    normalized = parts.length === 2 && parts[1].length === 3 ? raw.replace(".", "") : raw;
+  }
   return Number(normalized) || 0;
 }
 
@@ -3787,7 +3829,10 @@ function bindViewEvents() {
   const importFile = document.querySelector("#import-file");
   if (importFile) importFile.addEventListener("change", () => analyzeImportFile(importFile.files[0]));
   const settingsForm = document.querySelector("#settings-form");
-  if (settingsForm) settingsForm.addEventListener("submit", (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const cubingFactor = Math.max(1, Number(form.get("cubingFactor")) || 5000); const quoteValidityHours = Math.max(1, Number(form.get("quoteValidityHours")) || 24); state.settings = { storeName: form.get("storeName").toString().trim(), city: form.get("city").toString().trim(), whatsapp: form.get("whatsapp").toString().replace(/\D/g, ""), lowStock: Number(form.get("lowStock")) || 0 }; state.shipping = { ...state.shipping, originZip: normalizeZip(form.get("originZip")) || state.shipping.originZip, originAddress: form.get("originAddress").toString().trim(), originCity: form.get("originCity").toString().trim(), originState: form.get("originState").toString().trim().toUpperCase(), cubingFactor, quoteValidityHours, freeShippingMin: Math.max(0, Number(form.get("freeShippingMin")) || 0), flatSp: Math.max(0, Number(form.get("flatSp")) || 0), pickupAddress: form.get("pickupAddress").toString().trim(), pickupHours: form.get("pickupHours").toString().trim(), pickupInstructions: form.get("pickupInstructions").toString().trim() }; state.shippingCache = {}; persist(); render(); showToast("Configurações salvas."); });
+  if (settingsForm) {
+    settingsForm.querySelectorAll("input[name=freeShippingMin], input[name=flatSp]").forEach((input) => { input.type = "text"; input.inputMode = "decimal"; input.value = formatPriceInput(input.value); input.placeholder = "499,00"; });
+    settingsForm.addEventListener("submit", (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const cubingFactor = Math.max(1, Number(form.get("cubingFactor")) || 5000); const quoteValidityHours = Math.max(1, Number(form.get("quoteValidityHours")) || 24); state.settings = { storeName: form.get("storeName").toString().trim(), city: form.get("city").toString().trim(), whatsapp: form.get("whatsapp").toString().replace(/\D/g, ""), lowStock: Number(form.get("lowStock")) || 0 }; state.shipping = { ...state.shipping, originZip: normalizeZip(form.get("originZip")) || state.shipping.originZip, originAddress: form.get("originAddress").toString().trim(), originCity: form.get("originCity").toString().trim(), originState: form.get("originState").toString().trim().toUpperCase(), cubingFactor, quoteValidityHours, freeShippingMin: Math.max(0, importNumber(form.get("freeShippingMin"))), flatSp: Math.max(0, importNumber(form.get("flatSp"))), pickupAddress: form.get("pickupAddress").toString().trim(), pickupHours: form.get("pickupHours").toString().trim(), pickupInstructions: form.get("pickupInstructions").toString().trim() }; state.shippingCache = {}; persist(); render(); showToast("Configurações salvas."); });
+  }
   const categoryForm = document.querySelector("#category-form");
   if (categoryForm) categoryForm.addEventListener("submit", (event) => { event.preventDefault(); addCategory(event.currentTarget); });
   const airdropForm = document.querySelector("#airdrop-form");
