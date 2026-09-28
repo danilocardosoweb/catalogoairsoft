@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 28/09/2026  
-Última versão publicada: v87 — acesso fechado e gestão de autorizações
+Última versão publicada: v88 — acesso fechado e gestão de autorizações
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
 Ponto de restauração: tag `restore-v79-banner-layout` · commit `7e36c42eae023223f5d103829477fc6ac2c75be5`
