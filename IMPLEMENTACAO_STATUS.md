@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 28/09/2026  
-Última versão publicada: v82 — integração inicial com Supabase e persistência cloud
+Última versão publicada: v86 — recuperação segura do catálogo legado
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
 Ponto de restauração: tag `restore-v79-banner-layout` · commit `7e36c42eae023223f5d103829477fc6ac2c75be5`
@@ -214,6 +214,7 @@ Conforme o prompt mestre, não são prioridades desta fase: pagamento online, em
 - Adicionada a migração `supabase/migrations/20260928010000_app_state_and_account_bootstrap.sql`, que cria `user_app_state`, RLS por usuário e a função segura `ensure_account` para criar o perfil e reivindicar a organização inicial da loja.
 - O catálogo público tenta carregar produtos, categorias, banners, Radar e Airdrops das tabelas relacionais do Supabase; enquanto o banco estiver sem registros, a interface usa os dados demo em memória para não apresentar uma tela vazia.
 - Ao sincronizar como Lojista/Operador, o catálogo também grava categorias, marcas, produtos, preços de varejo e estoque nas tabelas relacionais correspondentes; o snapshot de usuário funciona apenas como ponte para os módulos ainda não migrados.
+- Adicionada recuperação única dos dados legados que ainda estejam no navegador: se o Supabase estiver vazio, o catálogo antigo é reidratado em memória e pode ser enviado para a conta Supabase após o login.
 - O estado autenticado é salvo no Supabase com debounce de 700 ms, reduzindo gravações repetidas durante edição, filtros e montagem do loadout.
 
 Antes do primeiro acesso autenticado, execute a migração complementar no SQL Editor do projeto Supabase. A migração inicial já executada anteriormente não é alterada.
