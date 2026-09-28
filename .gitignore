@@ -1,3 +1,6 @@
 site-release-*.tar.gz
 backups/
 .sites-artifacts/
+node_modules/
+outputs/
+enrich-product-workbook.mjs

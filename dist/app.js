@@ -2563,6 +2563,47 @@ function importedProductImage(row) {
   return image || "/assets/product-image-pending.svg";
 }
 
+function importTextKey(value) {
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function buildImportDescription(name, category) {
+  const value = importTextKey(name);
+  if (/^bb\b|^bbs\b|municao|esfera|green gas/.test(value)) return "Munição para Airsoft. Confira a gramatura indicada para sua plataforma e a quantidade da embalagem antes da compra.";
+  if (/magazine|carregador/.test(value)) return "Magazine ou carregador para Airsoft. Confirme o sistema e a compatibilidade com sua plataforma antes da compra.";
+  if (/bateria|lipo|li po/.test(value)) return "Bateria ou acessório para alimentação de equipamento de Airsoft. Confirme tensão, conector e espaço disponível antes da instalação.";
+  if (/adaptador/.test(value)) return "Adaptador para Airsoft destinado à instalação ou adaptação de componentes compatíveis. Confirme rosca, medidas e plataforma antes da compra.";
+  if (/bandoleira/.test(value)) return "Bandoleira para Airsoft para transporte e apoio da plataforma. Confirme os pontos de fixação e a compatibilidade antes da compra.";
+  if (/lanterna/.test(value)) return "Lanterna para Airsoft para iluminação e leitura do ambiente. Confirme montagem, alimentação e compatibilidade antes da compra.";
+  if (/front grip|empunhadura|grip/.test(value)) return "Empunhadura para Airsoft para melhorar o controle da plataforma. Confirme o trilho compatível antes da instalação.";
+  if (category === "Rifles") return "Rifle de Airsoft para compor uma plataforma de campo. Consulte as especificações e confirme os acessórios compatíveis antes da compra.";
+  if (category === "Pistolas") return "Pistola de Airsoft para uso como plataforma compacta ou backup. Confirme o sistema e os acessórios compatíveis antes da compra.";
+  if (category === "Ópticas") return "Óptica para Airsoft voltada à visada e aquisição de alvo. Confirme o tipo de trilho e a compatibilidade com sua plataforma.";
+  if (category === "Munição") return "Munição para Airsoft. Confira a gramatura e a quantidade informadas no produto antes da compra.";
+  if (category === "Proteção") return "Equipamento de proteção para Airsoft, pensado para uso em campo. Confirme medidas, ajuste e cobertura antes da compra.";
+  if (category === "Roupas") return "Peça de vestuário para Airsoft indicada para compor o equipamento de campo. Confirme tamanho, cor e disponibilidade antes da compra.";
+  if (category === "Gear") return "Equipamento tático para organizar e complementar seu loadout. Confirme medidas e compatibilidade antes da compra.";
+  return "Acessório para Airsoft para complementar seu equipamento de campo. Consulte as especificações do item e confirme a compatibilidade antes da compra.";
+}
+
+function importHasShippingData(row) {
+  return ["peso", "weight", "comprimento", "length", "largura", "width", "altura", "height", "peso_embalado", "packaged_weight", "comprimento_embalado", "packaged_length", "largura_embalada", "packaged_width", "altura_embalada", "packaged_height"].some((key) => String(row[key] ?? "").trim() !== "");
+}
+
+function findExistingProductForImport(data, row) {
+  const sku = normalizeCatalogSku(data.sku);
+  const exactSku = products.find((product) => sku && normalizeCatalogSku(product.sku) === sku);
+  if (exactSku) return exactSku;
+  const barcode = importTextKey(data.barcode);
+  if (barcode && String(row.__import_barcode_duplicate) !== "true") {
+    const exactBarcode = products.find((product) => importTextKey(product.barcode) === barcode);
+    if (exactBarcode) return exactBarcode;
+  }
+  const name = importTextKey(data.name);
+  const supplier = importTextKey(data.supplier);
+  return products.find((product) => importTextKey(product.name) === name && (!supplier || !product.supplier || importTextKey(product.supplier) === supplier)) || null;
+}
+
 function importNumber(value) {
   const raw = String(value ?? "").trim().replace(/[^0-9,.-]/g, "");
   if (!raw) return 0;
@@ -2579,7 +2620,7 @@ function importedProductData(row, index, batchId) {
   const barcode = importedProductBarcode(row);
   const price = importNumber(importValue(row, ["valor_de_venda", "valor_venda", "preco_venda", "preco", "price", "valor"]));
   const stockCount = Math.max(0, Math.round(importNumber(importValue(row, ["estoque", "stock", "quantidade", "quant", "qtd"]))) || 0);
-  return { sku, barcode, brand: brand.toUpperCase(), name: name.toUpperCase(), type: `${system} · IMPORTED`, meta: importValue(row, ["meta", "modelo"], "FIELD READY"), price, stockCount, stock: stockLabel({ stockCount }), category, system, image: importedProductImage(row), specs: { FPS: importValue(row, ["fps"], "—"), Gearbox: importValue(row, ["gearbox", "gearbox_type"], "—"), Peso: importValue(row, ["peso", "weight"], "—"), Sistema: system, "Hop-Up": importValue(row, ["hop_up", "hopup"], "—"), Material: importValue(row, ["material"], "—") }, shipping: productShippingDefaults({ category }), description: importValue(row, ["descricao", "description"], "Produto importado para revisão."), tag: "Importado", active: true };
+  return { sku, barcode, brand: brand.toUpperCase(), name: name.toUpperCase(), type: `${system} · IMPORTED`, meta: importValue(row, ["meta", "modelo"], "FIELD READY"), price, stockCount, stock: stockLabel({ stockCount }), category, system, image: importedProductImage(row), specs: { FPS: importValue(row, ["fps"], "—"), Gearbox: importValue(row, ["gearbox", "gearbox_type"], "—"), Peso: importValue(row, ["peso", "weight"], "—"), Sistema: system, "Hop-Up": importValue(row, ["hop_up", "hopup"], "—"), Material: importValue(row, ["material"], "—") }, shipping: productShippingDefaults({ category }), description: importValue(row, ["descricao", "description"], buildImportDescription(name, category)), tag: "Importado", active: true };
 }
 
 function summarizeImportRows(rows) {
@@ -2602,10 +2643,12 @@ function commitImport() {
     data.supplier = importValue(row, ["fornecedor", "supplier", "distribuidor", "distributor"], "");
     data.type = importValue(row, ["tipo", "type", "product_type"], "Produto para Airsoft");
     data.meta = importValue(row, ["meta", "modelo", "linha"], data.category);
-    data.description = importValue(row, ["descricao", "description"], `Produto da categoria ${data.category.toLowerCase()} para uso em Airsoft.`);
-    const existing = products.find((product) => normalizeCatalogSku(product.sku) === data.sku);
+    data.description = importValue(row, ["descricao", "description"], buildImportDescription(data.name, data.category));
+    const existing = findExistingProductForImport(data, row);
     if (existing) {
-      Object.assign(existing, data, { id: existing.id, tag: existing.tag || "Importado" });
+      const hasImage = Boolean(importValue(row, ["imagem", "image", "image_url", "url_imagem"]));
+      const hasShipping = importHasShippingData(row);
+      Object.assign(existing, data, { id: existing.id, brand: data.brand || existing.brand, supplier: data.supplier || existing.supplier || "", description: data.description || existing.description, image: hasImage ? data.image : existing.image, shipping: hasShipping ? data.shipping : existing.shipping || data.shipping, tag: existing.tag || "Importado" });
       existing.stock = stockLabel(existing);
       summary.updated += 1;
     } else {
