@@ -53,7 +53,11 @@
     return next;
   }
 
-  async function signUp({ email, password, fullName, phone, role }) {
+  async function signUp(details) {
+    return signUpWithDetails(details);
+  }
+
+  async function signUpWithDetails({ email, password, fullName, phone, role }) {
     const next = await authRequest("/signup", {
       method: "POST",
       body: JSON.stringify({ email, password, data: { full_name: fullName, phone, preferred_role: role } })
@@ -277,6 +281,8 @@
     get organizationId() { return organizationId; },
     get status() { return lastStatus; },
     signInOrSignUp,
+    signIn,
+    signUp,
     bootstrapAccount,
     listAccessGrants,
     createAccessGrant,

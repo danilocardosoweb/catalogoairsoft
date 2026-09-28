@@ -2264,7 +2264,7 @@ function searchPalette(initial = "") {
   input.addEventListener("keydown", (event) => { if (event.key === "Enter" && input.value.trim()) { rememberSearch(input.value); closeModal(); state.search = input.value.trim(); state.category = ""; go("catalog"); } });
 }
 
-function accountModal() {
+function accountModal(mode = "login") {
   if (state.account) {
     const role = currentAccessRole();
     const access = currentAccessProfile();
@@ -2273,33 +2273,37 @@ function accountModal() {
     openModal(`<span class="eyebrow">IDENTITY / PROFILE</span><h2>Olá,<br>${escapeHtml(String(state.account.name || "Operador").split(" ")[0])}.</h2><p>Seu acesso está conectado à base oficial da loja. O perfil selecionado organiza as áreas que aparecem para você.</p><div class="account-role-card"><div><span>PERFIL ATIVO</span><strong>${access.label}</strong></div><small>${access.description}</small></div><div class="account-summary"><div><span>Favoritos</span><strong>${state.favorites.length}</strong></div><div><span>No carrinho</span><strong>${state.cart.reduce((sum, item) => sum + item.quantity, 0)}</strong></div><div><span>Área inicial</span><strong>${role === "consumer" ? "Catálogo" : role === "operator" ? "Ops" : "Parceiro"}</strong></div></div><div class="form-grid"><button class="modal-submit" data-action="profile-destination" data-role-route="${destination}">${destinationLabel} <span>↗</span></button><button class="outline-cta" data-action="account-logout">Sair da conta</button></div>`);
     return;
   }
-  openModal(`<span class="eyebrow">IDENTITY / ACCOUNT</span><h2>Seu perfil<br>de campo.</h2><p>O acesso é controlado pela administração. Use o e-mail previamente autorizado para entrar ou concluir seu cadastro.</p><form class="form-grid" id="account-form"><label class="form-label">Nome<input name="name" required placeholder="Como podemos chamar você?" autocomplete="name" /></label><label class="form-label">E-mail<input name="email" type="email" required placeholder="voce@exemplo.com" autocomplete="email" /></label><div class="form-row"><label class="form-label">WhatsApp<input name="phone" placeholder="(11) 99999-9999" autocomplete="tel" /></label><label class="form-label">Perfil solicitado<select name="role" id="account-role"><option value="consumer">Consumidor</option><option value="retailer">Lojista</option><option value="distributor">Distribuidor</option></select></label></div><label class="form-label">Senha<input name="password" type="password" minlength="8" required placeholder="Mínimo de 8 caracteres" autocomplete="new-password" /></label><div class="account-role-hint" id="account-role-hint"><strong>Acesso autorizado</strong><span>A administração confirma o perfil e as permissões pelo e-mail cadastrado.</span></div><button class="modal-submit" type="submit">Entrar e sincronizar</button></form>`);
-  const roleSelect = document.querySelector("#account-role");
-  const roleHint = document.querySelector("#account-role-hint");
-  const updateRoleHint = () => { const selected = accessProfiles[roleSelect.value] || accessProfiles.consumer; roleHint.innerHTML = `<strong>${selected.label}</strong><span>${selected.description}</span>`; };
-  roleSelect?.addEventListener("change", updateRoleHint);
-  document.querySelector("#account-form").addEventListener("submit", async (event) => {
+  const isRegister = mode === "register";
+  const formId = isRegister ? "register-form" : "login-form";
+  const formMarkup = isRegister ? `<form class="form-grid" id="${formId}"><label class="form-label">Nome<input name="name" required placeholder="Nome completo" autocomplete="name" /></label><label class="form-label">E-mail autorizado<input name="email" type="email" required placeholder="voce@exemplo.com" autocomplete="email" /></label><label class="form-label">WhatsApp<input name="phone" placeholder="(11) 99999-9999" autocomplete="tel" /></label><label class="form-label">Senha<input name="password" type="password" minlength="8" required placeholder="Mínimo de 8 caracteres" autocomplete="new-password" /></label><div class="account-role-hint"><strong>Cadastro sob autorização</strong><span>Use o e-mail liberado pela administração. O perfil e as permissões serão aplicados automaticamente.</span></div><button class="modal-submit" type="submit">Criar cadastro</button></form>` : `<form class="form-grid" id="${formId}"><label class="form-label">E-mail<input name="email" type="email" required placeholder="voce@exemplo.com" autocomplete="email" /></label><label class="form-label">Senha<input name="password" type="password" minlength="8" required placeholder="Sua senha" autocomplete="current-password" /></label><button class="modal-submit" type="submit">Entrar</button><button class="outline-cta" type="button" data-action="account-mode" data-account-mode="register">Ainda não tenho cadastro</button></form>`;
+  openModal(`<span class="eyebrow">IDENTITY / ACCOUNT</span><h2>${isRegister ? "Crie seu acesso." : "Entre na sua conta."}</h2><p>${isRegister ? "Cadastre-se com um e-mail previamente autorizado pela Suprimentos Oliveira." : "Acesse seu catálogo, loadout e área operacional sincronizados."}</p><div class="account-mode-switch" role="tablist"><button type="button" class="${!isRegister ? "active" : ""}" data-action="account-mode" data-account-mode="login">Entrar</button><button type="button" class="${isRegister ? "active" : ""}" data-action="account-mode" data-account-mode="register">Criar cadastro</button></div>${formMarkup}`);
+  document.querySelector(`#${formId}`).addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const name = String(form.get("name") || "").trim();
     const email = String(form.get("email") || "").trim().toLowerCase();
     const phone = String(form.get("phone") || "").trim();
     const password = String(form.get("password") || "");
-    const role = normalizeAccessRole(form.get("role"));
     const cloud = window.FieldOpsSupabase;
     if (!cloud?.configured()) { showToast("A conexão com o Supabase ainda não está configurada."); return; }
     const submit = event.currentTarget.querySelector("button[type=submit]");
-    if (submit) { submit.disabled = true; submit.textContent = "Conectando…"; }
+    if (submit) { submit.disabled = true; submit.textContent = isRegister ? "Criando…" : "Entrando…"; }
     try {
-      const result = await cloud.signInOrSignUp({ email, password, fullName: name, phone, role });
-      if (result.mode === "confirmation") { showToast(result.error); return; }
-      const accountMeta = await cloud.bootstrapAccount({ fullName: name, phone, role });
-      const assignedRole = accountMeta?.role || role;
+      let result = null;
+      if (isRegister) {
+        result = await cloud.signUp({ email, password, fullName: name, phone, role: "consumer" });
+        if (!result?.access_token) { closeModal(); showToast("Cadastro criado. Confirme seu e-mail para liberar o primeiro acesso."); return; }
+      } else {
+        result = await cloud.signIn(email, password);
+      }
+      const accountMeta = await cloud.bootstrapAccount({ fullName: name, phone, role: "consumer" });
+      const assignedRole = accountMeta?.role || "consumer";
       const assignedProfile = accessProfiles[normalizeAccessRole(assignedRole)] || accessProfiles.consumer;
-      state.account = { name, email, phone, role: assignedRole, permissions: accountMeta?.permissions || [], segment: assignedProfile.label, userId: cloud.session?.user?.id || "" };
-      state.profile = { ...(state.profile || {}), name, email, phone, role: assignedRole };
       const previousState = await cloud.loadUserState();
       if (previousState) applyCloudSnapshot(previousState);
+      const resolvedName = accountMeta?.full_name || state.account?.name || state.profile?.name || name || email.split("@")[0];
+      state.account = { ...(state.account || {}), name: resolvedName, email, phone: accountMeta?.phone || phone || state.account?.phone || "", role: assignedRole, permissions: accountMeta?.permissions || state.account?.permissions || [], segment: assignedProfile.label, userId: cloud.session?.user?.id || "" };
+      state.profile = { ...(state.profile || {}), name: resolvedName, email, phone: accountMeta?.phone || phone || state.profile?.phone || "", role: assignedRole };
       persist();
       closeModal();
       go(roleHomeRoute());
@@ -2309,7 +2313,7 @@ function accountModal() {
       const detail = error.message === "access_not_authorized" ? "Este e-mail ainda não foi autorizado pela administração." : error.message === "organization_already_claimed" ? "Esta organização já possui um responsável cadastrado." : error.message;
       showToast(`Não foi possível conectar: ${detail}`);
     } finally {
-      if (submit) { submit.disabled = false; submit.textContent = "Entrar e sincronizar"; }
+      if (submit) { submit.disabled = false; submit.textContent = isRegister ? "Criar cadastro" : "Entrar"; }
     }
   });
 }
@@ -3715,7 +3719,8 @@ document.addEventListener("click", (event) => {
   if (action === "compare-open") compareModal();
   if (action === "compare-clear") { state.compare = []; persist(); render(); showToast("Comparação limpa."); }
   if (action === "compare-clear-close") { state.compare = []; persist(); closeModal(); render(); showToast("Comparação limpa."); }
-  if (action === "account") { event.preventDefault(); accountModal(); }
+  if (action === "account-mode") { event.preventDefault(); accountModal(event.target.closest("[data-account-mode]")?.dataset.accountMode || "login"); }
+  if (action === "account") { event.preventDefault(); accountModal("login"); }
   if (action === "footer-policies") footerPoliciesModal();
   if (action === "footer-shipping") footerShippingModal();
   if (action === "footer-whatsapp") { event.preventDefault(); footerWhatsapp(); }

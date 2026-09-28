@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 28/09/2026  
-Última versão publicada: v88 — acesso fechado e gestão de autorizações
+Última versão publicada: v89 — login e cadastro separados
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
 Ponto de restauração: tag `restore-v79-banner-layout` · commit `7e36c42eae023223f5d103829477fc6ac2c75be5`
@@ -216,6 +216,7 @@ Conforme o prompt mestre, não são prioridades desta fase: pagamento online, em
 - O perfil enviado pelo formulário deixou de conceder privilégio: o Supabase define o perfil e as permissões a partir da autorização cadastrada pelo administrador. O e-mail `danilo.cardosoweb@gmail.com` é o administrador inicial previsto na migração.
 - Criada a rota administrativa `admin-access` para autorizar lojistas, distribuidores e operadores, revisar permissões, bloquear e reativar acessos.
 - Criado o modelo visual de confirmação em `supabase/templates/confirmation.html`, com instruções para configurar o assunto e o SMTP próprio da loja.
+- Separados os fluxos de **Entrar** e **Criar cadastro**: login pede apenas e-mail e senha; cadastro pede os dados da pessoa e informa que o perfil é aplicado pela autorização administrativa.
 - O catálogo público tenta carregar produtos, categorias, banners, Radar e Airdrops das tabelas relacionais do Supabase; enquanto o banco estiver sem registros, a interface usa os dados demo em memória para não apresentar uma tela vazia.
 - Ao sincronizar como Lojista/Operador, o catálogo também grava categorias, marcas, produtos, preços de varejo e estoque nas tabelas relacionais correspondentes; o snapshot de usuário funciona apenas como ponte para os módulos ainda não migrados.
 - Adicionada recuperação única dos dados legados que ainda estejam no navegador: se o Supabase estiver vazio, o catálogo antigo é reidratado em memória e pode ser enviado para a conta Supabase após o login.

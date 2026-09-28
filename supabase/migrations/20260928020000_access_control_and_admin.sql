@@ -149,8 +149,8 @@ begin
   insert into public.profiles (id, full_name, phone, preferred_role)
   values (v_user_id, nullif(trim(p_full_name), ''), nullif(trim(p_phone), ''), v_role)
   on conflict (id) do update set
-    full_name = excluded.full_name,
-    phone = excluded.phone,
+    full_name = coalesce(excluded.full_name, public.profiles.full_name),
+    phone = coalesce(excluded.phone, public.profiles.phone),
     preferred_role = excluded.preferred_role,
     updated_at = timezone('utc', now());
 
@@ -186,4 +186,3 @@ $$;
 
 revoke all on function public.ensure_account(text, text, public.app_role) from public;
 grant execute on function public.ensure_account(text, text, public.app_role) to authenticated;
-
