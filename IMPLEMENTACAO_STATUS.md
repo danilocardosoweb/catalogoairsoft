@@ -153,6 +153,8 @@ O estado atual também está protegido por um ponto de restauração local docum
 - Validar e sanitizar dados vindos de produtos, importações e formulários antes de renderizar HTML.
 - A restauração de backup aplica normalização mínima a produtos, imagens, quantidades e seções principais; ainda é necessário centralizar a sanitização de todas as entradas do app.
 - Substituir dados demo e valores padrão por catálogo, preços, imagens e estoque reais.
+- Configurações agora possuem um gerenciador de categorias para o perfil Lojista: a loja pode adicionar nome, descrição e imagem de capa, ativar/ocultar categorias e excluir categorias personalizadas que não estejam em uso.
+- As categorias passaram a alimentar uma fonte única no catálogo: Home, atalhos de busca, filtros, cadastro/edição de produto e backup JSON. Roupas e Acessórios foram incluídas como frentes iniciais para ampliar a operação além das armas.
 - Configurar o número oficial do WhatsApp fora do código e separar ambientes de desenvolvimento e produção.
 - Registrar histórico de alterações de preço, estoque, produto e status de orçamento.
 - Conectar um gateway real de frete (Correios, Melhor Envio, Frenet ou equivalente) para substituir o simulador local e retornar preços/prazos oficiais.

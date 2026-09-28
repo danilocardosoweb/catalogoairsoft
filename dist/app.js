@@ -132,13 +132,47 @@ products.forEach((product, index) => {
 });
 
 const categories = [
-  { name: "Rifles", count: "124 itens", image: "https://mirtactical.com/product_images/uploaded_images/gim1.jpg" },
-  { name: "Pistolas", count: "58 itens", image: "https://cdn.airsoftbazaar.com/uploads/listings/listing-mcuiii_2_Vm3Qfjev.jpg" },
-  { name: "Ópticas", count: "36 itens", image: "https://images.unsplash.com/photo-1687726258745-8546ad8030d6?auto=format&fit=crop&w=900&q=82" },
-  { name: "Gear", count: "89 itens", image: "https://images.unsplash.com/photo-1752559342576-dcbbfda3dbb7?auto=format&fit=crop&w=900&q=82" },
-  { name: "Munição", count: "42 itens", image: "https://mirtactical.com/product_images/uploaded_images/gim1.jpg" },
-  { name: "Proteção", count: "27 itens", image: "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=900&q=82" }
+  { id: "rifles", name: "Rifles", description: "Plataformas principais para entrar em campo.", image: "https://mirtactical.com/product_images/uploaded_images/gim1.jpg", builtIn: true },
+  { id: "pistolas", name: "Pistolas", description: "Sidearms para backup e curta distância.", image: "https://cdn.airsoftbazaar.com/uploads/listings/listing-mcuiii_2_Vm3Qfjev.jpg", builtIn: true },
+  { id: "opticas", name: "Ópticas", description: "Aquisição rápida e precisão no alvo.", image: "https://images.unsplash.com/photo-1687726258745-8546ad8030d6?auto=format&fit=crop&w=900&q=82", builtIn: true },
+  { id: "gear", name: "Gear", description: "Equipamentos modulares para seu setup.", image: "https://images.unsplash.com/photo-1752559342576-dcbbfda3dbb7?auto=format&fit=crop&w=900&q=82", builtIn: true },
+  { id: "municao", name: "Munição", description: "Consumíveis para manter a operação ativa.", image: "https://mirtactical.com/product_images/uploaded_images/gim1.jpg", builtIn: true },
+  { id: "protecao", name: "Proteção", description: "Segurança e conforto para jogar melhor.", image: "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=900&q=82", builtIn: true },
+  { id: "roupas", name: "Roupas", description: "Uniformes e vestuário para o operador.", image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=82", builtIn: true },
+  { id: "acessorios", name: "Acessórios", description: "Peças e complementos para personalizar o loadout.", image: "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=900&q=82", builtIn: true }
 ];
+const storedCategories = JSON.parse(localStorage.getItem("fieldops-categories") || "null");
+
+function categorySlug(value) {
+  return String(value || "categoria").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "categoria";
+}
+
+function ensureCategoryShape(category, index = 0) {
+  const source = category && typeof category === "object" ? category : {};
+  const name = String(source.name || source.label || "Categoria sem nome").trim().slice(0, 50);
+  return {
+    ...source,
+    id: String(source.id || `${categorySlug(name)}-${index}`).trim(),
+    name,
+    description: String(source.description || "Uma nova frente para o catálogo da loja.").trim().slice(0, 140),
+    image: String(source.image || categories[index % categories.length].image).trim(),
+    builtIn: source.builtIn === true,
+    active: source.active !== false,
+    order: Math.max(1, Number(source.order) || index + 1)
+  };
+}
+
+function categoryImageUrl(value) {
+  const fallback = categories[3].image;
+  const image = String(value || "").trim();
+  if (!image) return fallback;
+  try {
+    const url = new URL(image, window.location.origin);
+    return ["http:", "https:"].includes(url.protocol) || image.startsWith("/") ? image : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 const defaultSettings = { whatsapp: "5511999999999", storeName: "Suprimentos Oliveira", city: "São Paulo", lowStock: 10 };
 const storedSettings = JSON.parse(localStorage.getItem("fieldops-settings") || "null");
@@ -201,6 +235,7 @@ const state = {
   adminProductSearch: "",
   account: JSON.parse(localStorage.getItem("fieldops-account") || "null"),
   profile: JSON.parse(localStorage.getItem("fieldops-profile") || "null"),
+  categories: Array.isArray(storedCategories) ? storedCategories : categories,
   recentSearches: JSON.parse(localStorage.getItem("fieldops-recent-searches") || "[]"),
   recentProducts: JSON.parse(localStorage.getItem("fieldops-recent-products") || "[]"),
   settings: { ...defaultSettings, ...(storedSettings || {}) },
@@ -359,6 +394,16 @@ function ensureRadarSourceShape(source) {
 
 state.radar = { location: { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual" }, scope: "nearby", type: "all", radius: 100, sort: "relevance", view: "feed", ...(state.radar || {}) };
 if (state.settings.storeName === "Field Ops") { state.settings.storeName = defaultSettings.storeName; localStorage.setItem("fieldops-settings", JSON.stringify(state.settings)); }
+state.categories = (Array.isArray(state.categories) ? state.categories : categories).map(ensureCategoryShape);
+const knownCategoryNames = new Set(state.categories.map((category) => category.name.toLowerCase()));
+products.forEach((product, index) => {
+  const productCategory = String(product.category || "").trim();
+  if (productCategory && !knownCategoryNames.has(productCategory.toLowerCase())) {
+    state.categories.push(ensureCategoryShape({ id: categorySlug(productCategory), name: productCategory, description: "Categoria importada a partir do catálogo.", builtIn: false }, state.categories.length + index));
+    knownCategoryNames.add(productCategory.toLowerCase());
+  }
+});
+state.categories.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, "pt-BR"));
 state.radar.location = { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual", ...(state.radar.location || {}) };
 state.radarContents = (Array.isArray(state.radarContents) ? state.radarContents : seedRadarContent).map(ensureRadarContentShape).map((content) => content.country !== "Brasil" ? { ...content, state: "" } : content);
 state.radarFollowing = Array.isArray(state.radarFollowing) ? state.radarFollowing : [];
@@ -526,6 +571,7 @@ function persist() {
   localStorage.setItem("fieldops-profile", JSON.stringify(state.profile));
   localStorage.setItem("fieldops-recent-searches", JSON.stringify(state.recentSearches));
   localStorage.setItem("fieldops-recent-products", JSON.stringify(state.recentProducts));
+  localStorage.setItem("fieldops-categories", JSON.stringify(state.categories));
   localStorage.setItem("fieldops-settings", JSON.stringify(state.settings));
   localStorage.setItem("fieldops-banners", JSON.stringify(state.banners));
   localStorage.setItem("fieldops-theme", state.theme);
@@ -536,6 +582,23 @@ function persist() {
   localStorage.setItem("fieldops-radar-assist", JSON.stringify(state.radarAssist));
   localStorage.setItem("fieldops-airdrops", JSON.stringify(state.airdrops));
   localStorage.setItem("fieldops-airdrop-code", state.appliedAirdropCode || "");
+}
+
+function catalogCategories(includeInactive = false) {
+  const list = (Array.isArray(state.categories) ? state.categories : categories).filter((category) => includeInactive || category.active !== false);
+  const seen = new Set();
+  return list.filter((category) => {
+    const key = category.name.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, "pt-BR"));
+}
+
+function productCategoryOptions(selected = "") {
+  const options = catalogCategories(true).filter((category) => category.active || category.name === selected);
+  if (selected && !options.some((category) => category.name === selected)) options.push(ensureCategoryShape({ name: selected, description: "Categoria usada por este produto.", active: false }, options.length));
+  return options.map((category) => `<option value="${escapeHtml(category.name)}" ${category.name === selected ? "selected" : ""}>${escapeHtml(category.name)}${category.active ? "" : " · inativa"}</option>`).join("");
 }
 
 function filteredProducts() {
@@ -580,7 +643,7 @@ function productCard(product) {
 }
 
 function searchBar() {
-  return `<div class="search-zone container"><div class="search-bar"><span class="icon icon-search"></span><input id="global-search" value="${state.search}" placeholder="Buscar equipamento, marca ou categoria" autocomplete="off" /><button class="search-key" data-action="open-search" aria-label="Abrir busca avançada">⌘ K</button></div><div class="search-quick-links" aria-label="Atalhos de catálogo"><button data-category="Rifles">Rifles</button><button data-category="Pistolas">Pistolas</button><button data-category="Ópticas">Ópticas</button><button data-category="Gear">Gear</button><button data-category="Munição">Munição</button></div><div class="search-results" data-search-results></div></div>`;
+  return `<div class="search-zone container"><div class="search-bar"><span class="icon icon-search"></span><input id="global-search" value="${state.search}" placeholder="Buscar equipamento, marca ou categoria" autocomplete="off" /><button class="search-key" data-action="open-search" aria-label="Abrir busca avançada">⌘ K</button></div><div class="search-quick-links" aria-label="Atalhos de catálogo">${catalogCategories().slice(0, 7).map((category) => `<button data-category="${escapeHtml(category.name)}">${escapeHtml(category.name)}</button>`).join("")}</div><div class="search-results" data-search-results></div></div>`;
 }
 
 function recommendedProducts() {
@@ -816,7 +879,7 @@ function homePage() {
     </section>
     ${searchBar()}
     <div class="container">
-      <section class="home-section home-arsenal-section"><div class="section-label"><div><span class="eyebrow">01 / ARSENAL</span><h2>Escolha sua<br>plataforma.</h2></div><p>O essencial para entrar em campo com o setup certo, do primeiro jogo ao próximo upgrade.</p></div><div class="category-grid">${categories.map((category) => { const count = activeProducts().filter((product) => product.category === category.name).length; return `<button class="category-card ${count ? "" : "is-coming-soon"}" type="button" ${count ? `data-category="${category.name}"` : `data-action="coming-soon" data-category-name="${category.name}"`} style="--category-image: url('${category.image}')"><span class="category-card-content"><strong>${category.name}</strong><small>${count ? `${count} itens ↗` : "Em breve ↗"}</small></span></button>`; }).join("")}</div></section>
+      <section class="home-section home-arsenal-section"><div class="section-label"><div><span class="eyebrow">01 / ARSENAL</span><h2>Escolha sua<br>plataforma.</h2></div><p>O essencial para entrar em campo com o setup certo, do primeiro jogo ao próximo upgrade.</p></div><div class="category-grid">${catalogCategories().map((category) => { const count = activeProducts().filter((product) => product.category === category.name).length; const categoryImage = categoryImageUrl(category.image); return `<button class="category-card ${count ? "" : "is-coming-soon"}" type="button" ${count ? `data-category="${escapeHtml(category.name)}"` : `data-action="coming-soon" data-category-name="${escapeHtml(category.name)}"`} style="--category-image: url('${escapeHtml(categoryImage)}')"><span class="category-card-content"><strong>${escapeHtml(category.name)}</strong><small>${count ? `${count} itens ↗` : "Em breve ↗"}</small></span></button>`; }).join("")}</div></section>
       <section class="home-section"><div class="section-label"><div><span class="eyebrow">02 / CURATED GEAR</span><h2>Escolhas<br>de campo.</h2></div><a class="text-link" href="#catalog" data-route="catalog">Ver catálogo</a></div><div class="product-grid">${feature.map(productCard).join("")}</div></section>
       ${resumeStrip()}
       ${missionDeck()}
@@ -829,7 +892,7 @@ function homePage() {
 }
 
 function filterPanel() {
-  const catOptions = ["Rifles", "Pistolas", "Ópticas", "Gear", "Munição"];
+  const catOptions = catalogCategories().map((category) => category.name);
   const priceMax = catalogPriceMax();
   const selectedPrice = Math.min(Number(state.filters.maxPrice || priceMax), priceMax);
   return `<aside class="filter-panel"><div class="filter-header"><strong>Filter //</strong><small>LOADOUT</small></div><div class="filter-group"><h3>Categoria</h3>${catOptions.map((cat) => `<label class="filter-option"><input type="radio" data-filter-category name="catalog-category" value="${cat}" ${state.category === cat ? "checked" : ""}> ${cat}</label>`).join("")}<label class="filter-option"><input type="radio" data-filter-category name="catalog-category" value="" ${!state.category ? "checked" : ""}> Todas</label></div><div class="filter-group"><h3>Sistema</h3>${["AEG", "GBB", "HPA"].map((system) => `<label class="filter-option"><input type="checkbox" data-filter-system value="${system}" ${state.filters.systems.includes(system) ? "checked" : ""}> ${system}</label>`).join("")}</div><div class="filter-group"><h3>Disponibilidade</h3>${[["all", "Todos"], ["available", "Em estoque"], ["low", "Poucas unidades"], ["out", "Indisponível"]].map(([value, label]) => `<label class="filter-option"><input type="radio" data-filter-availability name="availability" value="${value}" ${state.filters.availability === value ? "checked" : ""}> ${label}</label>`).join("")}</div><div class="filter-group price-filter-group"><div class="filter-group-title"><h3>Preço máximo</h3><output data-price-output>${money(selectedPrice)}</output></div><input class="price-range" type="range" data-filter-price min="0" max="${priceMax}" step="50" value="${selectedPrice}" aria-label="Preço máximo" /></div></aside>`;
@@ -916,7 +979,7 @@ function exportDataModal() {
 
 function exportBackup() {
   closeModal();
-  const payload = { schemaVersion: 4, exportedAt: new Date().toISOString(), source: "FIELD OPS", products, cart: state.cart, cartShipping: state.cartShipping, shippingCache: state.shippingCache, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, compare: state.compare, loadout: state.loadout, settings: state.settings, banners: state.banners, profile: state.profile, account: state.account, recentSearches: state.recentSearches, recentProducts: state.recentProducts, importHistory: state.importHistory, theme: state.theme, radar: state.radar, radarFollowing: state.radarFollowing, radarContents: state.radarContents, radarSources: state.radarSources, radarAssist: state.radarAssist, airdrops: state.airdrops, appliedAirdropCode: state.appliedAirdropCode || "" };
+  const payload = { schemaVersion: 5, exportedAt: new Date().toISOString(), source: "FIELD OPS", products, categories: state.categories, cart: state.cart, cartShipping: state.cartShipping, shippingCache: state.shippingCache, quotes: state.quotes, orders: state.orders, shipping: state.shipping, favorites: state.favorites, compare: state.compare, loadout: state.loadout, settings: state.settings, banners: state.banners, profile: state.profile, account: state.account, recentSearches: state.recentSearches, recentProducts: state.recentProducts, importHistory: state.importHistory, theme: state.theme, radar: state.radar, radarFollowing: state.radarFollowing, radarContents: state.radarContents, radarSources: state.radarSources, radarAssist: state.radarAssist, airdrops: state.airdrops, appliedAirdropCode: state.appliedAirdropCode || "" };
   downloadLocalFile(`field-ops-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
   showToast("Backup completo exportado.");
 }
@@ -983,6 +1046,9 @@ async function applyBackupRestore() {
   state.quotes = (Array.isArray(payload.quotes) ? payload.quotes : []).map(ensureQuoteShape);
   state.orders = (Array.isArray(payload.orders) ? payload.orders : []).map(ensureOrderShape);
   state.loadout = payload.loadout && typeof payload.loadout === "object" ? payload.loadout : { Rifle: restoredProducts[0].id };
+  state.categories = (Array.isArray(payload.categories) ? payload.categories : categories).map(ensureCategoryShape);
+  const restoredCategoryNames = new Set(state.categories.map((category) => category.name.toLowerCase()));
+  restoredProducts.forEach((product, index) => { const productCategory = String(product.category || "").trim(); if (productCategory && !restoredCategoryNames.has(productCategory.toLowerCase())) { state.categories.push(ensureCategoryShape({ id: categorySlug(productCategory), name: productCategory, description: "Categoria importada a partir do catálogo.", builtIn: false }, state.categories.length + index)); restoredCategoryNames.add(productCategory.toLowerCase()); } });
   state.settings = { ...defaultSettings, ...(payload.settings && typeof payload.settings === "object" ? payload.settings : {}) };
   state.banners = (Array.isArray(payload.banners) ? payload.banners : seedBanners).map(ensureBannerShape);
   state.shipping = { ...defaultShippingSettings, ...(payload.shipping && typeof payload.shipping === "object" ? payload.shipping : {}), packages: Array.isArray(payload.shipping?.packages) && payload.shipping.packages.length ? payload.shipping.packages : defaultShippingPackages };
@@ -1312,8 +1378,47 @@ async function deleteBanner(id) {
   showToast("Banner excluído.");
 }
 
+function categoryManagerMarkup() {
+  const list = catalogCategories(true);
+  return `<section class="admin-panel category-manager-panel"><div class="admin-panel-head"><div><span class="eyebrow">CATALOG / CATEGORY CONTROL</span><h2>Frentes do catálogo.</h2></div><span class="admin-sync"><i class="status-dot"></i> ${list.filter((category) => category.active).length} visíveis</span></div><p class="settings-intro">Crie categorias para roupas, acessórios ou qualquer nova linha da loja. As categorias ativas aparecem automaticamente no filtro, nos atalhos e no cadastro de produtos.</p><div class="category-manager-grid">${list.map((category) => `<article class="category-manager-card ${category.active ? "is-active" : "is-paused"}"><img src="${escapeHtml(categoryImageUrl(category.image))}" alt="" /><div class="category-manager-copy"><strong>${escapeHtml(category.name)}</strong><small>${escapeHtml(category.description)}</small><span class="admin-status ${category.active ? "status-live" : "status-low"}">${category.active ? "Visível" : "Oculta"}</span></div><div class="category-manager-actions"><button class="status-action" data-action="category-toggle" data-category-id="${escapeHtml(category.id)}">${category.active ? "Ocultar" : "Ativar"}</button>${category.builtIn ? `<span class="category-lock">Base</span>` : `<button class="status-action danger-text" data-action="category-delete" data-category-id="${escapeHtml(category.id)}">Excluir</button>`}</div></article>`).join("")}</div><form class="category-create-form" id="category-form"><div class="category-form-heading"><div><span class="eyebrow">NEW CATEGORY</span><strong>Adicionar uma nova frente.</strong></div><small>Ex.: Roupas, Acessórios, Calçados ou Customização.</small></div><div class="form-row"><label class="form-label">Nome da categoria<input name="name" required maxlength="50" placeholder="Roupas táticas" /></label><label class="form-label">Imagem de capa <span class="form-help">opcional</span><input name="image" placeholder="https://..." /></label></div><label class="form-label">Descrição curta<textarea name="description" maxlength="140" placeholder="Uniformes, camisas e calças para o operador."></textarea></label><button class="hero-cta" type="submit">Adicionar categoria</button></form></section>`;
+}
+
+function addCategory(form) {
+  const data = new FormData(form);
+  const name = data.get("name")?.toString().trim().replace(/\s+/g, " ");
+  if (!name) return;
+  if (catalogCategories(true).some((category) => category.name.toLowerCase() === name.toLowerCase())) { showToast("Essa categoria já existe."); return; }
+  const image = categoryImageUrl(data.get("image"));
+  state.categories.push(ensureCategoryShape({ id: `${categorySlug(name)}-${Date.now()}`, name, description: data.get("description")?.toString().trim() || "Uma nova frente para o catálogo da loja.", image, builtIn: false, active: true, order: Math.max(...state.categories.map((category) => category.order), 0) + 1 }, state.categories.length));
+  persist();
+  render();
+  showToast(`${name} adicionada ao catálogo.`);
+}
+
+function toggleCategory(id) {
+  const category = state.categories.find((item) => item.id === id);
+  if (!category) return;
+  category.active = !category.active;
+  persist();
+  render();
+  showToast(category.active ? `${category.name} visível no catálogo.` : `${category.name} ocultada do catálogo.`);
+}
+
+async function deleteCategory(id) {
+  const category = state.categories.find((item) => item.id === id);
+  if (!category || category.builtIn) return;
+  const inUse = products.filter((product) => product.category === category.name).length;
+  const confirmed = await confirmAction({ eyebrow: "CATALOG / CATEGORY", title: "Excluir esta categoria?", message: inUse ? "Existem produtos usando esta categoria. Para proteger o catálogo, ela será apenas ocultada." : "A categoria será removida deste dispositivo.", detail: `${category.name}${inUse ? ` · ${inUse} produto(s) vinculado(s)` : ""}`, confirmLabel: inUse ? "Ocultar categoria" : "Excluir categoria", tone: "danger" });
+  if (!confirmed) return;
+  if (inUse) category.active = false;
+  else state.categories = state.categories.filter((item) => item.id !== id);
+  persist();
+  render();
+  showToast(inUse ? "Categoria ocultada para preservar os produtos." : "Categoria excluída.");
+}
+
 function adminSettingsPage() {
-  return adminShell("admin-settings", "09 / SYSTEM", "Configurações.", `<section class="admin-panel settings-panel"><div class="admin-panel-head"><div><span class="eyebrow">STORE CONTROL</span><h2>Dados da operação.</h2></div><span class="admin-sync"><i class="status-dot"></i> Salvo neste dispositivo</span></div><p class="settings-intro">Ajuste atendimento, origem logística e regras simples de frete para o MVP local.</p><form class="settings-form" id="settings-form"><div class="form-row"><label class="form-label">Nome da operação<input name="storeName" required value="${state.settings.storeName}" /></label><label class="form-label">Cidade<input name="city" required value="${state.settings.city}" /></label></div><div class="form-row"><label class="form-label">WhatsApp do atendimento<input name="whatsapp" required inputmode="tel" value="${state.settings.whatsapp}" placeholder="5511999999999" /></label><label class="form-label">Alerta de estoque baixo<input name="lowStock" required type="number" min="0" step="1" value="${state.settings.lowStock}" /></label></div><fieldset class="shipping-fieldset"><legend>Logística</legend><div class="form-row"><label class="form-label">CEP de origem<input name="originZip" required value="${state.shipping.originZip}" placeholder="01310-100" /></label><label class="form-label">Endereço de origem<input name="originAddress" required value="${state.shipping.originAddress}" /></label></div><div class="form-row"><label class="form-label">Cidade de origem<input name="originCity" required value="${state.shipping.originCity}" /></label><label class="form-label">Estado<input name="originState" required maxlength="2" value="${state.shipping.originState}" /></label></div><div class="form-row"><label class="form-label">Fator de cubagem<input name="cubingFactor" type="number" min="1" step="1" value="${state.shipping.cubingFactor}" /><small class="form-help">Fórmula: C × L × A ÷ fator.</small></label><label class="form-label">Validade da cotação (horas)<input name="quoteValidityHours" type="number" min="1" step="1" value="${state.shipping.quoteValidityHours}" /></label></div><div class="form-row"><label class="form-label">Frete grátis acima de<input name="freeShippingMin" type="number" min="0" step="0.01" value="${state.shipping.freeShippingMin}" /></label><label class="form-label">Frete base SP<input name="flatSp" type="number" min="0" step="0.01" value="${state.shipping.flatSp}" /></label></div></fieldset><fieldset class="shipping-fieldset"><legend>Retirada no local</legend><label class="form-label">Endereço<input name="pickupAddress" required value="${state.shipping.pickupAddress}" /></label><div class="form-row"><label class="form-label">Horário<input name="pickupHours" required value="${state.shipping.pickupHours}" /></label><label class="form-label">Instruções<input name="pickupInstructions" required value="${state.shipping.pickupInstructions}" /></label></div></fieldset><div class="settings-preview"><span class="eyebrow">ATENDIMENTO</span><strong>${state.settings.storeName} · ${state.settings.city}</strong><small>Frete grátis a partir de ${moneyDetailed(state.shipping.freeShippingMin)} · cubagem ${state.shipping.cubingFactor}.</small></div><div class="settings-actions"><button class="hero-cta" type="submit">Salvar configurações</button><button class="outline-cta" type="button" data-action="reset-local-data">Restaurar dados demo</button></div></form></section>${airdropControlMarkup()}`);
+  return adminShell("admin-settings", "09 / SYSTEM", "Configurações.", `<section class="admin-panel settings-panel"><div class="admin-panel-head"><div><span class="eyebrow">STORE CONTROL</span><h2>Dados da operação.</h2></div><span class="admin-sync"><i class="status-dot"></i> Salvo neste dispositivo</span></div><p class="settings-intro">Ajuste atendimento, origem logística e regras simples de frete para o MVP local.</p><form class="settings-form" id="settings-form"><div class="form-row"><label class="form-label">Nome da operação<input name="storeName" required value="${state.settings.storeName}" /></label><label class="form-label">Cidade<input name="city" required value="${state.settings.city}" /></label></div><div class="form-row"><label class="form-label">WhatsApp do atendimento<input name="whatsapp" required inputmode="tel" value="${state.settings.whatsapp}" placeholder="5511999999999" /></label><label class="form-label">Alerta de estoque baixo<input name="lowStock" required type="number" min="0" step="1" value="${state.settings.lowStock}" /></label></div><fieldset class="shipping-fieldset"><legend>Logística</legend><div class="form-row"><label class="form-label">CEP de origem<input name="originZip" required value="${state.shipping.originZip}" placeholder="01310-100" /></label><label class="form-label">Endereço de origem<input name="originAddress" required value="${state.shipping.originAddress}" /></label></div><div class="form-row"><label class="form-label">Cidade de origem<input name="originCity" required value="${state.shipping.originCity}" /></label><label class="form-label">Estado<input name="originState" required maxlength="2" value="${state.shipping.originState}" /></label></div><div class="form-row"><label class="form-label">Fator de cubagem<input name="cubingFactor" type="number" min="1" step="1" value="${state.shipping.cubingFactor}" /><small class="form-help">Fórmula: C × L × A ÷ fator.</small></label><label class="form-label">Validade da cotação (horas)<input name="quoteValidityHours" type="number" min="1" step="1" value="${state.shipping.quoteValidityHours}" /></label></div><div class="form-row"><label class="form-label">Frete grátis acima de<input name="freeShippingMin" type="number" min="0" step="0.01" value="${state.shipping.freeShippingMin}" /></label><label class="form-label">Frete base SP<input name="flatSp" type="number" min="0" step="0.01" value="${state.shipping.flatSp}" /></label></div></fieldset><fieldset class="shipping-fieldset"><legend>Retirada no local</legend><label class="form-label">Endereço<input name="pickupAddress" required value="${state.shipping.pickupAddress}" /></label><div class="form-row"><label class="form-label">Horário<input name="pickupHours" required value="${state.shipping.pickupHours}" /></label><label class="form-label">Instruções<input name="pickupInstructions" required value="${state.shipping.pickupInstructions}" /></label></div></fieldset><div class="settings-preview"><span class="eyebrow">ATENDIMENTO</span><strong>${state.settings.storeName} · ${state.settings.city}</strong><small>Frete grátis a partir de ${moneyDetailed(state.shipping.freeShippingMin)} · cubagem ${state.shipping.cubingFactor}.</small></div><div class="settings-actions"><button class="hero-cta" type="submit">Salvar configurações</button><button class="outline-cta" type="button" data-action="reset-local-data">Restaurar dados demo</button></div></form></section>${categoryManagerMarkup()}${airdropControlMarkup()}`);
 }
 
 function adminProductsPage() {
@@ -1930,6 +2035,8 @@ function productModal(product = null) {
   const editing = Boolean(product);
   const shipping = product?.shipping || productShippingDefaults(product || { category: "Gear" });
   openModal(`<span class="eyebrow">PRODUCT REGISTER / ${editing ? "EDIT" : "NEW"}</span><h2>${editing ? "Editar produto." : "Novo produto."}</h2><p>Atualize as informações essenciais para manter o catálogo pronto para o campo.</p><form class="form-grid" id="product-form"><div class="form-row"><label class="form-label">Marca<input name="brand" required value="${product?.brand || ""}" placeholder="ROSSI" /></label><label class="form-label">Nome<input name="name" required value="${product?.name || ""}" placeholder="NEPTUNE 10\"" /></label></div><div class="form-row"><label class="form-label">SKU<input name="sku" required value="${product?.sku || ""}" placeholder="FO-00231" /></label><label class="form-label">Sistema<input name="system" value="${product?.system || "AEG"}" placeholder="AEG" /></label></div><div class="form-row"><label class="form-label">Categoria<select name="category"><option ${product?.category === "Rifles" ? "selected" : ""}>Rifles</option><option ${product?.category === "Pistolas" ? "selected" : ""}>Pistolas</option><option ${product?.category === "Ópticas" ? "selected" : ""}>Ópticas</option><option ${product?.category === "Gear" ? "selected" : ""}>Gear</option><option ${product?.category === "Munição" ? "selected" : ""}>Munição</option><option ${product?.category === "Proteção" ? "selected" : ""}>Proteção</option></select></label><label class="form-label">Preço<input name="price" type="number" min="0" step="1" required value="${product?.price || ""}" placeholder="1899" /></label></div><label class="form-label">Estoque<input name="stockCount" type="number" min="0" step="1" required value="${product?.stockCount ?? 0}" placeholder="38" /></label><label class="form-label">Imagem<input name="image" value="${product?.image || "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"} /></label><label class="form-label">Descrição<textarea name="description" placeholder="Resumo do produto">${product?.description || ""}</textarea></label><fieldset class="shipping-fieldset"><legend>Dados de envio</legend><p class="form-help">Use centímetros para dimensões e quilogramas para peso. Esses dados alimentam o cálculo de frete.</p><div class="form-row"><label class="form-label">Peso (kg)<input name="weight" type="number" min="0" step="0.01" required value="${shipping.weight}" /></label><label class="form-label">Dimensões (C × L × A cm)<div class="form-row form-row-tight"><input name="length" type="number" min="0.1" step="0.1" required value="${shipping.length}" aria-label="Comprimento sem embalagem" /><input name="width" type="number" min="0.1" step="0.1" required value="${shipping.width}" aria-label="Largura sem embalagem" /><input name="height" type="number" min="0.1" step="0.1" required value="${shipping.height}" aria-label="Altura sem embalagem" /></div></label></div><div class="form-row"><label class="form-label">Peso com embalagem (kg)<input name="packagedWeight" type="number" min="0" step="0.01" required value="${shipping.packagedWeight}" /></label><label class="form-label">Dimensões com embalagem (C × L × A cm)<div class="form-row form-row-tight"><input name="packagedLength" type="number" min="0.1" step="0.1" required value="${shipping.packagedLength}" aria-label="Comprimento com embalagem" /><input name="packagedWidth" type="number" min="0.1" step="0.1" required value="${shipping.packagedWidth}" aria-label="Largura com embalagem" /><input name="packagedHeight" type="number" min="0.1" step="0.1" required value="${shipping.packagedHeight}" aria-label="Altura com embalagem" /></div></label></div><div class="form-row"><label class="form-label">Frágil<select name="fragile"><option value="false" ${!shipping.fragile ? "selected" : ""}>Não</option><option value="true" ${shipping.fragile ? "selected" : ""}>Sim</option></select></label><label class="form-label">Pode combinar<select name="canCombine"><option value="true" ${shipping.canCombine ? "selected" : ""}>Sim</option><option value="false" ${!shipping.canCombine ? "selected" : ""}>Não</option></select></label></div><div class="form-row"><label class="form-label">Enviar separado<select name="separate"><option value="false" ${!shipping.separate ? "selected" : ""}>Não</option><option value="true" ${shipping.separate ? "selected" : ""}>Sim</option></select></label><label class="form-label">Empilhável<select name="stackable"><option value="true" ${shipping.stackable ? "selected" : ""}>Sim</option><option value="false" ${!shipping.stackable ? "selected" : ""}>Não</option></select></label></div><label class="form-label">Embalagem recomendada<input name="recommendedPackage" value="${shipping.recommendedPackage || ""}" placeholder="Caixa Acessórios M" /></label><label class="form-label">Observações logísticas<textarea name="logisticsNote" placeholder="Cuidados para separação e embalagem">${shipping.logisticsNote || ""}</textarea></label></fieldset><button class="modal-submit" type="submit">${editing ? "Salvar alterações" : "Cadastrar produto"}</button></form>`);
+  const categorySelect = document.querySelector("#product-form select[name=category]");
+  if (categorySelect) categorySelect.innerHTML = productCategoryOptions(product?.category || "Rifles");
   document.querySelector("#product-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -1994,7 +2101,7 @@ async function deleteProduct(id) {
 async function resetLocalData() {
   const confirmed = await confirmAction({ eyebrow: "SYSTEM / RESET", title: "Restaurar dados demo?", message: "Todos os dados salvos neste dispositivo serão apagados e a operação voltará ao estado demonstrativo.", detail: "Produtos, carrinho, orçamentos, pedidos, perfil e configurações", confirmLabel: "Restaurar dados", tone: "danger" });
   if (!confirmed) return;
-  ["fieldops-products", "fieldops-cart", "fieldops-cart-shipping", "fieldops-shipping-cache", "fieldops-shipping", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme", "fieldops-radar", "fieldops-radar-following", "fieldops-radar-content", "fieldops-radar-sources", "fieldops-radar-assist", "fieldops-airdrops", "fieldops-airdrop-code"].forEach((key) => localStorage.removeItem(key));
+  ["fieldops-products", "fieldops-categories", "fieldops-cart", "fieldops-cart-shipping", "fieldops-shipping-cache", "fieldops-shipping", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme", "fieldops-radar", "fieldops-radar-following", "fieldops-radar-content", "fieldops-radar-sources", "fieldops-radar-assist", "fieldops-airdrops", "fieldops-airdrop-code"].forEach((key) => localStorage.removeItem(key));
   location.hash = "#admin";
   location.reload();
 }
@@ -3203,6 +3310,8 @@ function bindViewEvents() {
   if (importFile) importFile.addEventListener("change", () => analyzeImportFile(importFile.files[0]));
   const settingsForm = document.querySelector("#settings-form");
   if (settingsForm) settingsForm.addEventListener("submit", (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const cubingFactor = Math.max(1, Number(form.get("cubingFactor")) || 5000); const quoteValidityHours = Math.max(1, Number(form.get("quoteValidityHours")) || 24); state.settings = { storeName: form.get("storeName").toString().trim(), city: form.get("city").toString().trim(), whatsapp: form.get("whatsapp").toString().replace(/\D/g, ""), lowStock: Number(form.get("lowStock")) || 0 }; state.shipping = { ...state.shipping, originZip: normalizeZip(form.get("originZip")) || state.shipping.originZip, originAddress: form.get("originAddress").toString().trim(), originCity: form.get("originCity").toString().trim(), originState: form.get("originState").toString().trim().toUpperCase(), cubingFactor, quoteValidityHours, freeShippingMin: Math.max(0, Number(form.get("freeShippingMin")) || 0), flatSp: Math.max(0, Number(form.get("flatSp")) || 0), pickupAddress: form.get("pickupAddress").toString().trim(), pickupHours: form.get("pickupHours").toString().trim(), pickupInstructions: form.get("pickupInstructions").toString().trim() }; state.shippingCache = {}; persist(); render(); showToast("Configurações salvas."); });
+  const categoryForm = document.querySelector("#category-form");
+  if (categoryForm) categoryForm.addEventListener("submit", (event) => { event.preventDefault(); addCategory(event.currentTarget); });
   const airdropForm = document.querySelector("#airdrop-form");
   if (airdropForm) airdropForm.addEventListener("submit", saveAirdrop);
 }
@@ -3275,11 +3384,14 @@ document.addEventListener("click", (event) => {
   if (action === "airdrop-launch") launchAirdrop(event.target.closest("[data-airdrop-id]")?.dataset.airdropId);
   if (action === "airdrop-end") endAirdrop(event.target.closest("[data-airdrop-id]")?.dataset.airdropId);
   const bannerId = event.target.closest("[data-banner-id]")?.dataset.bannerId;
+  const categoryId = event.target.closest("[data-category-id]")?.dataset.categoryId;
   if (action === "admin-banner-new") bannerModal();
   if (action === "admin-banner-edit" && bannerId) bannerModal(bannerId);
   if (action === "admin-banner-duplicate" && bannerId) duplicateBanner(bannerId);
   if (action === "admin-banner-toggle" && bannerId) toggleBanner(bannerId);
   if (action === "admin-banner-delete" && bannerId) deleteBanner(bannerId);
+  if (action === "category-toggle" && categoryId) toggleCategory(categoryId);
+  if (action === "category-delete" && categoryId) deleteCategory(categoryId);
   if (action === "close-modal") closeModal();
   if (action === "quote") quoteModal();
   if (action === "compare-open") compareModal();
