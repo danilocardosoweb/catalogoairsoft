@@ -1,6 +1,6 @@
 # FIELD OPS — Status de implementação
 
-Última revisão: 27/09/2026  
+Última revisão: 28/09/2026  
 Última versão publicada: v79 — hero simplificado e opções de banner centralizadas
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
@@ -206,12 +206,23 @@ O estado atual também está protegido por um ponto de restauração local docum
 
 Conforme o prompt mestre, não são prioridades desta fase: pagamento online, emissão de NF-e, agentes de IA, inteligência artificial de recomendação, coleta automática de fornecedores e integrações complexas com ERP.
 
+## Migração Supabase iniciada — 28/09/2026
+
+- Removida a persistência do `localStorage` no frontend: carrinho, favoritos, comparação, loadout, perfil, configurações, importações, Radar, Airdrops e dados operacionais agora são mantidos em memória e preparados para sincronização no Supabase.
+- Adicionados `dist/supabase-config.js` e `dist/supabase.js`, usando somente a chave pública do projeto no navegador e mantendo o `service_role` fora do app.
+- Adicionado login/cadastro por e-mail e senha, com perfil Consumidor, Lojista ou Distribuidor.
+- Adicionada a migração `supabase/migrations/20260928010000_app_state_and_account_bootstrap.sql`, que cria `user_app_state`, RLS por usuário e a função segura `ensure_account` para criar o perfil e reivindicar a organização inicial da loja.
+- O catálogo público tenta carregar produtos, categorias, banners, Radar e Airdrops das tabelas relacionais do Supabase; enquanto o banco estiver sem registros, a interface usa os dados demo em memória para não apresentar uma tela vazia.
+- O estado autenticado é salvo no Supabase com debounce de 700 ms, reduzindo gravações repetidas durante edição, filtros e montagem do loadout.
+
+Antes do primeiro acesso autenticado, execute a migração complementar no SQL Editor do projeto Supabase. A migração inicial já executada anteriormente não é alterada.
+
 ## Próxima sequência recomendada
 
-1. Definir o modelo de dados real e escolher o backend.
-2. Implementar autenticação e perfis de acesso.
-3. Migrar produtos e orçamentos do `localStorage` para a API/banco.
-4. Conectar estoque, preços e WhatsApp ao backend.
+1. Executar `20260928010000_app_state_and_account_bootstrap.sql` no Supabase.
+2. Criar o primeiro acesso Lojista e confirmar o e-mail, se a confirmação estiver habilitada.
+3. Importar a planilha de produtos pelo painel com a conta conectada.
+4. Conectar os formulários de produto, estoque, preços, orçamentos e pedidos às tabelas relacionais, mantendo `user_app_state` como ponte de migração.
 5. Revalidar os fluxos mobile e publicar uma versão de operação real.
 
 ## Estrutura Supabase preparada — 28/09/2026

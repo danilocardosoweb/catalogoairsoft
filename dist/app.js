@@ -91,7 +91,9 @@ const seedProducts = [
   }
 ];
 
-const products = JSON.parse(localStorage.getItem("fieldops-products") || "null") || seedProducts;
+// Catalog data is hydrated from Supabase after the first render. The seed is only
+// a safe visual fallback while the store has not yet published its first records.
+const products = seedProducts;
 const shippingStatuses = ["Aguardando separação", "Em separação", "Separado", "Aguardando embalagem", "Embalado", "Etiqueta gerada", "Aguardando postagem", "Postado", "Em transporte", "Saiu para entrega", "Entregue", "Problema na entrega"];
 const shippingProviders = [
   { id: "field-economy", carrier: "Field Express", service: "Econômico", base: 16, perKg: 6.8, days: "5 a 7 dias úteis", factor: 5000 },
@@ -107,7 +109,7 @@ const defaultShippingPackages = [
   { id: "box-accessories-g", code: "ACESS-G", name: "Caixa Acessórios G", inner: { length: 65, width: 45, height: 30 }, outer: { length: 68, width: 48, height: 33 }, packagingWeight: 0.7, maxWeight: 12, type: "Caixa", cost: 10, active: true }
 ];
 const defaultShippingSettings = { originZip: "01310-100", originAddress: "Av. Paulista, 1000", originCity: "São Paulo", originState: "SP", cubingFactor: 5000, quoteValidityHours: 24, freeShippingMin: 499, flatSp: 19.9, pickupAddress: "Av. Paulista, 1000 · São Paulo / SP", pickupHours: "Seg a sex · 9h às 18h", pickupInstructions: "Apresente o número do pedido e um documento com foto." };
-const storedShipping = JSON.parse(localStorage.getItem("fieldops-shipping") || "null") || {};
+const storedShipping = null;
 
 function productShippingDefaults(product) {
   const category = String(product.category || "").toLowerCase();
@@ -141,7 +143,7 @@ const categories = [
   { id: "roupas", name: "Roupas", description: "Uniformes e vestuário para o operador.", image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=82", builtIn: true },
   { id: "acessorios", name: "Acessórios", description: "Peças e complementos para personalizar o loadout.", image: "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=900&q=82", builtIn: true }
 ];
-const storedCategories = JSON.parse(localStorage.getItem("fieldops-categories") || "null");
+const storedCategories = null;
 
 function categorySlug(value) {
   return String(value || "categoria").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "categoria";
@@ -175,7 +177,7 @@ function categoryImageUrl(value) {
 }
 
 const defaultSettings = { whatsapp: "5511999999999", storeName: "Suprimentos Oliveira", city: "São Paulo", lowStock: 10 };
-const storedSettings = JSON.parse(localStorage.getItem("fieldops-settings") || "null");
+const storedSettings = null;
 const bannerTypes = { video: "Vídeo", image: "Imagem" };
 const bannerTargets = { catalog: "Explorar catálogo", loadout: "Montar loadout", radar: "Abrir Radar", cart: "Abrir Airdrop" };
 const storeBrandVideo = "/videos/suprimentos-oliveira-brand.mp4?v=brand-film-01";
@@ -186,7 +188,7 @@ const seedBanners = [
   { id: "banner-promo", name: "Oferta de campo", type: "image", media: "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1800&q=84", eyebrow: "OFERTA / 04", title: "PREÇO DE", titleAccent: "OPERAÇÃO.", subtitle: "Condições especiais para fechar seu próximo setup sem perder o ritmo.", ctaLabel: "Ver ofertas", ctaTarget: "catalog", active: true, order: 4 },
   { id: "banner-loadout", name: "Loadout Lab", type: "image", media: "https://images.unsplash.com/photo-1687726258745-8546ad8030d6?auto=format&fit=crop&w=1800&q=84", eyebrow: "LOADOUT LAB / 05", title: "MONTE SEU", titleAccent: "LOADOUT.", subtitle: "Combine plataforma, óptica e proteção para entrar em campo preparado.", ctaLabel: "Montar loadout", ctaTarget: "loadout", active: true, order: 5 }
 ];
-const storedBanners = JSON.parse(localStorage.getItem("fieldops-banners") || "null");
+const storedBanners = null;
 const airdropStatuses = { draft: "Em preparo", scheduled: "Agendado", active: "No ar", ended: "Encerrado", archived: "Arquivado" };
 const airdropSeedStart = new Date(Date.now() + 86400000);
 const seedAirdrops = [{ id: "airdrop-nightfall", name: "OPERAÇÃO NIGHTFALL", code: "DROP10", discountType: "percent", discountValue: 10, minSubtotal: 450, maxUses: 80, redeemed: 0, startsAt: airdropSeedStart.toISOString(), expiresAt: new Date(airdropSeedStart.getTime() + 3 * 86400000).toISOString(), status: "scheduled", message: "Siga as redes da loja para saber quando o código entrar no ar." }];
@@ -209,9 +211,9 @@ const seedRadarSources = [
   { id: "source-brasil-airsoft-youtube", name: "Brasil Airsoft / YouTube", type: "youtube", url: "https://www.youtube.com/channel/UCJqMeZK3hFySfAg0Jque6Xg", cadence: "daily", active: true, status: "needs_backend", lastSync: null, itemsFound: 0, notes: "Canal público de reviews, opinião e entrevistas. Transformar vídeos em sinais editoriais com título, resumo e link original." }
 ];
 
-const storedRadarSources = JSON.parse(localStorage.getItem("fieldops-radar-sources") || "null");
+const storedRadarSources = null;
 const defaultRadarAssist = { score: 0, assists: 0, neutralizations: 0, lastAction: "" };
-const storedRadarAssist = JSON.parse(localStorage.getItem("fieldops-radar-assist") || "null");
+const storedRadarAssist = null;
 
 const radarSourceTypes = { manual: "Entrada manual", rss: "RSS / Atom", newsapi: "News API", youtube: "YouTube", events: "Eventos / API" };
 const radarSourceStatuses = { local: "Local", ready: "Pronta para conectar", queued: "Na fila", needs_backend: "Pede servidor" };
@@ -224,41 +226,41 @@ const state = {
   category: "",
   sort: "relevance",
   filters: { systems: [], availability: "all", maxPrice: 5000 },
-  cart: JSON.parse(localStorage.getItem("fieldops-cart") || "[]"),
-  favorites: JSON.parse(localStorage.getItem("fieldops-favorites") || "[]"),
-  compare: JSON.parse(localStorage.getItem("fieldops-compare") || "[]"),
-  quotes: JSON.parse(localStorage.getItem("fieldops-quotes") || "[]"),
-  orders: JSON.parse(localStorage.getItem("fieldops-orders") || "[]"),
-  loadout: JSON.parse(localStorage.getItem("fieldops-loadout") || "null") || { Rifle: "neptune-10" },
+  cart: [],
+  favorites: [],
+  compare: [],
+  quotes: [],
+  orders: [],
+  loadout: { Rifle: "neptune-10" },
   importData: null,
   pendingBackupRestore: null,
-  importHistory: JSON.parse(localStorage.getItem("fieldops-import-history") || "[]"),
+  importHistory: [],
   adminProductSearch: "",
-  account: JSON.parse(localStorage.getItem("fieldops-account") || "null"),
-  profile: JSON.parse(localStorage.getItem("fieldops-profile") || "null"),
+  account: null,
+  profile: null,
   categories: Array.isArray(storedCategories) ? storedCategories : categories,
-  recentSearches: JSON.parse(localStorage.getItem("fieldops-recent-searches") || "[]"),
-  recentProducts: JSON.parse(localStorage.getItem("fieldops-recent-products") || "[]"),
+  recentSearches: [],
+  recentProducts: [],
   settings: { ...defaultSettings, ...(storedSettings || {}) },
   banners: Array.isArray(storedBanners) ? storedBanners : seedBanners,
   bannerIndex: 0,
-  theme: localStorage.getItem("fieldops-theme") === "light" ? "light" : "dark",
+  theme: "dark",
   quoteSearch: "",
   quoteStatusFilter: "all",
   orderSearch: "",
   orderStatusFilter: "all",
   shipping: { ...defaultShippingSettings, ...storedShipping, packages: Array.isArray(storedShipping.packages) && storedShipping.packages.length ? storedShipping.packages : defaultShippingPackages },
-  cartShipping: JSON.parse(localStorage.getItem("fieldops-cart-shipping") || "null"),
-  shippingCache: JSON.parse(localStorage.getItem("fieldops-shipping-cache") || "{}"),
+  cartShipping: null,
+  shippingCache: {},
   shippingSort: "price",
   quantity: 1,
-  radar: JSON.parse(localStorage.getItem("fieldops-radar") || "null") || { location: { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual" }, scope: "nearby", type: "all", radius: 100, sort: "relevance", view: "feed" },
-  radarFollowing: JSON.parse(localStorage.getItem("fieldops-radar-following") || "[]"),
-  radarContents: JSON.parse(localStorage.getItem("fieldops-radar-content") || "null") || seedRadarContent,
+  radar: { location: { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual" }, scope: "nearby", type: "all", radius: 100, sort: "relevance", view: "feed" },
+  radarFollowing: [],
+  radarContents: seedRadarContent,
   radarSources: Array.isArray(storedRadarSources) ? storedRadarSources : seedRadarSources,
   radarAssist: { ...defaultRadarAssist, ...(storedRadarAssist || {}) },
-  airdrops: JSON.parse(localStorage.getItem("fieldops-airdrops") || "null") || seedAirdrops,
-  appliedAirdropCode: localStorage.getItem("fieldops-airdrop-code") || ""
+  airdrops: seedAirdrops,
+  appliedAirdropCode: ""
 };
 
 const accessProfiles = {
@@ -394,7 +396,7 @@ function ensureRadarSourceShape(source) {
 }
 
 state.radar = { location: { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual" }, scope: "nearby", type: "all", radius: 100, sort: "relevance", view: "feed", ...(state.radar || {}) };
-if (state.settings.storeName === "Field Ops") { state.settings.storeName = defaultSettings.storeName; localStorage.setItem("fieldops-settings", JSON.stringify(state.settings)); }
+if (state.settings.storeName === "Field Ops") state.settings.storeName = defaultSettings.storeName;
 state.categories = (Array.isArray(state.categories) ? state.categories : categories).map(ensureCategoryShape);
 const knownCategoryNames = new Set(state.categories.map((category) => category.name.toLowerCase()));
 products.forEach((product, index) => {
@@ -537,7 +539,6 @@ function applyTheme(theme, animate = false, origin = null) {
   const nextTheme = theme === "light" ? "light" : "dark";
   state.theme = nextTheme;
   document.documentElement.dataset.theme = nextTheme;
-  localStorage.setItem("fieldops-theme", nextTheme);
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", nextTheme === "light" ? "#f5f7f2" : "#0b0e0c");
   if (animate) {
     const root = document.documentElement;
@@ -557,32 +558,90 @@ function toggleTheme(event) {
   showToast(nextTheme === "light" ? "Visão diurna ativada." : "Visão noturna ativada.");
 }
 
+function cloudSnapshot() {
+  const payload = {
+    products: JSON.parse(JSON.stringify(products)),
+    cart: state.cart,
+    favorites: state.favorites,
+    compare: state.compare,
+    quotes: state.quotes,
+    orders: state.orders,
+    loadout: state.loadout,
+    importHistory: state.importHistory,
+    account: state.account,
+    profile: state.profile,
+    categories: state.categories,
+    recentSearches: state.recentSearches,
+    recentProducts: state.recentProducts,
+    settings: state.settings,
+    banners: state.banners,
+    theme: state.theme,
+    shipping: state.shipping,
+    cartShipping: state.cartShipping,
+    shippingCache: state.shippingCache,
+    radar: state.radar,
+    radarFollowing: state.radarFollowing,
+    radarContents: state.radarContents,
+    radarSources: state.radarSources,
+    radarAssist: state.radarAssist,
+    airdrops: state.airdrops,
+    appliedAirdropCode: state.appliedAirdropCode || ""
+  };
+  return JSON.parse(JSON.stringify(payload));
+}
+
+function applyCloudSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") return false;
+  if (Array.isArray(snapshot.products) && snapshot.products.length) {
+    products.splice(0, products.length, ...snapshot.products);
+    products.forEach((product) => ensureProductShipping(product));
+  }
+  const stateKeys = ["cart", "favorites", "compare", "quotes", "orders", "loadout", "importHistory", "account", "profile", "categories", "recentSearches", "recentProducts", "settings", "banners", "theme", "shipping", "cartShipping", "shippingCache", "radar", "radarFollowing", "radarContents", "radarSources", "radarAssist", "airdrops", "appliedAirdropCode"];
+  stateKeys.forEach((key) => {
+    if (snapshot[key] !== undefined && snapshot[key] !== null) state[key] = snapshot[key];
+  });
+  state.settings = { ...defaultSettings, ...(state.settings || {}) };
+  state.categories = (Array.isArray(state.categories) ? state.categories : categories).map(ensureCategoryShape);
+  state.banners = (Array.isArray(state.banners) ? state.banners : seedBanners).map(ensureBannerShape);
+  state.radarContents = (Array.isArray(state.radarContents) ? state.radarContents : seedRadarContent).map(ensureRadarContentShape);
+  state.radarSources = (Array.isArray(state.radarSources) ? state.radarSources : seedRadarSources).map(ensureRadarSourceShape);
+  state.quotes = (Array.isArray(state.quotes) ? state.quotes : []).map(ensureQuoteShape);
+  state.orders = (Array.isArray(state.orders) ? state.orders : []).map(ensureOrderShape);
+  state.cart = Array.isArray(state.cart) ? state.cart.filter((item) => findProduct(item.id)) : [];
+  state.favorites = Array.isArray(state.favorites) ? state.favorites.filter((id) => findProduct(id)) : [];
+  state.compare = Array.isArray(state.compare) ? state.compare.filter((id) => findProduct(id)) : [];
+  return true;
+}
+
+async function hydrateCloudState() {
+  const cloud = window.FieldOpsSupabase;
+  if (!cloud?.configured()) return;
+  try {
+    const catalog = await cloud.loadPublicCatalog();
+    if (catalog?.products?.length) {
+      products.splice(0, products.length, ...catalog.products);
+      products.forEach((product) => ensureProductShipping(product));
+      if (catalog.categories?.length) state.categories = catalog.categories.map((item, index) => ensureCategoryShape({ id: item.id, name: item.name, description: item.description, image: item.image_url, active: item.is_active, order: item.sort_order || index + 1 }, index));
+      if (catalog.banners?.length) state.banners = catalog.banners.map((item, index) => ensureBannerShape({ id: item.id, name: item.name, type: item.media_type, media: item.media_url, eyebrow: item.eyebrow, title: item.title, titleAccent: item.title_accent, subtitle: item.subtitle, ctaLabel: item.cta_label, ctaTarget: item.cta_target, active: item.is_active, order: item.sort_order || index + 1 }));
+      if (catalog.radarContents?.length) state.radarContents = catalog.radarContents.map(ensureRadarContentShape);
+      if (catalog.airdrops?.length) state.airdrops = catalog.airdrops;
+    }
+    const snapshot = await cloud.loadUserState();
+    if (snapshot) applyCloudSnapshot(snapshot);
+    state.cart = state.cart.filter((item) => findProduct(item.id));
+    state.favorites = state.favorites.filter((id) => findProduct(id));
+    state.compare = state.compare.filter((id) => findProduct(id));
+    applyTheme(state.theme);
+    render();
+    renderDrawer();
+  } catch (error) {
+    cloud.emitStatus("error", error.message);
+    console.warn("Field Ops: catálogo Supabase indisponível, mantendo modo de demonstração.", error);
+  }
+}
+
 function persist() {
-  localStorage.setItem("fieldops-cart", JSON.stringify(state.cart));
-  localStorage.setItem("fieldops-favorites", JSON.stringify(state.favorites));
-  localStorage.setItem("fieldops-products", JSON.stringify(products));
-  localStorage.setItem("fieldops-compare", JSON.stringify(state.compare));
-  localStorage.setItem("fieldops-quotes", JSON.stringify(state.quotes));
-  localStorage.setItem("fieldops-orders", JSON.stringify(state.orders));
-  localStorage.setItem("fieldops-loadout", JSON.stringify(state.loadout));
-  localStorage.setItem("fieldops-import-history", JSON.stringify(state.importHistory));
-  localStorage.setItem("fieldops-shipping", JSON.stringify(state.shipping));
-  localStorage.setItem("fieldops-cart-shipping", JSON.stringify(state.cartShipping));
-  localStorage.setItem("fieldops-shipping-cache", JSON.stringify(state.shippingCache));
-  localStorage.setItem("fieldops-profile", JSON.stringify(state.profile));
-  localStorage.setItem("fieldops-recent-searches", JSON.stringify(state.recentSearches));
-  localStorage.setItem("fieldops-recent-products", JSON.stringify(state.recentProducts));
-  localStorage.setItem("fieldops-categories", JSON.stringify(state.categories));
-  localStorage.setItem("fieldops-settings", JSON.stringify(state.settings));
-  localStorage.setItem("fieldops-banners", JSON.stringify(state.banners));
-  localStorage.setItem("fieldops-theme", state.theme);
-  localStorage.setItem("fieldops-radar", JSON.stringify(state.radar));
-  localStorage.setItem("fieldops-radar-following", JSON.stringify(state.radarFollowing));
-  localStorage.setItem("fieldops-radar-content", JSON.stringify(state.radarContents));
-  localStorage.setItem("fieldops-radar-sources", JSON.stringify(state.radarSources));
-  localStorage.setItem("fieldops-radar-assist", JSON.stringify(state.radarAssist));
-  localStorage.setItem("fieldops-airdrops", JSON.stringify(state.airdrops));
-  localStorage.setItem("fieldops-airdrop-code", state.appliedAirdropCode || "");
+  window.FieldOpsSupabase?.queueSave(cloudSnapshot());
 }
 
 function catalogCategories(includeInactive = false) {
@@ -2067,15 +2126,44 @@ function accountModal() {
     const access = currentAccessProfile();
     const destination = role === "operator" ? "admin" : role === "consumer" ? "catalog" : "partner";
     const destinationLabel = role === "operator" ? "Abrir painel operacional" : role === "consumer" ? "Continuar no catálogo" : "Abrir central de parceiro";
-    openModal(`<span class="eyebrow">IDENTITY / PROFILE</span><h2>Olá,<br>${escapeHtml(String(state.account.name || "Operador").split(" ")[0])}.</h2><p>Seu acesso está salvo neste dispositivo. O perfil selecionado organiza as áreas que aparecem para você.</p><div class="account-role-card"><div><span>PERFIL ATIVO</span><strong>${access.label}</strong></div><small>${access.description}</small></div><div class="account-summary"><div><span>Favoritos</span><strong>${state.favorites.length}</strong></div><div><span>No carrinho</span><strong>${state.cart.reduce((sum, item) => sum + item.quantity, 0)}</strong></div><div><span>Área inicial</span><strong>${role === "consumer" ? "Catálogo" : role === "operator" ? "Ops" : "Parceiro"}</strong></div></div><div class="form-grid"><button class="modal-submit" data-action="profile-destination" data-role-route="${destination}">${destinationLabel} <span>↗</span></button><button class="outline-cta" data-action="account-logout">Trocar perfil</button></div>`);
+    openModal(`<span class="eyebrow">IDENTITY / PROFILE</span><h2>Olá,<br>${escapeHtml(String(state.account.name || "Operador").split(" ")[0])}.</h2><p>Seu acesso está conectado à base oficial da loja. O perfil selecionado organiza as áreas que aparecem para você.</p><div class="account-role-card"><div><span>PERFIL ATIVO</span><strong>${access.label}</strong></div><small>${access.description}</small></div><div class="account-summary"><div><span>Favoritos</span><strong>${state.favorites.length}</strong></div><div><span>No carrinho</span><strong>${state.cart.reduce((sum, item) => sum + item.quantity, 0)}</strong></div><div><span>Área inicial</span><strong>${role === "consumer" ? "Catálogo" : role === "operator" ? "Ops" : "Parceiro"}</strong></div></div><div class="form-grid"><button class="modal-submit" data-action="profile-destination" data-role-route="${destination}">${destinationLabel} <span>↗</span></button><button class="outline-cta" data-action="account-logout">Sair da conta</button></div>`);
     return;
   }
-  openModal(`<span class="eyebrow">IDENTITY / ACCOUNT</span><h2>Seu perfil<br>de campo.</h2><p>Escolha o tipo de acesso para receber uma experiência adequada ao seu papel na cadeia Airsoft.</p><form class="form-grid" id="account-form"><label class="form-label">Nome<input name="name" required placeholder="Como podemos chamar você?" /></label><div class="form-row"><label class="form-label">WhatsApp<input name="phone" placeholder="(11) 99999-9999" /></label><label class="form-label">Perfil<select name="role" id="account-role"><option value="consumer">Consumidor</option><option value="retailer">Lojista</option><option value="distributor">Distribuidor</option></select></label></div><div class="account-role-hint" id="account-role-hint"><strong>Consumidor</strong><span>Catálogo, loadout, favoritos, carrinho e acompanhamento dos seus pedidos.</span></div><button class="modal-submit" type="submit">Salvar perfil</button></form>`);
+  openModal(`<span class="eyebrow">IDENTITY / ACCOUNT</span><h2>Seu perfil<br>de campo.</h2><p>Crie seu acesso seguro para manter carrinho, favoritos, loadout e operação sincronizados no Supabase.</p><form class="form-grid" id="account-form"><label class="form-label">Nome<input name="name" required placeholder="Como podemos chamar você?" autocomplete="name" /></label><label class="form-label">E-mail<input name="email" type="email" required placeholder="voce@exemplo.com" autocomplete="email" /></label><div class="form-row"><label class="form-label">WhatsApp<input name="phone" placeholder="(11) 99999-9999" autocomplete="tel" /></label><label class="form-label">Perfil<select name="role" id="account-role"><option value="consumer">Consumidor</option><option value="retailer">Lojista</option><option value="distributor">Distribuidor</option></select></label></div><label class="form-label">Senha<input name="password" type="password" minlength="8" required placeholder="Mínimo de 8 caracteres" autocomplete="new-password" /></label><div class="account-role-hint" id="account-role-hint"><strong>Consumidor</strong><span>Catálogo, loadout, favoritos, carrinho e acompanhamento dos seus pedidos.</span></div><button class="modal-submit" type="submit">Entrar e sincronizar</button></form>`);
   const roleSelect = document.querySelector("#account-role");
   const roleHint = document.querySelector("#account-role-hint");
   const updateRoleHint = () => { const selected = accessProfiles[roleSelect.value] || accessProfiles.consumer; roleHint.innerHTML = `<strong>${selected.label}</strong><span>${selected.description}</span>`; };
   roleSelect?.addEventListener("change", updateRoleHint);
-  document.querySelector("#account-form").addEventListener("submit", (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const role = normalizeAccessRole(form.get("role")); state.account = { name: form.get("name").toString().trim(), phone: form.get("phone").toString().trim(), role, segment: accessProfiles[role].label }; state.profile = { ...(state.profile || {}), name: state.account.name, phone: state.account.phone, role }; localStorage.setItem("fieldops-account", JSON.stringify(state.account)); persist(); closeModal(); go(roleHomeRoute()); showToast(`Perfil ${accessProfiles[role].label.toLowerCase()} salvo neste dispositivo.`); });
+  document.querySelector("#account-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const name = String(form.get("name") || "").trim();
+    const email = String(form.get("email") || "").trim().toLowerCase();
+    const phone = String(form.get("phone") || "").trim();
+    const password = String(form.get("password") || "");
+    const role = normalizeAccessRole(form.get("role"));
+    const cloud = window.FieldOpsSupabase;
+    if (!cloud?.configured()) { showToast("A conexão com o Supabase ainda não está configurada."); return; }
+    const submit = event.currentTarget.querySelector("button[type=submit]");
+    if (submit) { submit.disabled = true; submit.textContent = "Conectando…"; }
+    try {
+      const result = await cloud.signInOrSignUp({ email, password, fullName: name, phone, role });
+      if (result.mode === "confirmation") { showToast(result.error); return; }
+      await cloud.bootstrapAccount({ fullName: name, phone, role });
+      state.account = { name, email, phone, role, segment: accessProfiles[role].label, userId: cloud.session?.user?.id || "" };
+      state.profile = { ...(state.profile || {}), name, email, phone, role };
+      const previousState = await cloud.loadUserState();
+      if (previousState) applyCloudSnapshot(previousState);
+      persist();
+      closeModal();
+      go(roleHomeRoute());
+      showToast(`Perfil ${accessProfiles[role].label.toLowerCase()} conectado à base oficial.`);
+    } catch (error) {
+      showToast(`Não foi possível conectar: ${error.message}`);
+    } finally {
+      if (submit) { submit.disabled = false; submit.textContent = "Entrar e sincronizar"; }
+    }
+  });
 }
 
 function compareModal() {
@@ -2153,9 +2241,9 @@ async function deleteProduct(id) {
 }
 
 async function resetLocalData() {
-  const confirmed = await confirmAction({ eyebrow: "SYSTEM / RESET", title: "Restaurar dados demo?", message: "Todos os dados salvos neste dispositivo serão apagados e a operação voltará ao estado demonstrativo.", detail: "Produtos, carrinho, orçamentos, pedidos, perfil e configurações", confirmLabel: "Restaurar dados", tone: "danger" });
+  const confirmed = await confirmAction({ eyebrow: "SYSTEM / RESET", title: "Restaurar dados demo?", message: "Os dados sincronizados da sua conta serão apagados e a operação voltará ao estado demonstrativo.", detail: "Produtos, carrinho, orçamentos, pedidos, perfil e configurações", confirmLabel: "Restaurar dados", tone: "danger" });
   if (!confirmed) return;
-  ["fieldops-products", "fieldops-categories", "fieldops-cart", "fieldops-cart-shipping", "fieldops-shipping-cache", "fieldops-shipping", "fieldops-favorites", "fieldops-compare", "fieldops-quotes", "fieldops-orders", "fieldops-loadout", "fieldops-profile", "fieldops-recent-searches", "fieldops-recent-products", "fieldops-import-history", "fieldops-settings", "fieldops-account", "fieldops-theme", "fieldops-radar", "fieldops-radar-following", "fieldops-radar-content", "fieldops-radar-sources", "fieldops-radar-assist", "fieldops-airdrops", "fieldops-airdrop-code"].forEach((key) => localStorage.removeItem(key));
+  await window.FieldOpsSupabase?.clearState();
   location.hash = "#admin";
   location.reload();
 }
@@ -3481,7 +3569,7 @@ document.addEventListener("click", (event) => {
   if (action === "footer-airdrop") { event.preventDefault(); footerAirdrop(); }
   if (action === "profile-destination") { closeModal(); go(event.target.closest("[data-role-route]")?.dataset.roleRoute || roleHomeRoute()); }
   if (action === "admin-preview") { closeModal(); go(roleHomeRoute()); }
-  if (action === "account-logout") { state.account = null; const { name, phone, role, ...briefing } = state.profile || {}; state.profile = briefing; localStorage.removeItem("fieldops-account"); persist(); accountModal(); }
+  if (action === "account-logout") { window.FieldOpsSupabase?.signOut(); state.account = null; const { name, email, phone, role, ...briefing } = state.profile || {}; state.profile = briefing; accountModal(); }
   if (action === "simulate-import") { const button = event.target.closest(".import-submit"); if (button) { button.textContent = "Arquivo analisado ✓"; button.disabled = true; showToast("Análise concluída: 15 registros precisam de revisão."); } }
   if (action === "commit-import") commitImport();
   if (action === "import-reset") { state.importData = null; render(); }
@@ -3583,3 +3671,4 @@ state.selectedQuoteId = initialQuoteMatch ? initialQuoteMatch[1] : null;
 applyTheme(state.theme);
 render();
 renderDrawer();
+hydrateCloudState();

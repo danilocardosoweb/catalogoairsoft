@@ -2,15 +2,15 @@
 
 ## Estado
 
-Foi preparada a migração `supabase/migrations/20260928000000_initial_field_ops_schema.sql` para substituir gradualmente o modo `localStorage` por uma base compartilhada.
+Foi preparada e executada no projeto a migração `supabase/migrations/20260928000000_initial_field_ops_schema.sql`. A migração complementar `supabase/migrations/20260928010000_app_state_and_account_bootstrap.sql` completa o primeiro vínculo do app com a base compartilhada.
 
-Ela ainda não foi aplicada no projeto remoto porque o projeto informado (`wkvhglnfugbcgirhfbgt`) não está autorizado na conexão Supabase disponível nesta sessão. A tentativa de leitura retornou ausência de permissão.
+O projeto informado (`wkvhglnfugbcgirhfbgt`) não está autorizado na conexão Supabase MCP desta sessão, por isso a aplicação da migração complementar deve ser feita no SQL Editor do próprio projeto.
 
 ## Segurança imediata
 
 - A chave `service_role` enviada na conversa deve ser revogada e recriada no painel Supabase.
-- Nenhuma chave foi salva no repositório.
-- O frontend deve usar apenas a chave publicável/anon, com RLS ativo.
+- A chave publicável/anon está no arquivo de configuração público do frontend, como permitido pelo Supabase, com RLS ativo.
+- O frontend usa apenas a chave publicável/anon, nunca a `service_role`.
 - A `service_role` deve ficar somente em Edge Functions, servidor ou jobs protegidos.
 
 ## Estrutura inicial
@@ -54,7 +54,7 @@ Ela ainda não foi aplicada no projeto remoto porque o projeto informado (`wkvhg
 2. Criar o usuário administrativo e seu vínculo em `organization_members`.
 3. Migrar produtos, categorias e preços do backup JSON/planilha para o catálogo relacional.
 4. Migrar orçamentos e pedidos locais com os snapshots dos itens.
-5. Trocar as leituras e escritas de `localStorage` por `supabase-js` usando a chave publicável.
+5. O frontend já não lê nem grava `localStorage`; o estado autenticado é sincronizado no `user_app_state` pela Data API do Supabase, usando a chave publicável e RLS.
 6. Mover criação de pedidos, reserva de estoque, Airdrops e integrações externas para Edge Functions autenticadas.
 7. Validar RLS com consumidor, lojista, distribuidor e administrador antes da publicação.
 
