@@ -540,6 +540,7 @@ let heroSensorActivate = null;
 let heroRadarPulse = null;
 let modalPreviousFocus = null;
 let pendingConfirmation = null;
+let storeVideoHoldTimer = 0;
 
 const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 const moneyDetailed = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0);
@@ -2923,7 +2924,7 @@ function renderDrawer() {
 function openDrawer() { drawer.classList.add("is-open"); drawerBackdrop.classList.add("is-open"); drawer.setAttribute("aria-hidden", "false"); }
 function closeDrawer() { drawer.classList.remove("is-open"); drawerBackdrop.classList.remove("is-open"); drawer.setAttribute("aria-hidden", "true"); }
 function openModal(content) { modalContent.innerHTML = content; modalLayer.classList.add("is-open"); modalLayer.classList.toggle("is-command", content.includes("command-palette")); modalLayer.classList.remove("is-store-video"); modalLayer.setAttribute("aria-hidden", "false"); const title = modalContent.querySelector("h2"); if (title) title.id = "modal-title"; }
-function closeModal(confirmResult = false) { const resolver = pendingConfirmation?.resolve; pendingConfirmation = null; modalLayer.classList.remove("is-open", "is-command", "is-confirm", "is-store-video"); modalLayer.setAttribute("aria-hidden", "true"); modalContent.innerHTML = ""; const previousFocus = modalPreviousFocus; modalPreviousFocus = null; if (resolver) resolver(Boolean(confirmResult)); if (previousFocus && document.contains(previousFocus)) window.setTimeout(() => previousFocus.focus(), 0); }
+function closeModal(confirmResult = false) { const resolver = pendingConfirmation?.resolve; pendingConfirmation = null; window.clearTimeout(storeVideoHoldTimer); storeVideoHoldTimer = 0; modalLayer.classList.remove("is-open", "is-command", "is-confirm", "is-store-video"); modalLayer.setAttribute("aria-hidden", "true"); modalContent.innerHTML = ""; const previousFocus = modalPreviousFocus; modalPreviousFocus = null; if (resolver) resolver(Boolean(confirmResult)); if (previousFocus && document.contains(previousFocus)) window.setTimeout(() => previousFocus.focus(), 0); }
 function confirmAction({ eyebrow = "ACTION / CONFIRM", title = "Confirmar ação.", message = "Revise a ação antes de continuar.", detail = "", confirmLabel = "Confirmar", cancelLabel = "Cancelar", tone = "danger" } = {}) {
   if (pendingConfirmation) closeModal();
   modalPreviousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -3665,19 +3666,38 @@ function bindViewEvents() {
 }
 
 function storeVideoModal() {
-  openModal(`<div class="store-video-modal"><div class="store-video-intro"><span class="eyebrow">SUPRIMENTOS OLIVEIRA / BRAND FILM</span><h2>O campo<br>começa aqui.</h2><p>Uma pausa rápida para conhecer a marca por trás do seu próximo equipamento.</p></div><div class="store-video-screen"><video class="store-video-player" data-store-video autoplay muted loop playsinline preload="auto" aria-label="Filme institucional da Suprimentos Oliveira sem áudio"><source src="${storeBrandVideo}" type="video/mp4" /></video><div class="store-video-vignette" aria-hidden="true"></div><span class="store-video-status"><i class="status-dot"></i> SOM DESATIVADO</span></div><div class="store-video-footer"><span>DESDE 2018 · PRODUTOS PARA AIRSOFT</span><button class="store-video-replay" type="button" data-action="store-video-replay">Reproduzir novamente <span>↗</span></button></div></div>`);
+  openModal(`<div class="store-video-modal"><div class="store-video-intro"><span class="eyebrow">SUPRIMENTOS OLIVEIRA / BRAND FILM</span><h2>O campo<br>começa aqui.</h2><p>Uma pausa rápida para conhecer a marca por trás do seu próximo equipamento.</p></div><div class="store-video-screen"><video class="store-video-player" data-store-video autoplay muted playsinline preload="auto" aria-label="Filme institucional da Suprimentos Oliveira sem áudio"><source src="${storeBrandVideo}" type="video/mp4" /></video><div class="store-video-vignette" aria-hidden="true"></div><span class="store-video-status" data-store-video-status><i class="status-dot"></i> SOM DESATIVADO</span></div><div class="store-video-footer"><span>DESDE 2018 · PRODUTOS PARA AIRSOFT</span><button class="store-video-replay" type="button" data-action="store-video-replay">Reproduzir novamente <span>↗</span></button></div></div>`);
   modalLayer.classList.add("is-store-video");
   const video = modalContent.querySelector("[data-store-video]");
   if (!video) return;
+  const screen = modalContent.querySelector(".store-video-screen");
+  const status = modalContent.querySelector("[data-store-video-status]");
   video.muted = true;
   video.defaultMuted = true;
   video.volume = 0;
+  video.addEventListener("ended", () => {
+    video.pause();
+    video.currentTime = Math.max(0, video.duration - 0.08);
+    screen?.classList.add("is-logo-hold");
+    if (status) status.innerHTML = '<i class="status-dot"></i> LOGO EM DESTAQUE · PAUSA 5S';
+    window.clearTimeout(storeVideoHoldTimer);
+    storeVideoHoldTimer = window.setTimeout(() => {
+      if (status) status.innerHTML = '<i class="status-dot"></i> LOGO EM DESTAQUE · PAUSADO';
+      storeVideoHoldTimer = 0;
+    }, 5000);
+  });
   video.play().catch(() => showToast("Toque em reproduzir novamente para iniciar o filme."));
 }
 
 function replayStoreVideo() {
   const video = modalContent.querySelector("[data-store-video]");
   if (!video) return;
+  const screen = modalContent.querySelector(".store-video-screen");
+  const status = modalContent.querySelector("[data-store-video-status]");
+  window.clearTimeout(storeVideoHoldTimer);
+  storeVideoHoldTimer = 0;
+  screen?.classList.remove("is-logo-hold");
+  if (status) status.innerHTML = '<i class="status-dot"></i> SOM DESATIVADO';
   video.muted = true;
   video.defaultMuted = true;
   video.volume = 0;
