@@ -45,31 +45,6 @@ begin
 end;
 $$;
 
--- This helper is deliberately kept outside the exposed public schema.
--- It is only used by RLS to inspect membership without exposing the membership table.
-create or replace function private.has_org_role(
-  target_org uuid,
-  allowed_roles public.app_role[] default null
-)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public, auth
-as $$
-  select exists (
-    select 1
-    from public.organization_members om
-    where om.organization_id = target_org
-      and om.user_id = (select auth.uid())
-      and om.status = 'active'
-      and (allowed_roles is null or om.role = any(allowed_roles))
-  );
-$$;
-
-revoke all on function private.has_org_role(uuid, public.app_role[]) from public, anon;
-grant execute on function private.has_org_role(uuid, public.app_role[]) to authenticated;
-
 create table if not exists public.organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -376,6 +351,31 @@ create table if not exists public.audit_events (
   after_data jsonb,
   created_at timestamptz not null default timezone('utc', now())
 );
+
+-- The membership table must exist before this RLS helper is compiled.
+-- It stays outside the exposed public schema and is callable only by authenticated users.
+create or replace function private.has_org_role(
+  target_org uuid,
+  allowed_roles public.app_role[] default null
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, auth
+as $$
+  select exists (
+    select 1
+    from public.organization_members om
+    where om.organization_id = target_org
+      and om.user_id = (select auth.uid())
+      and om.status = 'active'
+      and (allowed_roles is null or om.role = any(allowed_roles))
+  );
+$$;
+
+revoke all on function private.has_org_role(uuid, public.app_role[]) from public, anon;
+grant execute on function private.has_org_role(uuid, public.app_role[]) to authenticated;
 
 create index if not exists products_org_active_idx on public.products (organization_id, is_active);
 create index if not exists products_category_idx on public.products (category_id) where is_active = true;
