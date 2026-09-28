@@ -232,7 +232,7 @@ const accessProfiles = {
     title: "Seu arsenal.",
     description: "Explore produtos, salve favoritos, monte seu loadout e acompanhe seus pedidos.",
     homeRoute: "home",
-    routes: ["home", "catalog", "brands", "radar", "loadout", "favorites", "product", "quote"]
+    routes: ["home", "catalog", "brands", "radar", "loadout", "favorites", "orders", "product", "quote"]
   },
   retailer: {
     label: "Lojista",
@@ -303,7 +303,7 @@ function accessNavItems() {
   if (role === "retailer") return [["partner", "Visão geral"], ["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-content", "Radar / Conteúdo"], ["admin-banners", "Banners"], ["admin-settings", "Configurações"]];
   if (role === "distributor") return [["partner", "Visão geral"], ["catalog", "Catálogo"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-import", "Importações"]];
   if (role === "operator") return [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-content", "Radar / Conteúdo"], ["admin-banners", "Banners"], ["admin-settings", "Configurações"]];
-  return [["home", "Início"], ["catalog", "Catálogo"], ["radar", "Radar Airsoft"], ["loadout", "Monte seu loadout"], ["favorites", "Favoritos"]];
+  return [["home", "Início"], ["catalog", "Catálogo"], ["radar", "Radar Airsoft"], ["loadout", "Monte seu loadout"], ["favorites", "Favoritos"], ["orders", "Meus pedidos"]];
 }
 
 const radarTypes = { event: "Eventos", field: "Campos", store: "Lojas", news: "Notícias", release: "Lançamentos" };
@@ -864,6 +864,11 @@ function loadoutPage() {
 function favoritesPage() {
   const list = activeProducts().filter((product) => state.favorites.includes(product.id));
   return `<section class="page catalog-page"><div class="container"><div class="page-heading"><div><span class="eyebrow">SAVED / FAVORITES</span><h1>Favoritos</h1></div><p>Seu equipamento salvo para revisar depois.</p></div>${list.length ? `<div class="catalog-grid">${list.map(productCard).join("")}</div>` : `<div class="empty-state"><div><div class="empty-mark">♡</div><h2>Seu arsenal está vazio.</h2><p>Salve produtos para comparar opções e voltar quando estiver pronto.</p><button class="outline-cta" data-route="catalog">Explorar catálogo</button></div></div>`}</div></section>`;
+}
+
+function customerOrdersPage() {
+  const orders = [...state.orders].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  return `<section class="page catalog-page"><div class="container"><div class="page-heading"><div><span class="eyebrow">FIELD ID / ORDERS</span><h1>Meus pedidos.</h1></div><p>Acompanhe o andamento das solicitações salvas neste dispositivo.</p></div>${orders.length ? `<div class="customer-orders-list">${orders.map((order) => `<article class="customer-order-card"><div><span class="eyebrow">${escapeHtml(order.id || "PEDIDO")}</span><h2>${escapeHtml(order.status || "Novo pedido")}</h2><small>${new Date(order.createdAt || Date.now()).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></div><div class="customer-order-meta"><strong>${moneyDetailed(order.total || 0)}</strong><span>${(order.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)} item(ns)</span><span>${escapeHtml(order.shipping?.status || "Aguardando atualização")}</span></div></article>`).join("")}</div>` : `<div class="empty-state"><div><div class="empty-mark">⌁</div><h2>Nenhum pedido por aqui.</h2><p>Quando um orçamento virar pedido, o acompanhamento aparecerá nesta área.</p><button class="outline-cta" data-route="catalog">Explorar catálogo</button></div></div>`}</div></section>`;
 }
 
 function brandsPage() {
@@ -2147,6 +2152,7 @@ function render() {
   if (state.route === "product" && state.selectedProduct) view = productPage(state.selectedProduct);
   if (state.route === "loadout") view = loadoutPage();
   if (state.route === "favorites") view = favoritesPage();
+  if (state.route === "orders") view = customerOrdersPage();
   if (state.route === "brands") view = brandsPage();
   if (state.route === "radar") view = radarPage();
   if (state.route === "partner") view = partnerDashboardPage();
@@ -3375,12 +3381,12 @@ window.addEventListener("keydown", (event) => {
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   }
 });
-window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); const quoteMatch = route.match(/^quote\/(.+)$/); closeModal(); const requested = productMatch ? "product" : quoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "partner", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings"].includes(route) ? route : "home"; const resolved = resolveAccessRoute(requested, requested !== "home"); if (resolved !== requested) history.replaceState({}, "", `#${resolved}`); state.route = resolved; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; state.selectedQuoteId = quoteMatch ? quoteMatch[1] : null; render(); });
+window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); const quoteMatch = route.match(/^quote\/(.+)$/); closeModal(); const requested = productMatch ? "product" : quoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "orders", "partner", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings"].includes(route) ? route : "home"; const resolved = resolveAccessRoute(requested, requested !== "home"); if (resolved !== requested) history.replaceState({}, "", `#${resolved}`); state.route = resolved; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; state.selectedQuoteId = quoteMatch ? quoteMatch[1] : null; render(); });
 
 const initialRoute = location.hash.replace("#", "") || "home";
 const initialProductMatch = initialRoute.match(/^product\/(.+)$/);
 const initialQuoteMatch = initialRoute.match(/^quote\/(.+)$/);
-const initialRequestedRoute = initialProductMatch ? "product" : initialQuoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "partner", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
+const initialRequestedRoute = initialProductMatch ? "product" : initialQuoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "orders", "partner", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
 state.route = resolveAccessRoute(initialRequestedRoute, initialRequestedRoute !== "home");
 if (state.route !== initialRequestedRoute) history.replaceState({}, "", `#${state.route}`);
 state.selectedProduct = initialProductMatch ? findProduct(initialProductMatch[1]) : null;

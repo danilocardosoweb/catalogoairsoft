@@ -139,6 +139,7 @@ O estado atual também está protegido por um ponto de restauração local docum
 - Lojista recebe uma central de parceiro com visão comercial da própria loja e acesso a produtos, estoque, preços, orçamentos, pedidos, expedição, clientes, importações, conteúdo, banners e configurações.
 - Distribuidor recebe uma central de abastecimento com catálogo, produtos, estoque, preços de grupo, pedidos, expedição e importações; não recebe a gestão de clientes, campanhas ou configurações da loja.
 - O menu operacional é montado conforme o papel, com mapa visual de permissões, área inicial específica e redirecionamento de rotas não permitidas.
+- A jornada do Consumidor ganhou a área “Meus pedidos”, com estado vazio e acompanhamento dos pedidos salvos no dispositivo.
 - O acesso atual é uma camada de experiência e navegação local-first. Para operação real, ainda é obrigatório implementar autenticação, sessão e RBAC no backend antes de considerar os dados protegidos.
 
 ## Pendências de desenvolvimento

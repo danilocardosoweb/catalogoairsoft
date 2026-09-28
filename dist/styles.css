@@ -716,6 +716,12 @@ html[data-theme="light"] .site-footer { background: #e8eee6; border-top-color: r
 .role-permission-grid strong { font-size: 11px; text-transform: uppercase; }
 .role-permission-grid small { grid-column: 2 / -1; color: var(--muted); font-size: 10px; }
 .role-permission-grid b { color: var(--accent); font-size: 16px; }
+.customer-orders-list { display: grid; gap: 10px; max-width: 920px; }
+.customer-order-card { display: flex; justify-content: space-between; gap: 20px; padding: 19px; background: var(--surface); border: 1px solid var(--line); }
+.customer-order-card h2 { margin: 7px 0 5px; font: 600 28px/.9 var(--display); text-transform: uppercase; }
+.customer-order-card small, .customer-order-meta span { color: var(--muted); font-size: 10px; }
+.customer-order-meta { display: grid; justify-items: end; gap: 5px; align-content: center; text-align: right; }
+.customer-order-meta strong { color: var(--accent); font: 600 25px/.9 var(--display); }
 
 .detail-page { padding: 45px 0 105px; }
 .breadcrumb { display: flex; align-items: center; gap: 9px; margin-bottom: 27px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
@@ -1269,6 +1275,8 @@ html[data-theme="light"] .site-footer { background: #e8eee6; border-top-color: r
   .role-brief-panel { display: block; }
   .role-brief-panel .role-access-chip { margin-top: 14px; }
   .role-permission-grid { grid-template-columns: 1fr 1fr; }
+  .customer-order-card { display: grid; gap: 15px; }
+  .customer-order-meta { justify-items: start; text-align: left; }
   .admin-kpi-grid { gap: 8px; }
   .admin-kpi { min-height: 111px; padding: 13px; }
   .admin-kpi strong { font-size: 35px; }
