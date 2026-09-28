@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 28/09/2026  
-Última versão publicada: v86 — recuperação segura do catálogo legado
+Última versão publicada: v87 — acesso fechado e gestão de autorizações
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
 Ponto de restauração: tag `restore-v79-banner-layout` · commit `7e36c42eae023223f5d103829477fc6ac2c75be5`
@@ -212,6 +212,10 @@ Conforme o prompt mestre, não são prioridades desta fase: pagamento online, em
 - Adicionados `dist/supabase-config.js` e `dist/supabase.js`, usando somente a chave pública do projeto no navegador e mantendo o `service_role` fora do app.
 - Adicionado login/cadastro por e-mail e senha, com perfil Consumidor, Lojista ou Distribuidor.
 - Adicionada a migração `supabase/migrations/20260928010000_app_state_and_account_bootstrap.sql`, que cria `user_app_state`, RLS por usuário e a função segura `ensure_account` para criar o perfil e reivindicar a organização inicial da loja.
+- Adicionada a migração `supabase/migrations/20260928020000_access_control_and_admin.sql`, que cria a lista de e-mails autorizados, permissões por membro, bloqueio de acesso e a área administrativa de identidades.
+- O perfil enviado pelo formulário deixou de conceder privilégio: o Supabase define o perfil e as permissões a partir da autorização cadastrada pelo administrador. O e-mail `danilo.cardosoweb@gmail.com` é o administrador inicial previsto na migração.
+- Criada a rota administrativa `admin-access` para autorizar lojistas, distribuidores e operadores, revisar permissões, bloquear e reativar acessos.
+- Criado o modelo visual de confirmação em `supabase/templates/confirmation.html`, com instruções para configurar o assunto e o SMTP próprio da loja.
 - O catálogo público tenta carregar produtos, categorias, banners, Radar e Airdrops das tabelas relacionais do Supabase; enquanto o banco estiver sem registros, a interface usa os dados demo em memória para não apresentar uma tela vazia.
 - Ao sincronizar como Lojista/Operador, o catálogo também grava categorias, marcas, produtos, preços de varejo e estoque nas tabelas relacionais correspondentes; o snapshot de usuário funciona apenas como ponte para os módulos ainda não migrados.
 - Adicionada recuperação única dos dados legados que ainda estejam no navegador: se o Supabase estiver vazio, o catálogo antigo é reidratado em memória e pode ser enviado para a conta Supabase após o login.
@@ -221,11 +225,13 @@ Antes do primeiro acesso autenticado, execute a migração complementar no SQL E
 
 ## Próxima sequência recomendada
 
-1. Executar `20260928010000_app_state_and_account_bootstrap.sql` no Supabase.
-2. Criar o primeiro acesso Lojista e confirmar o e-mail, se a confirmação estiver habilitada.
-3. Importar a planilha de produtos pelo painel com a conta conectada.
-4. Conectar os formulários de produto, estoque, preços, orçamentos e pedidos às tabelas relacionais, mantendo `user_app_state` como ponte de migração.
-5. Revalidar os fluxos mobile e publicar uma versão de operação real.
+1. Executar `20260928010000_app_state_and_account_bootstrap.sql` e depois `20260928020000_access_control_and_admin.sql` no Supabase.
+2. Configurar o template `supabase/templates/confirmation.html` em Authentication → Email Templates → Confirm signup e, para produção, um SMTP próprio.
+3. Criar/confirmar o acesso administrativo `danilo.cardosoweb@gmail.com`.
+4. Abrir **Acessos** no Command Center e cadastrar os e-mails autorizados, perfil e liberações de cada lojista.
+5. Importar a planilha de produtos pelo painel com a conta conectada.
+6. Conectar os formulários de produto, estoque, preços, orçamentos e pedidos às tabelas relacionais, mantendo `user_app_state` como ponte de migração.
+7. Revalidar os fluxos mobile e publicar uma versão de operação real.
 
 ## Estrutura Supabase preparada — 28/09/2026
 

@@ -236,6 +236,7 @@ const state = {
   pendingBackupRestore: null,
   importHistory: [],
   adminProductSearch: "",
+  accessGrants: [],
   account: null,
   profile: null,
   categories: Array.isArray(storedCategories) ? storedCategories : categories,
@@ -294,7 +295,7 @@ const accessProfiles = {
     title: "Command center.",
     description: "Acesso interno à operação completa da loja.",
     homeRoute: "admin",
-    routes: ["admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings", "partner", "home", "catalog", "brands", "radar", "loadout", "favorites", "product", "quote"]
+    routes: ["admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings", "admin-access", "partner", "home", "catalog", "brands", "radar", "loadout", "favorites", "product", "quote"]
   }
 };
 
@@ -314,10 +315,37 @@ function currentAccessProfile() {
   return accessProfiles[currentAccessRole()];
 }
 
+const routePermissions = {
+  admin: "dashboard",
+  "admin-products": "products",
+  "admin-stock": "stock",
+  "admin-prices": "prices",
+  "admin-quotes": "quotes",
+  "admin-orders": "orders",
+  "admin-shipping": "shipping",
+  "admin-packages": "packages",
+  "admin-customers": "customers",
+  "admin-import": "imports",
+  "admin-content": "content",
+  "admin-banners": "banners",
+  "admin-settings": "settings",
+  "admin-access": "access"
+};
+
+function currentPermissions() {
+  const declared = Array.isArray(state.account?.permissions) ? state.account.permissions : [];
+  if (declared.length) return declared;
+  const fallback = { admin: ["dashboard","products","stock","prices","quotes","orders","shipping","packages","customers","imports","content","banners","settings","access"], operator: ["dashboard","products","stock","prices","quotes","orders","shipping","packages","customers","imports","content","banners","settings"], retailer: ["dashboard","products","stock","prices","quotes","orders","shipping","packages","customers","imports","content","banners","settings"], distributor: ["dashboard","products","stock","prices","orders","shipping","imports"], consumer: ["catalog","loadout","favorites","orders"] };
+  return fallback[state.account?.role] || fallback[currentAccessRole()] || [];
+}
+
 function canAccessRoute(route) {
   const cleanRoute = String(route || "").replace(/^admin\//, "");
   const role = currentAccessRole();
   if (cleanRoute === "product" || cleanRoute === "quote") return true;
+  if ((cleanRoute.startsWith("admin") || cleanRoute === "partner") && (!state.account || !window.FieldOpsSupabase?.session)) return false;
+  const permission = routePermissions[cleanRoute];
+  if (permission && !currentPermissions().includes(permission)) return false;
   return currentAccessProfile().routes.includes(cleanRoute);
 }
 
@@ -340,7 +368,7 @@ function accessNavItems() {
   const role = currentAccessRole();
   if (role === "retailer") return [["partner", "Visão geral"], ["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-content", "Radar / Conteúdo"], ["admin-banners", "Banners"], ["admin-settings", "Configurações"]];
   if (role === "distributor") return [["partner", "Visão geral"], ["catalog", "Catálogo"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-import", "Importações"]];
-  if (role === "operator") return [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-content", "Radar / Conteúdo"], ["admin-banners", "Banners"], ["admin-settings", "Configurações"]];
+  if (role === "operator") return [["admin", "Dashboard"], ["admin-products", "Produtos"], ["admin-stock", "Estoque"], ["admin-prices", "Preços"], ["admin-quotes", "Orçamentos"], ["admin-orders", "Pedidos"], ["admin-shipping", "Expedição"], ["admin-packages", "Embalagens"], ["admin-customers", "Clientes"], ["admin-import", "Importações"], ["admin-content", "Radar / Conteúdo"], ["admin-banners", "Banners"], ["admin-settings", "Configurações"], ["admin-access", "Acessos"]].filter(([route]) => canAccessRoute(route));
   return [["home", "Início"], ["catalog", "Catálogo"], ["radar", "Radar Airsoft"], ["loadout", "Monte seu loadout"], ["favorites", "Favoritos"], ["orders", "Meus pedidos"]];
 }
 
@@ -1584,6 +1612,72 @@ function adminSettingsPage() {
   return adminShell("admin-settings", "09 / SYSTEM", "Configurações.", `<section class="admin-panel settings-panel"><div class="admin-panel-head"><div><span class="eyebrow">STORE CONTROL</span><h2>Dados da operação.</h2></div><span class="admin-sync"><i class="status-dot"></i> Salvo neste dispositivo</span></div><p class="settings-intro">Ajuste atendimento, origem logística e regras simples de frete para o MVP local.</p><form class="settings-form" id="settings-form"><div class="form-row"><label class="form-label">Nome da operação<input name="storeName" required value="${state.settings.storeName}" /></label><label class="form-label">Cidade<input name="city" required value="${state.settings.city}" /></label></div><div class="form-row"><label class="form-label">WhatsApp do atendimento<input name="whatsapp" required inputmode="tel" value="${state.settings.whatsapp}" placeholder="5511999999999" /></label><label class="form-label">Alerta de estoque baixo<input name="lowStock" required type="number" min="0" step="1" value="${state.settings.lowStock}" /></label></div><fieldset class="shipping-fieldset"><legend>Logística</legend><div class="form-row"><label class="form-label">CEP de origem<input name="originZip" required value="${state.shipping.originZip}" placeholder="01310-100" /></label><label class="form-label">Endereço de origem<input name="originAddress" required value="${state.shipping.originAddress}" /></label></div><div class="form-row"><label class="form-label">Cidade de origem<input name="originCity" required value="${state.shipping.originCity}" /></label><label class="form-label">Estado<input name="originState" required maxlength="2" value="${state.shipping.originState}" /></label></div><div class="form-row"><label class="form-label">Fator de cubagem<input name="cubingFactor" type="number" min="1" step="1" value="${state.shipping.cubingFactor}" /><small class="form-help">Fórmula: C × L × A ÷ fator.</small></label><label class="form-label">Validade da cotação (horas)<input name="quoteValidityHours" type="number" min="1" step="1" value="${state.shipping.quoteValidityHours}" /></label></div><div class="form-row"><label class="form-label">Frete grátis acima de<input name="freeShippingMin" type="number" min="0" step="0.01" value="${state.shipping.freeShippingMin}" /></label><label class="form-label">Frete base SP<input name="flatSp" type="number" min="0" step="0.01" value="${state.shipping.flatSp}" /></label></div></fieldset><fieldset class="shipping-fieldset"><legend>Retirada no local</legend><label class="form-label">Endereço<input name="pickupAddress" required value="${state.shipping.pickupAddress}" /></label><div class="form-row"><label class="form-label">Horário<input name="pickupHours" required value="${state.shipping.pickupHours}" /></label><label class="form-label">Instruções<input name="pickupInstructions" required value="${state.shipping.pickupInstructions}" /></label></div></fieldset><div class="settings-preview"><span class="eyebrow">ATENDIMENTO</span><strong>${state.settings.storeName} · ${state.settings.city}</strong><small>Frete grátis a partir de ${moneyDetailed(state.shipping.freeShippingMin)} · cubagem ${state.shipping.cubingFactor}.</small></div><div class="settings-actions"><button class="hero-cta" type="submit">Salvar configurações</button><button class="outline-cta" type="button" data-action="reset-local-data">Restaurar dados demo</button></div></form></section>${categoryManagerMarkup()}${airdropControlMarkup()}`);
 }
 
+const accessPermissionLabels = { dashboard: "Dashboard", products: "Produtos", stock: "Estoque", prices: "Preços", quotes: "Orçamentos", orders: "Pedidos", shipping: "Expedição", packages: "Embalagens", customers: "Clientes", imports: "Importações", content: "Radar / Conteúdo", banners: "Banners", settings: "Configurações", access: "Gestão de acessos" };
+const accessRoleLabels = { retailer: "Lojista", distributor: "Distribuidor", operator: "Operador" };
+const defaultGrantPermissions = { retailer: ["dashboard", "products", "stock", "prices", "quotes", "orders", "shipping", "packages", "customers", "imports", "content", "banners", "settings"], distributor: ["dashboard", "products", "stock", "prices", "orders", "shipping", "imports"], operator: ["dashboard", "products", "stock", "prices", "quotes", "orders", "shipping", "packages", "customers", "imports", "content", "banners", "settings"] };
+
+function accessGrantStatusLabel(status) {
+  return status === "active" ? "Ativo" : status === "blocked" ? "Bloqueado" : "Convidado";
+}
+
+async function hydrateAccessGrants() {
+  const cloud = window.FieldOpsSupabase;
+  if (!cloud?.listAccessGrants || state.accessGrantsLoading) return;
+  state.accessGrantsLoading = true;
+  try {
+    state.accessGrants = await cloud.listAccessGrants();
+    state.accessGrantsLoaded = true;
+  } catch (error) {
+    state.accessGrantsError = error.message;
+    showToast(`Não foi possível carregar os acessos: ${error.message}`);
+  } finally {
+    state.accessGrantsLoading = false;
+    render();
+  }
+}
+
+function adminAccessPage() {
+  const grants = Array.isArray(state.accessGrants) ? state.accessGrants : [];
+  const active = grants.filter((grant) => grant.status === "active").length;
+  const invited = grants.filter((grant) => grant.status === "invited").length;
+  const blocked = grants.filter((grant) => grant.status === "blocked").length;
+  const rows = state.accessGrantsLoading ? `<tr><td colspan="6"><div class="admin-inline-empty">Carregando autorizações…</div></td></tr>` : grants.length ? grants.map((grant) => `<tr><td><strong>${escapeHtml(grant.full_name || "Sem nome")}</strong><small>${escapeHtml(grant.email)}</small></td><td>${escapeHtml(accessRoleLabels[grant.role] || grant.role)}</td><td>${(grant.permissions || []).filter((item) => item !== "access").length} permissões</td><td><span class="admin-status ${grant.status === "active" ? "status-live" : grant.status === "blocked" ? "status-danger" : "status-progress"}">${accessGrantStatusLabel(grant.status)}</span></td><td>${grant.last_seen_at ? new Date(grant.last_seen_at).toLocaleDateString("pt-BR") : "Ainda não entrou"}</td><td><div class="admin-row-actions"><button data-action="access-grant-toggle" data-grant-id="${escapeHtml(grant.id)}" data-grant-status="${grant.status === "blocked" ? "invited" : "blocked"}">${grant.status === "blocked" ? "Reativar" : "Bloquear"}</button></div></td></tr>`).join("") : `<tr><td colspan="6"><div class="admin-inline-empty">Nenhum lojista autorizado ainda.</div></td></tr>`;
+  return adminShell("admin-access", "10 / IDENTITY", "Acessos autorizados.", `<div class="admin-toolbar"><div><span class="admin-sync"><i class="status-dot"></i> Apenas e-mails aprovados entram na operação</span></div><button class="hero-cta" data-action="access-grant-new">Autorizar acesso</button></div><div class="admin-kpi-grid"><div class="admin-kpi"><span>Ativos</span><strong>${active}</strong><small>acessos liberados</small></div><div class="admin-kpi"><span>Convites</span><strong>${invited}</strong><small>aguardando primeiro acesso</small></div><div class="admin-kpi"><span>Bloqueados</span><strong>${blocked}</strong><small>sem acesso à operação</small></div></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">ACCESS CONTROL</span><h2>Quem pode entrar.</h2></div><span class="admin-sync">Admin: danilo.cardosoweb@gmail.com</span></div><p class="settings-intro">Autorize lojistas, distribuidores e operadores pelo e-mail. O perfil escolhido no cadastro não concede permissão; somente esta lista decide o acesso.</p><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Pessoa</th><th>Perfil</th><th>Liberações</th><th>Status</th><th>Último acesso</th><th>Ação</th></tr></thead><tbody>${rows}</tbody></table></div></section>`);
+}
+
+function accessGrantModal() {
+  const defaults = defaultGrantPermissions.retailer;
+  const permissionFields = Object.entries(accessPermissionLabels).map(([key, label]) => `<label class="choice-card"><input type="checkbox" name="permissions" value="${key}" ${defaults.includes(key) ? "checked" : ""}><span><strong>${label}</strong><small>Permitir acesso a esta área</small></span></label>`).join("");
+  openModal(`<span class="eyebrow">IDENTITY / AUTHORIZATION</span><h2>Autorizar<br>lojista.</h2><p>O acesso só será liberado para este e-mail depois da confirmação no Supabase.</p><form class="form-grid" id="access-grant-form"><div class="form-row"><label class="form-label">Nome<input name="fullName" required placeholder="Nome da pessoa ou loja" /></label><label class="form-label">Perfil<select name="role"><option value="retailer">Lojista</option><option value="distributor">Distribuidor</option><option value="operator">Operador</option></select></label></div><label class="form-label">E-mail autorizado<input name="email" type="email" required placeholder="contato@loja.com.br" autocomplete="email" /></label><label class="form-label">WhatsApp<input name="phone" inputmode="tel" placeholder="(11) 99999-9999" /></label><fieldset class="shipping-fieldset"><legend>Liberações</legend><div class="access-permission-grid">${permissionFields}</div></fieldset><button class="modal-submit" type="submit">Salvar autorização</button></form>`);
+  document.querySelector("#access-grant-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const submit = event.currentTarget.querySelector("button[type=submit]");
+    if (submit) { submit.disabled = true; submit.textContent = "Salvando…"; }
+    try {
+      await window.FieldOpsSupabase.createAccessGrant({ fullName: String(form.get("fullName") || "").trim(), email: String(form.get("email") || "").trim(), phone: String(form.get("phone") || "").trim(), role: form.get("role"), permissions: [...event.currentTarget.querySelectorAll("[name=permissions]:checked")].map((input) => input.value) });
+      closeModal();
+      state.accessGrantsLoaded = false;
+      await hydrateAccessGrants();
+      showToast("Acesso autorizado. A pessoa já pode criar a conta com este e-mail.");
+    } catch (error) {
+      showToast(`Não foi possível autorizar: ${error.message}`);
+      if (submit) { submit.disabled = false; submit.textContent = "Salvar autorização"; }
+    }
+  });
+}
+
+async function toggleAccessGrant(id, status) {
+  try {
+    await window.FieldOpsSupabase.updateAccessGrant(id, { status });
+    state.accessGrantsLoaded = false;
+    await hydrateAccessGrants();
+    showToast(status === "blocked" ? "Acesso bloqueado." : "Acesso reativado.");
+  } catch (error) {
+    showToast(`Não foi possível atualizar o acesso: ${error.message}`);
+  }
+}
+
 function adminProductsPage() {
   const query = state.adminProductSearch.trim().toLowerCase();
   const list = activeProducts().filter((product) => `${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(query));
@@ -2179,7 +2273,7 @@ function accountModal() {
     openModal(`<span class="eyebrow">IDENTITY / PROFILE</span><h2>Olá,<br>${escapeHtml(String(state.account.name || "Operador").split(" ")[0])}.</h2><p>Seu acesso está conectado à base oficial da loja. O perfil selecionado organiza as áreas que aparecem para você.</p><div class="account-role-card"><div><span>PERFIL ATIVO</span><strong>${access.label}</strong></div><small>${access.description}</small></div><div class="account-summary"><div><span>Favoritos</span><strong>${state.favorites.length}</strong></div><div><span>No carrinho</span><strong>${state.cart.reduce((sum, item) => sum + item.quantity, 0)}</strong></div><div><span>Área inicial</span><strong>${role === "consumer" ? "Catálogo" : role === "operator" ? "Ops" : "Parceiro"}</strong></div></div><div class="form-grid"><button class="modal-submit" data-action="profile-destination" data-role-route="${destination}">${destinationLabel} <span>↗</span></button><button class="outline-cta" data-action="account-logout">Sair da conta</button></div>`);
     return;
   }
-  openModal(`<span class="eyebrow">IDENTITY / ACCOUNT</span><h2>Seu perfil<br>de campo.</h2><p>Crie seu acesso seguro para manter carrinho, favoritos, loadout e operação sincronizados no Supabase.</p><form class="form-grid" id="account-form"><label class="form-label">Nome<input name="name" required placeholder="Como podemos chamar você?" autocomplete="name" /></label><label class="form-label">E-mail<input name="email" type="email" required placeholder="voce@exemplo.com" autocomplete="email" /></label><div class="form-row"><label class="form-label">WhatsApp<input name="phone" placeholder="(11) 99999-9999" autocomplete="tel" /></label><label class="form-label">Perfil<select name="role" id="account-role"><option value="consumer">Consumidor</option><option value="retailer">Lojista</option><option value="distributor">Distribuidor</option></select></label></div><label class="form-label">Senha<input name="password" type="password" minlength="8" required placeholder="Mínimo de 8 caracteres" autocomplete="new-password" /></label><div class="account-role-hint" id="account-role-hint"><strong>Consumidor</strong><span>Catálogo, loadout, favoritos, carrinho e acompanhamento dos seus pedidos.</span></div><button class="modal-submit" type="submit">Entrar e sincronizar</button></form>`);
+  openModal(`<span class="eyebrow">IDENTITY / ACCOUNT</span><h2>Seu perfil<br>de campo.</h2><p>O acesso é controlado pela administração. Use o e-mail previamente autorizado para entrar ou concluir seu cadastro.</p><form class="form-grid" id="account-form"><label class="form-label">Nome<input name="name" required placeholder="Como podemos chamar você?" autocomplete="name" /></label><label class="form-label">E-mail<input name="email" type="email" required placeholder="voce@exemplo.com" autocomplete="email" /></label><div class="form-row"><label class="form-label">WhatsApp<input name="phone" placeholder="(11) 99999-9999" autocomplete="tel" /></label><label class="form-label">Perfil solicitado<select name="role" id="account-role"><option value="consumer">Consumidor</option><option value="retailer">Lojista</option><option value="distributor">Distribuidor</option></select></label></div><label class="form-label">Senha<input name="password" type="password" minlength="8" required placeholder="Mínimo de 8 caracteres" autocomplete="new-password" /></label><div class="account-role-hint" id="account-role-hint"><strong>Acesso autorizado</strong><span>A administração confirma o perfil e as permissões pelo e-mail cadastrado.</span></div><button class="modal-submit" type="submit">Entrar e sincronizar</button></form>`);
   const roleSelect = document.querySelector("#account-role");
   const roleHint = document.querySelector("#account-role-hint");
   const updateRoleHint = () => { const selected = accessProfiles[roleSelect.value] || accessProfiles.consumer; roleHint.innerHTML = `<strong>${selected.label}</strong><span>${selected.description}</span>`; };
@@ -2199,17 +2293,21 @@ function accountModal() {
     try {
       const result = await cloud.signInOrSignUp({ email, password, fullName: name, phone, role });
       if (result.mode === "confirmation") { showToast(result.error); return; }
-      await cloud.bootstrapAccount({ fullName: name, phone, role });
-      state.account = { name, email, phone, role, segment: accessProfiles[role].label, userId: cloud.session?.user?.id || "" };
-      state.profile = { ...(state.profile || {}), name, email, phone, role };
+      const accountMeta = await cloud.bootstrapAccount({ fullName: name, phone, role });
+      const assignedRole = accountMeta?.role || role;
+      const assignedProfile = accessProfiles[normalizeAccessRole(assignedRole)] || accessProfiles.consumer;
+      state.account = { name, email, phone, role: assignedRole, permissions: accountMeta?.permissions || [], segment: assignedProfile.label, userId: cloud.session?.user?.id || "" };
+      state.profile = { ...(state.profile || {}), name, email, phone, role: assignedRole };
       const previousState = await cloud.loadUserState();
       if (previousState) applyCloudSnapshot(previousState);
       persist();
       closeModal();
       go(roleHomeRoute());
-      showToast(`Perfil ${accessProfiles[role].label.toLowerCase()} conectado à base oficial.`);
+      showToast(`Acesso ${assignedProfile.label.toLowerCase()} conectado à base oficial.`);
     } catch (error) {
-      showToast(`Não foi possível conectar: ${error.message}`);
+      if (error.message === "access_not_authorized") await cloud.signOut();
+      const detail = error.message === "access_not_authorized" ? "Este e-mail ainda não foi autorizado pela administração." : error.message === "organization_already_claimed" ? "Esta organização já possui um responsável cadastrado." : error.message;
+      showToast(`Não foi possível conectar: ${detail}`);
     } finally {
       if (submit) { submit.disabled = false; submit.textContent = "Entrar e sincronizar"; }
     }
@@ -2469,9 +2567,11 @@ function render() {
   if (state.route === "admin-content") view = adminContentPage();
   if (state.route === "admin-banners") view = adminBannersPage();
   if (state.route === "admin-settings") view = adminSettingsPage();
+  if (state.route === "admin-access") view = adminAccessPage();
   app.innerHTML = view + compareBar();
   updateNav();
   bindViewEvents();
+  if (state.route === "admin-access" && !state.accessGrantsLoaded && !state.accessGrantsLoading) hydrateAccessGrants();
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
@@ -3605,6 +3705,9 @@ document.addEventListener("click", (event) => {
   if (action === "admin-banner-duplicate" && bannerId) duplicateBanner(bannerId);
   if (action === "admin-banner-toggle" && bannerId) toggleBanner(bannerId);
   if (action === "admin-banner-delete" && bannerId) deleteBanner(bannerId);
+  if (action === "access-grant-new") accessGrantModal();
+  const grantId = event.target.closest("[data-grant-id]")?.dataset.grantId;
+  if (action === "access-grant-toggle" && grantId) toggleAccessGrant(grantId, event.target.closest("[data-grant-status]")?.dataset.grantStatus || "blocked");
   if (action === "category-toggle" && categoryId) toggleCategory(categoryId);
   if (action === "category-delete" && categoryId) deleteCategory(categoryId);
   if (action === "close-modal") closeModal();
@@ -3708,12 +3811,12 @@ window.addEventListener("keydown", (event) => {
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   }
 });
-window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); const quoteMatch = route.match(/^quote\/(.+)$/); closeModal(); const requested = productMatch ? "product" : quoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "orders", "partner", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings"].includes(route) ? route : "home"; const resolved = resolveAccessRoute(requested, requested !== "home"); if (resolved !== requested) history.replaceState({}, "", `#${resolved}`); state.route = resolved; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; state.selectedQuoteId = quoteMatch ? quoteMatch[1] : null; render(); });
+window.addEventListener("hashchange", () => { const route = location.hash.replace("#", "") || "home"; const productMatch = route.match(/^product\/(.+)$/); const quoteMatch = route.match(/^quote\/(.+)$/); closeModal(); const requested = productMatch ? "product" : quoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "orders", "partner", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings", "admin-access"].includes(route) ? route : "home"; const resolved = resolveAccessRoute(requested, requested !== "home"); if (resolved !== requested) history.replaceState({}, "", `#${resolved}`); state.route = resolved; state.selectedProduct = productMatch ? findProduct(productMatch[1]) : null; state.selectedQuoteId = quoteMatch ? quoteMatch[1] : null; render(); });
 
 const initialRoute = location.hash.replace("#", "") || "home";
 const initialProductMatch = initialRoute.match(/^product\/(.+)$/);
 const initialQuoteMatch = initialRoute.match(/^quote\/(.+)$/);
-const initialRequestedRoute = initialProductMatch ? "product" : initialQuoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "orders", "partner", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings"].includes(initialRoute) ? initialRoute : "home";
+const initialRequestedRoute = initialProductMatch ? "product" : initialQuoteMatch ? "quote" : ["home", "catalog", "brands", "radar", "loadout", "favorites", "orders", "partner", "admin", "admin-products", "admin-stock", "admin-prices", "admin-quotes", "admin-orders", "admin-shipping", "admin-packages", "admin-customers", "admin-import", "admin-content", "admin-banners", "admin-settings", "admin-access"].includes(initialRoute) ? initialRoute : "home";
 state.route = resolveAccessRoute(initialRequestedRoute, initialRequestedRoute !== "home");
 if (state.route !== initialRequestedRoute) history.replaceState({}, "", `#${state.route}`);
 state.selectedProduct = initialProductMatch ? findProduct(initialProductMatch[1]) : null;

@@ -81,6 +81,40 @@
     return value || {};
   }
 
+  async function listAccessGrants() {
+    if (!session?.access_token) throw new Error("Faça login como administrador para gerenciar acessos.");
+    return dataRequest("/access_grants?select=id,email,full_name,phone,role,permissions,status,user_id,last_seen_at,created_at,organization_id&order=created_at.desc");
+  }
+
+  async function createAccessGrant(details) {
+    if (!session?.access_token || !organizationId) throw new Error("A organização administrativa ainda não foi carregada.");
+    const rows = await dataRequest("/access_grants", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        email: String(details.email || "").trim().toLowerCase(),
+        full_name: String(details.fullName || "").trim() || null,
+        phone: String(details.phone || "").trim() || null,
+        organization_id: organizationId,
+        role: details.role || "retailer",
+        permissions: Array.isArray(details.permissions) ? details.permissions : [],
+        status: "invited",
+        invited_by: session.user?.id || null
+      })
+    });
+    return rows?.[0] || null;
+  }
+
+  async function updateAccessGrant(id, changes) {
+    if (!session?.access_token) throw new Error("Faça login como administrador para gerenciar acessos.");
+    const rows = await dataRequest(`/access_grants?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify(changes)
+    });
+    return rows?.[0] || null;
+  }
+
   async function loadUserState() {
     if (!session?.user?.id) return null;
     const rows = await dataRequest(`/user_app_state?user_id=eq.${encodeURIComponent(session.user.id)}&select=state&limit=1`);
@@ -244,6 +278,9 @@
     get status() { return lastStatus; },
     signInOrSignUp,
     bootstrapAccount,
+    listAccessGrants,
+    createAccessGrant,
+    updateAccessGrant,
     loadUserState,
     loadPublicCatalog,
     queueSave,
