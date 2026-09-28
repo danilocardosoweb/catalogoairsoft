@@ -265,6 +265,7 @@ const state = {
 };
 
 const cartExpandedIds = new Set();
+const cartPanelExpanded = { shipping: false, airdrop: false };
 
 const accessProfiles = {
   consumer: {
@@ -2991,8 +2992,10 @@ function orderedShippingOptions(options = []) {
 function cartShippingMarkup() {
   const quote = state.cartShipping;
   const selected = selectedShippingOption();
-  if (!quote) return `<div class="shipping-calc"><div><span class="eyebrow">DELIVERY / FRETE</span><strong>Calcule antes de solicitar.</strong></div><div class="shipping-calc-form"><input id="cart-zip" inputmode="numeric" maxlength="9" placeholder="Digite seu CEP" aria-label="CEP para calcular frete" /><button class="outline-cta" data-action="calculate-shipping">Calcular frete</button></div><small>O cálculo usa peso, dimensões e embalagem estimada dos itens.</small></div>`;
-  return `<div class="shipping-calc shipping-ready"><div class="shipping-calc-head"><div><span class="eyebrow">DELIVERY / ${quote.zip}</span><strong>Escolha como receber.</strong></div><button class="text-link" data-action="clear-shipping">Trocar CEP</button></div><div class="shipping-sort" role="group" aria-label="Ordenar opções de frete"><button class="${state.shippingSort === "price" ? "active" : ""}" data-action="shipping-sort" data-shipping-sort="price">Menor preço</button><button class="${state.shippingSort === "speed" ? "active" : ""}" data-action="shipping-sort" data-shipping-sort="speed">Mais rápido</button><button class="${state.shippingSort === "recommended" ? "active" : ""}" data-action="shipping-sort" data-shipping-sort="recommended">Recomendado</button></div><div class="shipping-options">${orderedShippingOptions(quote.options).map((option) => `<button class="shipping-option ${selected?.id === option.id ? "selected" : ""}" data-action="select-shipping" data-shipping-option="${option.id}"><span><strong>${option.carrier}</strong><small>${option.service} · ${option.days}${option.pickup ? ` · ${state.shipping.pickupAddress}` : ""}</small></span><b>${option.price ? moneyDetailed(option.price) : "Grátis"}</b><i>${selected?.id === option.id ? "✓" : ""}</i></button>`).join("")}</div><small class="shipping-meta">${quote.volumes.length} volume(s) · validade até ${new Date(quote.expiresAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></div>`;
+  const expanded = cartPanelExpanded.shipping;
+  const summary = quote ? `${selected?.price ? moneyDetailed(selected.price) : "Grátis"} · ${selected?.service || "opções disponíveis"}` : "Informe o CEP para consultar";
+  const body = quote ? `<div class="shipping-calc-head"><div><span class="eyebrow">DELIVERY / ${quote.zip}</span><strong>Escolha como receber.</strong></div><button class="text-link" data-action="clear-shipping">Trocar CEP</button></div><div class="shipping-sort" role="group" aria-label="Ordenar opções de frete"><button class="${state.shippingSort === "price" ? "active" : ""}" data-action="shipping-sort" data-shipping-sort="price">Menor preço</button><button class="${state.shippingSort === "speed" ? "active" : ""}" data-action="shipping-sort" data-shipping-sort="speed">Mais rápido</button><button class="${state.shippingSort === "recommended" ? "active" : ""}" data-action="shipping-sort" data-shipping-sort="recommended">Recomendado</button></div><div class="shipping-options">${orderedShippingOptions(quote.options).map((option) => `<button class="shipping-option ${selected?.id === option.id ? "selected" : ""}" data-action="select-shipping" data-shipping-option="${option.id}"><span><strong>${option.carrier}</strong><small>${option.service} · ${option.days}${option.pickup ? ` · ${state.shipping.pickupAddress}` : ""}</small></span><b>${option.price ? moneyDetailed(option.price) : "Grátis"}</b><i>${selected?.id === option.id ? "✓" : ""}</i></button>`).join("")}</div><small class="shipping-meta">${quote.volumes.length} volume(s) · validade até ${new Date(quote.expiresAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small>` : `<div class="shipping-calc-form"><input id="cart-zip" inputmode="numeric" maxlength="9" placeholder="Digite seu CEP" aria-label="CEP para calcular frete" /><button class="outline-cta" data-action="calculate-shipping">Calcular frete</button></div><small>O cálculo usa peso, dimensões e embalagem estimada dos itens.</small>`;
+  return `<section class="shipping-calc cart-collapsible ${quote ? "shipping-ready" : ""} ${expanded ? "is-expanded" : ""}"><button class="cart-panel-toggle" type="button" data-action="cart-panel-toggle" data-cart-panel="shipping" aria-expanded="${expanded ? "true" : "false"}"><span><span class="eyebrow">DELIVERY / FRETE</span><strong>${quote ? "Frete consultado." : "Calcule antes de solicitar."}</strong><small>${summary}</small></span><i aria-hidden="true">${expanded ? "⌃" : "⌄"}</i></button><div class="cart-panel-body" aria-hidden="${expanded ? "false" : "true"}>${body}</div></section>`;
 }
 
 function airdropCartMarkup() {
@@ -3000,8 +3003,10 @@ function airdropCartMarkup() {
   const applied = appliedAirdrop();
   const appliedDiscount = airdropDiscount(applied, cartSubtotal());
   const upcoming = nextAirdrop();
-  if (applied && appliedDiscount > 0) return `<section class="airdrop-cart is-applied"><div class="airdrop-cart-head"><div><span class="eyebrow">AIRDROP / RESGATADO</span><strong>${escapeHtml(applied.name)}</strong></div><span class="airdrop-live-badge">− ${moneyDetailed(appliedDiscount)}</span></div><div class="airdrop-applied-row"><span><b>${escapeHtml(applied.code)}</b> aplicado ao carrinho</span><button class="text-link" data-action="airdrop-clear">Remover</button></div></section>`;
-  return `<section class="airdrop-cart"><div class="airdrop-cart-head"><div><span class="eyebrow">AIRDROP / ${live ? "NO AR" : "RADAR"}</span><strong>${live ? "Código liberado." : "Caixa de resgate."}</strong></div><span class="airdrop-live-badge">${live ? airdropDiscountLabel(live) : "OFFLINE"}</span></div><form class="airdrop-claim-form" id="airdrop-claim-form"><input name="airdropCode" autocomplete="off" maxlength="24" placeholder="Digite o código Airdrop" aria-label="Código Airdrop" /><button class="outline-cta" type="submit">Ativar</button></form><small class="airdrop-cart-help">${live ? `Drop ativo até ${live.expiresAt ? airdropDate(live.expiresAt) : "encerrar"}.` : upcoming ? `Próximo drop ${airdropDate(upcoming.startsAt)} · ${escapeHtml(upcoming.message)}` : "Acompanhe as redes da loja para descobrir o próximo drop."}</small></section>`;
+  const expanded = cartPanelExpanded.airdrop;
+  const appliedState = applied && appliedDiscount > 0;
+  const body = appliedState ? `<div class="airdrop-applied-row"><span><b>${escapeHtml(applied.code)}</b> aplicado ao carrinho</span><button class="text-link" data-action="airdrop-clear">Remover</button></div>` : `<form class="airdrop-claim-form" id="airdrop-claim-form"><input name="airdropCode" autocomplete="off" maxlength="24" placeholder="Digite o código Airdrop" aria-label="Código Airdrop" /><button class="outline-cta" type="submit">Ativar</button></form><small class="airdrop-cart-help">${live ? `Drop ativo até ${live.expiresAt ? airdropDate(live.expiresAt) : "encerrar"}.` : upcoming ? `Próximo drop ${airdropDate(upcoming.startsAt)} · ${escapeHtml(upcoming.message)}` : "Acompanhe as redes da loja para descobrir o próximo drop."}</small>`;
+  return `<section class="airdrop-cart cart-collapsible ${appliedState ? "is-applied" : ""} ${expanded ? "is-expanded" : ""}"><button class="cart-panel-toggle" type="button" data-action="cart-panel-toggle" data-cart-panel="airdrop" aria-expanded="${expanded ? "true" : "false"}"><span><span class="eyebrow">AIRDROP / ${appliedState ? "RESGATADO" : live ? "NO AR" : "RADAR"}</span><strong>${appliedState ? escapeHtml(applied.name) : live ? "Código liberado." : "Caixa de resgate."}</strong><small>${appliedState ? `Desconto aplicado · ${moneyDetailed(appliedDiscount)}` : live ? `${airdropDiscountLabel(live)} disponível` : "Acompanhe as redes da loja"}</small></span><i aria-hidden="true">${expanded ? "⌃" : "⌄"}</i></button><div class="cart-panel-body" aria-hidden="${expanded ? "false" : "true"}>${body}</div></section>`;
 }
 
 function applyAirdropCode(codeValue = null) {
@@ -3011,6 +3016,7 @@ function applyAirdropCode(codeValue = null) {
   if (!campaign || airdropPhase(campaign) !== "active") { showToast("Airdrop indisponível ou ainda não liberado."); return; }
   const subtotal = cartSubtotal();
   if (subtotal < campaign.minSubtotal) { showToast(`Este drop pede um carrinho mínimo de ${moneyDetailed(campaign.minSubtotal)}.`); return; }
+  cartPanelExpanded.airdrop = true;
   state.appliedAirdropCode = campaign.code;
   persist();
   renderDrawer();
@@ -3049,6 +3055,7 @@ function calculateCartShipping() {
   if (!normalized) { showToast("Digite um CEP válido com 8 números."); return; }
   const quote = calculateShippingQuote(normalized);
   if (!quote) { showToast("Não foi possível calcular o frete."); return; }
+  cartPanelExpanded.shipping = true;
   state.cartShipping = quote;
   persist();
   renderDrawer();
@@ -3059,6 +3066,12 @@ function toggleCartItem(id) {
   if (!id || !state.cart.some((item) => item.id === id)) return;
   if (cartExpandedIds.has(id)) cartExpandedIds.delete(id);
   else cartExpandedIds.add(id);
+  renderDrawer();
+}
+
+function toggleCartPanel(panel) {
+  if (!Object.prototype.hasOwnProperty.call(cartPanelExpanded, panel)) return;
+  cartPanelExpanded[panel] = !cartPanelExpanded[panel];
   renderDrawer();
 }
 
@@ -3940,6 +3953,7 @@ document.addEventListener("click", (event) => {
   if (action === "backup-apply") applyBackupRestore();
   if (action === "cart") { renderDrawer(); openDrawer(); }
   if (action === "cart-item-toggle") { toggleCartItem(event.target.closest("[data-cart-item-id]")?.dataset.cartItemId); return; }
+  if (action === "cart-panel-toggle") { toggleCartPanel(event.target.closest("[data-cart-panel]")?.dataset.cartPanel); return; }
   if (action === "cart-catalog") { closeDrawer(); go("catalog"); }
   if (action === "close-drawer") closeDrawer();
   if (action === "calculate-shipping") calculateCartShipping();

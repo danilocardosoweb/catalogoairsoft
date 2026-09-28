@@ -940,6 +940,16 @@ html[data-theme="light"] .site-footer { background: #e8eee6; border-top-color: r
 .shipping-fieldset { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line-strong); background: rgba(216,255,89,.025); }
 .shipping-fieldset legend { padding: 0 6px; color: var(--accent); font-size: 10px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; }
 .shipping-calc { display: grid; gap: 11px; margin: 17px 0; padding: 13px; border: 1px solid var(--line-strong); background: var(--surface); }
+.cart-collapsible { display: block; }
+.cart-panel-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.cart-panel-toggle > span { min-width: 0; }
+.cart-panel-toggle .eyebrow, .cart-panel-toggle strong, .cart-panel-toggle small { display: block; }
+.cart-panel-toggle strong { margin-top: 5px; color: var(--ink-soft); font-size: 11px; }
+.cart-panel-toggle small { margin-top: 4px; overflow: hidden; color: var(--muted); font-size: 10px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.cart-panel-toggle > i { flex: 0 0 auto; color: var(--accent); font-size: 18px; font-style: normal; line-height: 1; }
+.cart-panel-toggle:hover strong { color: var(--accent); }
+.cart-panel-body { max-height: 0; overflow: hidden; opacity: 0; transition: max-height .24s ease, opacity .18s ease, padding-top .24s ease; }
+.cart-collapsible.is-expanded .cart-panel-body { max-height: 620px; padding-top: 12px; opacity: 1; }
 .shipping-calc strong { display: block; margin-top: 5px; color: var(--ink-soft); font-size: 11px; }
 .shipping-calc small, .shipping-meta { color: var(--muted); font-size: 9px; line-height: 1.5; }
 .shipping-calc-form { display: grid; grid-template-columns: 1fr auto; gap: 7px; }
