@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 28/09/2026  
-Última versão publicada: v91 — importação da planilha corrigida
+Última versão publicada: v93 — vídeo institucional com logo em destaque
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
 Ponto de restauração: tag `restore-v79-banner-layout` · commit `7e36c42eae023223f5d103829477fc6ac2c75be5`
@@ -223,6 +223,7 @@ Conforme o prompt mestre, não são prioridades desta fase: pagamento online, em
 - Adicionada recuperação única dos dados legados que ainda estejam no navegador: se o Supabase estiver vazio, o catálogo antigo é reidratado em memória e pode ser enviado para a conta Supabase após o login.
 - O estado autenticado é salvo no Supabase com debounce de 700 ms, reduzindo gravações repetidas durante edição, filtros e montagem do loadout.
 - Corrigido o importador da planilha `LISTA DE PRODUTOS 25.09.2026.xlsx`: agora ele ignora linhas vazias antes do cabeçalho, reconhece `Produto`, `Quant`, `Cód.Barra`, `FORNECEDOR` e `Valor de Venda`, usa o código de barras como SKU quando disponível e remove linhas vazias do total de erros.
+- O filme institucional agora preserva o logo inteiro dentro do modal, não entra mais em loop automático e pausa no frame final por 5 segundos com indicação visual de logo em destaque.
 
 Antes do primeiro acesso autenticado, execute a migração complementar no SQL Editor do projeto Supabase. A migração inicial já executada anteriormente não é alterada.
 
