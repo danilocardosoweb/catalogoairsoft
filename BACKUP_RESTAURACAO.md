@@ -1,5 +1,18 @@
 # Ponto de restauração — FIELD OPS
 
+## Ponto mais recente — filme institucional da marca
+
+- Data: 27/09/2026
+- Versão publicada: v78
+- URL: https://field-ops-airsoft.danilocardoso-web.chatgpt.site
+- Tag Git: `restore-v78-brand-film`
+- Commit do estado funcional: `e8453cac2f1423cec4120e9b8b7da31480c279f6`
+- Arquivo: `backups/field-ops-restore-v78-brand-film.tar.gz`
+- SHA-256 do vídeo sem áudio: `7F788045EEDF7955CF500727C198954EA198E82E311606FB115860EA1A116104`
+- SHA-256 do arquivo de restauração: `878179C046CCBBC789D43C2401219B14F4AF424CA5870CA2E205EBABA4CC73FA`
+
+Este ponto adiciona o filme institucional da Suprimentos Oliveira. Ao clicar em qualquer logo da loja — cabeçalho, rodapé ou assinatura da Home — o filme abre em modal, inicia sem som, repete enquanto estiver aberto e oferece replay e fechamento. O arquivo hospedado mantém apenas o vídeo, sem faixa de áudio.
+
 ## Ponto mais recente — categorias gerenciáveis pelo lojista
 
 - Data: 27/09/2026
