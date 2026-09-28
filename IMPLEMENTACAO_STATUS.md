@@ -213,3 +213,11 @@ Conforme o prompt mestre, não são prioridades desta fase: pagamento online, em
 3. Migrar produtos e orçamentos do `localStorage` para a API/banco.
 4. Conectar estoque, preços e WhatsApp ao backend.
 5. Revalidar os fluxos mobile e publicar uma versão de operação real.
+
+## Estrutura Supabase preparada — 28/09/2026
+
+- Criada a migração inicial `supabase/migrations/20260928000000_initial_field_ops_schema.sql`.
+- O modelo cobre organizações, perfis, vínculos por função, catálogo, categorias, marcas, preços por público, estoque, clientes, orçamentos, pedidos, expedição, banners, Radar, Airdrops e auditoria.
+- RLS e grants explícitos foram preparados para manter o catálogo publicado e restringir a operação por organização e perfil.
+- A migração ainda não foi aplicada no projeto remoto porque o projeto informado não está autorizado na conexão Supabase disponível.
+- A chave `service_role` fornecida pelo usuário não foi armazenada; ela deve ser revogada e recriada antes de qualquer integração.
