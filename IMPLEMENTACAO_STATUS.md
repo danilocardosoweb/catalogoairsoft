@@ -1,7 +1,7 @@
 # FIELD OPS — Status de implementação
 
 Última revisão: 28/09/2026  
-Última versão publicada: v90 — logo ampliado em 2×
+Última versão publicada: v91 — importação da planilha corrigida
 URL de produção: https://field-ops-airsoft.danilocardoso-web.chatgpt.site  
 Acesso atual: público para validação da experiência.
 Ponto de restauração: tag `restore-v79-banner-layout` · commit `7e36c42eae023223f5d103829477fc6ac2c75be5`
