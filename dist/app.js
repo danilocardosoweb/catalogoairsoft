@@ -178,6 +178,7 @@ const defaultSettings = { whatsapp: "5511999999999", storeName: "Suprimentos Oli
 const storedSettings = JSON.parse(localStorage.getItem("fieldops-settings") || "null");
 const bannerTypes = { video: "Vídeo", image: "Imagem" };
 const bannerTargets = { catalog: "Explorar catálogo", loadout: "Montar loadout", radar: "Abrir Radar", cart: "Abrir Airdrop" };
+const storeBrandVideo = "/videos/suprimentos-oliveira-brand.mp4?v=brand-film-01";
 const seedBanners = [
   { id: "banner-command", name: "Operação principal", type: "video", media: "videos/operator-airsoft.mp4?v=motion-smooth-21", eyebrow: "TACTICAL STORE / 01", title: "DOMINE", titleAccent: "O JOGO", subtitle: "Equipamentos, precisão e adrenalina para quem vive Airsoft.", ctaLabel: "Explorar catálogo", ctaTarget: "catalog", active: true, order: 1 },
   { id: "banner-novidades", name: "Novidades em campo", type: "image", media: "https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=1800&q=84", eyebrow: "NOVIDADES / 02", title: "NOVA LEITURA", titleAccent: "DE CAMPO.", subtitle: "Descubra equipamentos que chegaram para o próximo jogo.", ctaLabel: "Ver novidades", ctaTarget: "catalog", active: true, order: 2 },
@@ -873,7 +874,7 @@ function homePage() {
     <section class="home-hero" data-hero-interactive data-banner-type="${banner.type}" data-banner-image="${escapeHtml(bannerImage)}" data-banner-video="${escapeHtml(bannerVideo)}" aria-label="${escapeHtml(banner.name)}">
       <video class="hero-video" data-hero-video src="${escapeHtml(bannerVideo)}" muted playsinline preload="auto" tabindex="-1" aria-hidden="true"></video>
       <div class="hero-video-shade" aria-hidden="true"></div>
-      <div class="hero-content"><div class="hero-store-signature"><img src="/assets/suprimentos-oliveira-logo.webp" alt="Logo Suprimentos Oliveira" /><span><strong>SUPRIMENTOS OLIVEIRA</strong><small>DESDE 2018 · PRODUTOS PARA AIRSOFT</small></span></div><span class="hero-kicker" data-hero-kicker>${escapeHtml(banner.eyebrow)}</span><h1 class="hero-title"><span data-hero-title>${escapeHtml(banner.title)}</span><br><em data-hero-title-accent>${escapeHtml(banner.titleAccent)}</em></h1><p class="hero-subtitle" data-hero-subtitle>${escapeHtml(banner.subtitle)}</p><button class="hero-cta" data-action="hero-cta" data-hero-target="${escapeHtml(banner.ctaTarget)}" data-hero-cta>${escapeHtml(banner.ctaLabel)}</button></div>
+      <div class="hero-content"><button type="button" class="hero-store-signature" data-action="store-video" aria-label="Assistir ao filme da Suprimentos Oliveira"><img src="/assets/suprimentos-oliveira-logo.webp" alt="Logo Suprimentos Oliveira" /><span><strong>SUPRIMENTOS OLIVEIRA</strong><small>DESDE 2018 · PRODUTOS PARA AIRSOFT</small></span></button><span class="hero-kicker" data-hero-kicker>${escapeHtml(banner.eyebrow)}</span><h1 class="hero-title"><span data-hero-title>${escapeHtml(banner.title)}</span><br><em data-hero-title-accent>${escapeHtml(banner.titleAccent)}</em></h1><p class="hero-subtitle" data-hero-subtitle>${escapeHtml(banner.subtitle)}</p><button class="hero-cta" data-action="hero-cta" data-hero-target="${escapeHtml(banner.ctaTarget)}" data-hero-cta>${escapeHtml(banner.ctaLabel)}</button></div>
       ${heroRadarMarkup()}<button class="hero-sensor-button" data-action="hero-sensor" type="button" aria-label="Ativar movimento por giroscópio"><span class="hero-sensor-glyph" aria-hidden="true">⌁</span><span data-sensor-label>Ativar sensor</span><small data-sensor-status>mobile aim / tap to sync</small></button>
       <div class="hero-coordinates"><span>System // Online</span><span>Stock // Updated</span><span>Field // Ready</span></div><div class="hero-carousel-controls" aria-label="Escolher campanha"><button type="button" class="hero-carousel-arrow" data-banner-prev aria-label="Banner anterior">←</button><div class="hero-carousel-dots">${banners.map((item, index) => `<button type="button" class="hero-carousel-dot ${index === activeIndex ? "is-active" : ""}" data-banner-index="${index}" aria-label="Abrir banner ${index + 1}: ${escapeHtml(item.name)}" aria-current="${index === activeIndex ? "true" : "false"}"><strong>${String(index + 1).padStart(2, "0")}</strong><span>${escapeHtml(item.name)}</span></button>`).join("")}</div><button type="button" class="hero-carousel-arrow" data-banner-next aria-label="Próximo banner">→</button></div><div class="hero-index"><strong data-hero-index>${String(activeIndex + 1).padStart(2, "0")}</strong> / ${String(banners.length).padStart(2, "0")}</div>
     </section>
@@ -2574,8 +2575,8 @@ function renderDrawer() {
 
 function openDrawer() { drawer.classList.add("is-open"); drawerBackdrop.classList.add("is-open"); drawer.setAttribute("aria-hidden", "false"); }
 function closeDrawer() { drawer.classList.remove("is-open"); drawerBackdrop.classList.remove("is-open"); drawer.setAttribute("aria-hidden", "true"); }
-function openModal(content) { modalContent.innerHTML = content; modalLayer.classList.add("is-open"); modalLayer.classList.toggle("is-command", content.includes("command-palette")); modalLayer.setAttribute("aria-hidden", "false"); const title = modalContent.querySelector("h2"); if (title) title.id = "modal-title"; }
-function closeModal(confirmResult = false) { const resolver = pendingConfirmation?.resolve; pendingConfirmation = null; modalLayer.classList.remove("is-open", "is-command", "is-confirm"); modalLayer.setAttribute("aria-hidden", "true"); modalContent.innerHTML = ""; const previousFocus = modalPreviousFocus; modalPreviousFocus = null; if (resolver) resolver(Boolean(confirmResult)); if (previousFocus && document.contains(previousFocus)) window.setTimeout(() => previousFocus.focus(), 0); }
+function openModal(content) { modalContent.innerHTML = content; modalLayer.classList.add("is-open"); modalLayer.classList.toggle("is-command", content.includes("command-palette")); modalLayer.classList.remove("is-store-video"); modalLayer.setAttribute("aria-hidden", "false"); const title = modalContent.querySelector("h2"); if (title) title.id = "modal-title"; }
+function closeModal(confirmResult = false) { const resolver = pendingConfirmation?.resolve; pendingConfirmation = null; modalLayer.classList.remove("is-open", "is-command", "is-confirm", "is-store-video"); modalLayer.setAttribute("aria-hidden", "true"); modalContent.innerHTML = ""; const previousFocus = modalPreviousFocus; modalPreviousFocus = null; if (resolver) resolver(Boolean(confirmResult)); if (previousFocus && document.contains(previousFocus)) window.setTimeout(() => previousFocus.focus(), 0); }
 function confirmAction({ eyebrow = "ACTION / CONFIRM", title = "Confirmar ação.", message = "Revise a ação antes de continuar.", detail = "", confirmLabel = "Confirmar", cancelLabel = "Cancelar", tone = "danger" } = {}) {
   if (pendingConfirmation) closeModal();
   modalPreviousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -3316,6 +3317,27 @@ function bindViewEvents() {
   if (airdropForm) airdropForm.addEventListener("submit", saveAirdrop);
 }
 
+function storeVideoModal() {
+  openModal(`<div class="store-video-modal"><div class="store-video-intro"><span class="eyebrow">SUPRIMENTOS OLIVEIRA / BRAND FILM</span><h2>O campo<br>começa aqui.</h2><p>Uma pausa rápida para conhecer a marca por trás do seu próximo equipamento.</p></div><div class="store-video-screen"><video class="store-video-player" data-store-video autoplay muted loop playsinline preload="auto" aria-label="Filme institucional da Suprimentos Oliveira sem áudio"><source src="${storeBrandVideo}" type="video/mp4" /></video><div class="store-video-vignette" aria-hidden="true"></div><span class="store-video-status"><i class="status-dot"></i> SOM DESATIVADO</span></div><div class="store-video-footer"><span>DESDE 2018 · PRODUTOS PARA AIRSOFT</span><button class="store-video-replay" type="button" data-action="store-video-replay">Reproduzir novamente <span>↗</span></button></div></div>`);
+  modalLayer.classList.add("is-store-video");
+  const video = modalContent.querySelector("[data-store-video]");
+  if (!video) return;
+  video.muted = true;
+  video.defaultMuted = true;
+  video.volume = 0;
+  video.play().catch(() => showToast("Toque em reproduzir novamente para iniciar o filme."));
+}
+
+function replayStoreVideo() {
+  const video = modalContent.querySelector("[data-store-video]");
+  if (!video) return;
+  video.muted = true;
+  video.defaultMuted = true;
+  video.volume = 0;
+  video.currentTime = 0;
+  video.play().catch(() => showToast("O filme não pôde ser iniciado neste navegador."));
+}
+
 function footerPoliciesModal() {
   openModal(`<span class="eyebrow">SUPRIMENTOS OLIVEIRA / SUPORTE</span><h2>Compra<br>sem dúvida.</h2><p>Antes de fechar seu loadout, fale com a equipe para confirmar compatibilidade, disponibilidade e condições do produto.</p><div class="footer-modal-list"><div><strong>Trocas e devoluções</strong><span>Solicite orientação pelo atendimento antes de enviar qualquer item.</span></div><div><strong>Garantia</strong><span>Tenha o pedido e a nota em mãos para agilizar a análise.</span></div><div><strong>Suporte de campo</strong><span>Nosso time ajuda a cruzar plataforma, acessórios e seu estilo de jogo.</span></div></div><button class="modal-submit" data-action="footer-whatsapp">Falar com atendimento ↗</button>`);
 }
@@ -3342,6 +3364,8 @@ document.addEventListener("click", (event) => {
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (action === "confirm-accept" && pendingConfirmation) { closeModal(true); return; }
   if (action === "confirm-cancel" && pendingConfirmation) { closeModal(false); return; }
+  if (action === "store-video") { event.preventDefault(); storeVideoModal(); return; }
+  if (action === "store-video-replay") { replayStoreVideo(); return; }
   if (action === "toggle-theme") toggleTheme(event);
   if (action === "hero-sensor") heroSensorActivate?.();
   if (action === "hero-radar") heroRadarPulse?.();
