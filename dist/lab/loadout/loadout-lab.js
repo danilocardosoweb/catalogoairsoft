@@ -1,537 +1,427 @@
 (() => {
-  const labExperience = document.querySelector(".lab-experience");
-  const story = document.querySelector("[data-lab-story]");
-  const sticky = story?.querySelector(".lab-story-sticky");
-  const video = document.querySelector("[data-lab-video]");
-  const videoLock = document.querySelector("[data-lab-video-lock]");
-  const copy = document.querySelector("[data-lab-copy]");
-  const labInterface = document.querySelector("[data-lab-interface]");
-  const choicePanel = document.querySelector("[data-choice-panel]");
-  const choiceList = document.querySelector("[data-choice-list]");
-  const stageRail = document.querySelector("[data-stage-rail]");
-  const stageRailList = document.querySelector("[data-stage-rail-list]");
-  const railStatus = document.querySelector("[data-lab-rail-status]");
-  const calloutLines = document.querySelector("[data-callout-lines]");
-  const calloutPath = document.querySelector("[data-callout-path]");
-  const calloutTarget = document.querySelector("[data-callout-target]");
-  const calloutEnd = document.querySelector("[data-callout-end]");
-  const nextButton = document.querySelector("[data-stage-next]");
-  const previousButton = document.querySelector("[data-stage-prev]");
-  const debugPanel = document.querySelector("[data-lab-debug]");
-  if (!story || !sticky || !video || !copy || !labInterface || !choicePanel || !choiceList || !nextButton || !previousButton) return;
+  'use strict';
 
-  const DEBUG = window.LOADOUT_DEBUG === true || new URLSearchParams(window.location.search).get("debug") === "1";
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const cinematicAssets = Object.freeze({
-    rifleDesktopVideo: video?.dataset.labVideoSrc || "./rifle-experience.mp4",
-    rifleMobileVideo: video?.dataset.labMobileVideoSrc || "",
-    riflePoster: video?.getAttribute("poster") || "./rifle-poster.jpg",
-    pistolDesktopVideo: "",
-    pistolMobileVideo: "",
-    pistolPoster: ""
-  });
-  const debug = {
-    section: debugPanel?.querySelector("[data-debug-section]"),
-    progress: debugPanel?.querySelector("[data-debug-progress]"),
-    duration: debugPanel?.querySelector("[data-debug-duration]"),
-    target: debugPanel?.querySelector("[data-debug-target]"),
-    current: debugPanel?.querySelector("[data-debug-current]"),
-    fps: debugPanel?.querySelector("[data-debug-fps]"),
-    ready: debugPanel?.querySelector("[data-debug-ready]")
-  };
+  const STORAGE_KEY = 'fieldops-lab-phase1-loadout';
+  const chapterStart = 0.08;
+  const chapterEnd = 0.88;
+  const summaryStart = 0.9;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const stages = [
     {
-      id: "platform",
-      kicker: "LOADOUT LAB / 01",
-      title: "Escolha sua base.",
-      description: "A plataforma define o ritmo da sua operação.",
-      panelTitle: "Plataforma",
-      hint: "Escolha 1",
+      id: 'helmet', label: 'Capacete', shortLabel: 'Capacete', kicker: 'LOADOUT LAB / 01',
+      title: 'Proteja a cabeça.', description: 'Comece pelo conforto e pela proteção que sustentam toda a operação.',
+      focus: [47, 15], polygon: [[34, 3], [57, 3], [62, 25], [35, 27]],
       choices: [
-        { id: "neptune-10", name: "NEPTUNE 10\"", brand: "ROSSI", meta: "AEG · 380 FPS · V2", price: 1899, image: "https://mirtactical.com/product_images/uploaded_images/gim1.jpg" },
-        { id: "cm16-raider", name: "CM16 RAIDER", brand: "G&G", meta: "AEG · 350 FPS · V2", price: 1749, image: "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82" }
+        { id: 'helmet-01', name: 'FAST BASE', brand: 'OPÇÃO MOCK 01', meta: 'Leve · trilho lateral', price: 329, badge: 'Base' },
+        { id: 'helmet-02', name: 'FAST COMMS', brand: 'OPÇÃO MOCK 02', meta: 'Trilho · comunicação', price: 459, badge: 'Tático' },
+        { id: 'helmet-03', name: 'MICH HIGH CUT', brand: 'OPÇÃO MOCK 03', meta: 'Cobertura · ajuste rápido', price: 389, badge: 'Proteção' },
+        { id: 'helmet-04', name: 'BOONIE LIGHT', brand: 'OPÇÃO MOCK 04', meta: 'Leve · campo aberto', price: 199, badge: 'Leve' },
+        { id: 'helmet-05', name: 'CONFIGURAÇÃO LIVRE', brand: 'OPÇÃO MOCK 05', meta: 'Espaço para personalizar', price: 0, badge: 'Livre' }
       ]
     },
     {
-      id: "optic",
-      kicker: "LOADOUT LAB / 02",
-      title: "Leia o campo.",
-      description: "Uma óptica simples acelera a aquisição sem pesar a plataforma.",
-      panelTitle: "Óptica",
-      hint: "Escolha 1",
+      id: 'face', label: 'Proteção facial', shortLabel: 'Proteção', kicker: 'LOADOUT LAB / 02',
+      title: 'Mantenha o foco.', description: 'Escolha a proteção facial adequada ao seu estilo de jogo e ao seu conforto.',
+      focus: [58, 25], polygon: [[43, 17], [64, 16], [68, 38], [45, 40]],
       choices: [
-        { id: "red-dot-rd1", name: "RD-1 RED DOT", brand: "VECTOR", meta: "1X · 20 MM RAIL", price: 429, image: "https://images.unsplash.com/photo-1687726258745-8546ad8030d6?auto=format&fit=crop&w=1200&q=82" },
-        { id: "optic-none", name: "SEM ÓPTICA", brand: "CONFIGURAÇÃO LIMPA", meta: "Menos peso · mira aberta", price: 0, image: "" }
+        { id: 'face-01', name: 'MÁSCARA FULL', brand: 'OPÇÃO MOCK 01', meta: 'Proteção integral · ventilada', price: 189, badge: 'Segura' },
+        { id: 'face-02', name: 'MÁSCARA MESH', brand: 'OPÇÃO MOCK 02', meta: 'Tela metálica · leve', price: 119, badge: 'Leve' },
+        { id: 'face-03', name: 'ÓCULOS CLEAR', brand: 'OPÇÃO MOCK 03', meta: 'Lente transparente · ajuste', price: 149, badge: 'Visão' },
+        { id: 'face-04', name: 'ÓCULOS FUMÊ', brand: 'OPÇÃO MOCK 04', meta: 'Lente fumê · campo aberto', price: 159, badge: 'Sol' },
+        { id: 'face-05', name: 'PROTEÇÃO MODULAR', brand: 'OPÇÃO MOCK 05', meta: 'Base para combinar', price: 229, badge: 'Modular' }
       ]
     },
     {
-      id: "protection",
-      kicker: "LOADOUT LAB / 03",
-      title: "Vista o necessário.",
-      description: "Proteção modular para entrar em campo sem perder mobilidade.",
-      panelTitle: "Proteção",
-      hint: "Escolha 1",
+      id: 'vest', label: 'Colete', shortLabel: 'Colete', kicker: 'LOADOUT LAB / 03',
+      title: 'Monte sua base.', description: 'O colete organiza o equipamento e deixa o acesso rápido quando a partida começa.',
+      focus: [52, 43], polygon: [[31, 29], [69, 28], [75, 71], [27, 70]],
       choices: [
-        { id: "plate-carrier-mk2", name: "PLATE CARRIER MK2", brand: "8FIELDS", meta: "MOLLE · ONE SIZE", price: 689, image: "https://images.unsplash.com/photo-1752559342576-dcbbfda3dbb7?auto=format&fit=crop&w=1200&q=82" },
-        { id: "protection-light", name: "SETUP LEVE", brand: "CONFIGURAÇÃO LIMPA", meta: "Mobilidade máxima", price: 0, image: "" }
+        { id: 'vest-01', name: 'PLATE CARRIER', brand: 'OPÇÃO MOCK 01', meta: 'Compacto · painel frontal', price: 349, badge: 'Base' },
+        { id: 'vest-02', name: 'CHEST RIG', brand: 'OPÇÃO MOCK 02', meta: 'Leve · acesso frontal', price: 279, badge: 'Ágil' },
+        { id: 'vest-03', name: 'COLETE MODULAR', brand: 'OPÇÃO MOCK 03', meta: 'Módulos · expansão', price: 429, badge: 'Modular' },
+        { id: 'vest-04', name: 'PLATE CARRIER LOW', brand: 'OPÇÃO MOCK 04', meta: 'Perfil baixo · mobilidade', price: 389, badge: 'Mobilidade' },
+        { id: 'vest-05', name: 'CONFIGURAÇÃO LIVRE', brand: 'OPÇÃO MOCK 05', meta: 'Espaço para personalizar', price: 0, badge: 'Livre' }
       ]
     },
     {
-      id: "ammo",
-      kicker: "LOADOUT LAB / 04",
-      title: "Escolha o ritmo.",
-      description: "A munição certa fecha a preparação e mantém a operação consistente.",
-      panelTitle: "Munição",
-      hint: "Escolha 1",
+      id: 'gloves', label: 'Luvas', shortLabel: 'Luvas', kicker: 'LOADOUT LAB / 04',
+      title: 'Ganhe controle.', description: 'Ajuste, proteção e aderência para manter a mão firme em cada movimento.',
+      focus: [30, 69], polygon: [[13, 56], [37, 57], [45, 87], [17, 90]],
       choices: [
-        { id: "bb-bio-025", name: "BIO BB 0.25G", brand: "BLS", meta: "BIODEGRADÁVEL · 1 KG", price: 119, image: "https://mirtactical.com/product_images/uploaded_images/gim1.jpg" },
-        { id: "ammo-later", name: "ESCOLHER DEPOIS", brand: "CONFIGURAÇÃO ABERTA", meta: "Adicione antes de solicitar", price: 0, image: "" }
+        { id: 'gloves-01', name: 'LUVA TÁTICA', brand: 'OPÇÃO MOCK 01', meta: 'Palma aderente · ajuste', price: 89, badge: 'Controle' },
+        { id: 'gloves-02', name: 'LUVA MEIO DEDO', brand: 'OPÇÃO MOCK 02', meta: 'Mobilidade · ventilação', price: 69, badge: 'Ágil' },
+        { id: 'gloves-03', name: 'LUVA IMPACT', brand: 'OPÇÃO MOCK 03', meta: 'Proteção · reforço', price: 119, badge: 'Proteção' },
+        { id: 'gloves-04', name: 'LUVA CAMUFLADA', brand: 'OPÇÃO MOCK 04', meta: 'Campo · aderência', price: 99, badge: 'Campo' },
+        { id: 'gloves-05', name: 'SEM LUVAS', brand: 'OPÇÃO MOCK 05', meta: 'Jogue com sua preferência', price: 0, badge: 'Livre' }
       ]
     },
     {
-      id: "sidearm",
-      kicker: "LOADOUT LAB / 05",
-      title: "Última decisão.",
-      description: "Um backup para quando a distância encurta e o plano muda.",
-      panelTitle: "Backup",
-      hint: "Escolha 1",
+      id: 'platform', label: 'Plataforma', shortLabel: 'Plataforma', kicker: 'LOADOUT LAB / 05',
+      title: 'Escolha a plataforma.', description: 'A peça central do seu setup: pense no alcance, na cadência e na forma de jogar.',
+      focus: [57, 62], polygon: [[39, 43], [73, 42], [83, 79], [39, 80]],
       choices: [
-        { id: "hi-capa-5-1", name: "HI-CAPA 5.1", brand: "KJW", meta: "GBB · 310 FPS · GAS", price: 999, image: "https://cdn.airsoftbazaar.com/uploads/listings/listing-mcuiii_2_Vm3Qfjev.jpg" },
-        { id: "sidearm-none", name: "SEM BACKUP", brand: "CONFIGURAÇÃO ENXUTA", meta: "Apenas a plataforma", price: 0, image: "" }
+        { id: 'platform-01', name: 'RIFLE AEG', brand: 'OPÇÃO MOCK 01', meta: 'Versátil · uso geral', price: 1299, badge: 'Versátil' },
+        { id: 'platform-02', name: 'SMG AEG', brand: 'OPÇÃO MOCK 02', meta: 'Compacta · curta distância', price: 999, badge: 'Compacta' },
+        { id: 'platform-03', name: 'PISTOLA GBB', brand: 'OPÇÃO MOCK 03', meta: 'Backup · resposta rápida', price: 799, badge: 'Backup' },
+        { id: 'platform-04', name: 'DMR AEG', brand: 'OPÇÃO MOCK 04', meta: 'Alcance · precisão', price: 1599, badge: 'Precisão' },
+        { id: 'platform-05', name: 'PLATAFORMA LIVRE', brand: 'OPÇÃO MOCK 05', meta: 'Escolha sua base', price: 0, badge: 'Livre' }
+      ]
+    },
+    {
+      id: 'optic', label: 'Óptica', shortLabel: 'Óptica', kicker: 'LOADOUT LAB / 06',
+      title: 'Leia o campo.', description: 'Uma óptica coerente com sua plataforma simplifica a mira e acelera a decisão.',
+      focus: [73, 51], polygon: [[61, 30], [91, 29], [94, 53], [63, 55]],
+      choices: [
+        { id: 'optic-01', name: 'RED DOT', brand: 'OPÇÃO MOCK 01', meta: 'Aquisição rápida · compacto', price: 349, badge: 'Rápido' },
+        { id: 'optic-02', name: 'HOLOGRÁFICA', brand: 'OPÇÃO MOCK 02', meta: 'Visão ampla · campo', price: 499, badge: 'Ampla' },
+        { id: 'optic-03', name: 'MAGNIFIER', brand: 'OPÇÃO MOCK 03', meta: 'Ampliação · alcance', price: 579, badge: 'Alcance' },
+        { id: 'optic-04', name: 'LUNETA 1–4X', brand: 'OPÇÃO MOCK 04', meta: 'Variável · precisão', price: 699, badge: 'Precisão' },
+        { id: 'optic-05', name: 'SEM ÓPTICA', brand: 'OPÇÃO MOCK 05', meta: 'Plataforma aberta', price: 0, badge: 'Livre' }
+      ]
+    },
+    {
+      id: 'energy', label: 'Energia / munição', shortLabel: 'Energia', kicker: 'LOADOUT LAB / 07',
+      title: 'Mantenha o ritmo.', description: 'Organize energia e munição para não interromper o jogo quando a operação apertar.',
+      focus: [47, 77], polygon: [[34, 60], [68, 60], [74, 94], [29, 94]],
+      choices: [
+        { id: 'energy-01', name: 'BATERIA + 3 MAG', brand: 'OPÇÃO MOCK 01', meta: 'Autonomia · partida', price: 229, badge: 'Pronto' },
+        { id: 'energy-02', name: 'CO2 + 2 MAG', brand: 'OPÇÃO MOCK 02', meta: 'Resposta · backup', price: 289, badge: 'Resposta' },
+        { id: 'energy-03', name: 'BB 0,25G · 1KG', brand: 'OPÇÃO MOCK 03', meta: 'Munição · uso geral', price: 89, badge: 'Essencial' },
+        { id: 'energy-04', name: 'BB BIO · 1KG', brand: 'OPÇÃO MOCK 04', meta: 'Munição · campo', price: 109, badge: 'Campo' },
+        { id: 'energy-05', name: 'KIT DE RECARGA', brand: 'OPÇÃO MOCK 05', meta: 'Organização · reposição', price: 149, badge: 'Prático' }
+      ]
+    },
+    {
+      id: 'backup', label: 'Backup', shortLabel: 'Backup', kicker: 'LOADOUT LAB / 08',
+      title: 'Feche o conjunto.', description: 'A última camada é o que mantém sua operação fluindo quando o plano muda.',
+      focus: [77, 72], polygon: [[68, 53], [91, 53], [98, 88], [67, 90]],
+      choices: [
+        { id: 'backup-01', name: 'PISTOLA GBB', brand: 'OPÇÃO MOCK 01', meta: 'Compacta · backup', price: 799, badge: 'Backup' },
+        { id: 'backup-02', name: 'COLDRE + MAG', brand: 'OPÇÃO MOCK 02', meta: 'Acesso · segurança', price: 239, badge: 'Acesso' },
+        { id: 'backup-03', name: 'RÁDIO + PTT', brand: 'OPÇÃO MOCK 03', meta: 'Comunicação · equipe', price: 329, badge: 'Equipe' },
+        { id: 'backup-04', name: 'LANTERNA TÁTICA', brand: 'OPÇÃO MOCK 04', meta: 'Visibilidade · suporte', price: 189, badge: 'Suporte' },
+        { id: 'backup-05', name: 'DEIXAR EM ABERTO', brand: 'OPÇÃO MOCK 05', meta: 'Complete depois', price: 0, badge: 'Livre' }
       ]
     }
   ];
 
-  const calloutTargets = {
-    platform: { desktop: [43, 52], mobile: [62, 57] },
-    optic: { desktop: [49, 34], mobile: [83, 38] },
-    protection: { desktop: [26, 49], mobile: [30, 51] },
-    ammo: { desktop: [45, 72], mobile: [74, 76] },
-    sidearm: { desktop: [35, 83], mobile: [42, 83] }
+  const refs = {
+    story: document.querySelector('[data-lab-story]'),
+    sticky: document.querySelector('.lab-story-sticky'),
+    interface: document.querySelector('[data-lab-interface]'),
+    videoStage: document.querySelector('[data-lab-video-stage]'),
+    video: document.querySelector('[data-lab-video]'),
+    poster: document.querySelector('[data-lab-video-poster]'),
+    videoLock: document.querySelector('[data-lab-video-lock]'),
+    labCopy: document.querySelector('[data-lab-copy]'),
+    missionKicker: document.querySelector('[data-lab-kicker]'),
+    missionTitle: document.querySelector('[data-lab-title]'),
+    missionDescription: document.querySelector('[data-lab-description]'),
+    statusLabel: document.querySelector('[data-lab-status-label]'),
+    total: document.querySelector('[data-lab-total]'),
+    selectionCount: document.querySelector('[data-lab-selection-count]'),
+    stageRail: document.querySelector('[data-stage-rail]'),
+    choicePanel: document.querySelector('[data-choice-panel]'),
+    choicePanelTitle: document.querySelector('[data-choice-panel-title]'),
+    choicePanelIndex: document.querySelector('[data-lab-stage-index]'),
+    choicePanelState: document.querySelector('[data-choice-panel-state]'),
+    choicePanelHint: document.querySelector('[data-choice-panel-hint]'),
+    choicePanelInstruction: document.querySelector('[data-choice-panel-instruction]'),
+    choiceList: document.querySelector('[data-choice-list]'),
+    stageSkip: document.querySelector('[data-stage-skip]'),
+    stageSkipStatus: document.querySelector('[data-stage-skip-status]'),
+    saveStatus: document.querySelector('[data-save-status]'),
+    summaryPanel: document.querySelector('[data-summary-panel]'),
+    summaryList: document.querySelector('[data-summary-list]'),
+    summaryTotal: document.querySelector('[data-summary-total]'),
+    saveLoadout: document.querySelector('[data-save-loadout]'),
+    hotspotPolygon: document.querySelector('[data-hotspot-polygon]'),
+    hotspotScan: document.querySelector('[data-hotspot-scan]'),
+    hotspotLabel: document.querySelector('[data-hotspot-label]'),
+    hotspotIndex: document.querySelector('[data-hotspot-index]'),
+    hotspotName: document.querySelector('[data-hotspot-name]'),
+    hotspotState: document.querySelector('[data-hotspot-state]'),
+    calloutPath: document.querySelector('[data-callout-path]'),
+    calloutTarget: document.querySelector('[data-callout-target]'),
+    calloutEnd: document.querySelector('[data-callout-end]')
   };
 
-  const flatChoices = stages.flatMap((stage) => stage.choices);
-  const firstChoiceByStage = Object.fromEntries(stages.map((stage) => [stage.id, stage.choices[0].id]));
-  let selection = { ...firstChoiceByStage };
-  let activeStage = 0;
-  let saveMessage = "";
+  if (!refs.story || !refs.video || !refs.stageRail) return;
 
-  try {
-    const saved = JSON.parse(localStorage.getItem("fieldops-lab-loadout") || "null");
-    if (saved && typeof saved === "object") selection = { ...selection, ...saved };
-  } catch {
-    selection = { ...firstChoiceByStage };
-  }
-
-  let duration = 0;
-  let targetTime = 0;
-  let renderedTime = 0;
-  let scrollFrame = 0;
-  let scrubFrame = 0;
-  let nextSeekAt = 0;
-  let seekInFlight = false;
-  let seekGuardId = 0;
-  let previousPaint = performance.now();
-  let measuredFps = 0;
-  let sourcePromise = null;
-  let sourceObjectUrl = "";
-  let sourceReady = false;
-  let userReady = false;
-  let scrollTriggerInstance = null;
-  let lenis = null;
-  let scrollDriverReady = false;
-  let scrollProgress = 0;
-  const maxScrubStep = 0.34;
-  const choiceProgressStart = 0.08;
-  const choiceProgressEnd = 0.92;
+  let selection = {};
+  let skipped = new Set();
+  let currentStage = -1;
+  let currentProgress = 0;
+  let videoReady = false;
+  let videoDuration = 0;
+  let framePending = false;
+  let lenis;
 
   const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
-  const formatMoney = (value) => value ? `R$ ${value.toLocaleString("pt-BR")}` : "Sem custo";
-  const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;" })[char]);
+  const formatMoney = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+  const selectedChoice = (stage) => stage.choices.find((choice) => choice.id === selection[stage.id]);
+  const totalValue = () => stages.reduce((sum, stage) => sum + (selectedChoice(stage)?.price || 0), 0);
 
-  function sourceUrl() {
-    const isMobileViewport = window.matchMedia("(max-width: 760px)").matches;
-    const declared = isMobileViewport && cinematicAssets.rifleMobileVideo
-      ? cinematicAssets.rifleMobileVideo
-      : cinematicAssets.rifleDesktopVideo || video.querySelector("source")?.getAttribute("src") || video.getAttribute("src");
-    if (!declared) return "";
+  function loadLocalDraft() {
     try {
-      return new URL(declared, document.baseURI).href;
-    } catch {
-      return declared;
+      const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '{}');
+      if (stored && stored.selection && typeof stored.selection === 'object') selection = stored.selection;
+      if (stored && Array.isArray(stored.skipped)) skipped = new Set(stored.skipped);
+    } catch (_) {
+      selection = {};
+      skipped = new Set();
     }
   }
 
-  function primeVideo() {
-    if (!userReady || reducedMotion || video.readyState < 1) return;
+  function saveLocalDraft(message = 'Rascunho salvo neste dispositivo.') {
     try {
-      const playPromise = video.play();
-      if (playPromise?.then) playPromise.then(() => video.pause()).catch(() => {});
-    } catch {}
-  }
-
-  function loadSeekableVideo() {
-    if (sourcePromise || sourceReady || reducedMotion) return sourcePromise;
-    const url = sourceUrl();
-    if (!url) return null;
-    sourcePromise = fetch(url, { cache: "force-cache" })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Video request failed: ${response.status}`);
-        return response.blob();
-      })
-      .then((blob) => {
-        sourceObjectUrl = URL.createObjectURL(blob);
-        video.removeAttribute("src");
-        video.querySelectorAll("source").forEach((source) => source.removeAttribute("src"));
-        video.src = sourceObjectUrl;
-        video.load();
-        sourceReady = true;
-      })
-      .catch(() => {
-        video.src = url;
-        video.load();
-        sourceReady = true;
-      });
-    return sourcePromise;
-  }
-
-  function getProgress() {
-    if (scrollDriverReady) return scrollProgress;
-    const travel = Math.max(1, story.offsetHeight - sticky.clientHeight);
-    return clamp(-story.getBoundingClientRect().top / travel);
-  }
-
-  function mapRifleProgress(progress) {
-    const motionEnd = 0.94;
-    if (progress >= motionEnd) return 1;
-    return clamp(1 - Math.pow(1 - progress / motionEnd, 1.65));
-  }
-
-  function getSelectedChoices() {
-    return stages.map((stage) => flatChoices.find((choice) => choice.id === selection[stage.id])).filter(Boolean);
-  }
-
-  function updateSummary() {
-    const selectedChoices = getSelectedChoices();
-    const total = selectedChoices.reduce((sum, choice) => sum + choice.price, 0);
-    const paidItems = selectedChoices.filter((choice) => choice.price > 0).length;
-    const totalElement = document.querySelector("[data-lab-total]");
-    const countElement = document.querySelector("[data-lab-selection-count]");
-    if (totalElement) totalElement.textContent = formatMoney(total);
-    if (countElement) countElement.textContent = `${String(selectedChoices.length).padStart(2, "0")} decisões registradas · ${paidItems} itens pagos`;
-  }
-
-  function stageIndexForProgress(progress) {
-    const normalized = clamp((progress - choiceProgressStart) / (choiceProgressEnd - choiceProgressStart));
-    return clamp(Math.floor(normalized * stages.length), 0, stages.length - 1);
-  }
-
-  function renderStageRail() {
-    if (!stageRailList) return;
-    stageRailList.innerHTML = stages.map((stage, index) => {
-      const selectedChoice = flatChoices.find((choice) => choice.id === selection[stage.id]);
-      const isActive = index === activeStage;
-      const isComplete = index < activeStage;
-      const hasImage = Boolean(selectedChoice?.image);
-      const image = hasImage ? `style="background-image: url('${escapeHtml(selectedChoice.image)}')"` : "";
-      const state = isActive ? "is-active" : isComplete ? "is-complete" : "";
-      const current = isActive ? ' aria-current="step"' : "";
-      const choiceName = selectedChoice?.name || "Aguardando escolha";
-      return `<button class="lab-stage-step ${state}" type="button" data-stage-index="${index}" aria-label="${escapeHtml(stage.panelTitle)}: ${escapeHtml(choiceName)}"${current}><span class="lab-stage-marker"><b>${String(index + 1).padStart(2, "0")}</b></span><span class="lab-stage-step-image${hasImage ? "" : " is-empty"}" ${image} aria-hidden="true"></span><span class="lab-stage-step-copy"><strong>${escapeHtml(stage.panelTitle)}</strong><small>${escapeHtml(choiceName)}</small></span></button>`;
-    }).join("");
-    if (railStatus) railStatus.textContent = `${String(activeStage + 1).padStart(2, "0")} / ${String(stages.length).padStart(2, "0")}`;
-  }
-
-  function updateCallout() {
-    if (!calloutLines || !calloutPath || !calloutTarget || !calloutEnd || !stageRailList) return;
-    const stage = stages[activeStage];
-    const activeStep = stageRailList.querySelector(`[data-stage-index="${activeStage}"]`);
-    const endpoint = activeStep?.querySelector(".lab-stage-step-image") || activeStep;
-    const stickyRect = sticky.getBoundingClientRect();
-    const endpointRect = endpoint?.getBoundingClientRect();
-    const targetSet = calloutTargets[stage.id];
-    if (!endpointRect || !targetSet || !stickyRect.width || !stickyRect.height) return;
-
-    const isMobile = window.matchMedia("(max-width: 760px)").matches;
-    const [targetX, targetY] = targetSet[isMobile ? "mobile" : "desktop"];
-    const endX = ((endpointRect.left + endpointRect.width / 2 - stickyRect.left) / stickyRect.width) * 100;
-    const endY = ((endpointRect.top + endpointRect.height / 2 - stickyRect.top) / stickyRect.height) * 100;
-    const elbowX = targetX + (endX - targetX) * 0.52;
-    calloutPath.setAttribute("d", `M ${targetX.toFixed(2)} ${targetY.toFixed(2)} L ${elbowX.toFixed(2)} ${targetY.toFixed(2)} L ${elbowX.toFixed(2)} ${endY.toFixed(2)} L ${endX.toFixed(2)} ${endY.toFixed(2)}`);
-    calloutTarget.setAttribute("cx", targetX.toFixed(2));
-    calloutTarget.setAttribute("cy", targetY.toFixed(2));
-    calloutEnd.setAttribute("cx", endX.toFixed(2));
-    calloutEnd.setAttribute("cy", endY.toFixed(2));
-    calloutLines.classList.add("is-visible");
-  }
-
-  function renderStage(index) {
-    activeStage = clamp(index, 0, stages.length - 1);
-    const stage = stages[activeStage];
-    const stageIndex = document.querySelector("[data-lab-stage-index]");
-    const stageKicker = document.querySelector("[data-lab-stage-kicker]");
-    const stageTitle = document.querySelector("[data-lab-stage-title]");
-    const stageDescription = document.querySelector("[data-lab-stage-description]");
-    const panelTitle = document.querySelector("[data-lab-panel-title]");
-    const choiceHint = document.querySelector("[data-lab-choice-hint]");
-    if (stageIndex) stageIndex.textContent = `${String(activeStage + 1).padStart(2, "0")} / ${String(stages.length).padStart(2, "0")}`;
-    if (stageKicker) stageKicker.textContent = stage.kicker;
-    if (stageTitle) stageTitle.textContent = stage.title;
-    if (stageDescription) stageDescription.textContent = stage.description;
-    if (panelTitle) panelTitle.textContent = stage.panelTitle;
-    if (choiceHint) choiceHint.textContent = `${stage.choices.length} disponíveis`;
-
-    choiceList.innerHTML = stage.choices.map((choice) => {
-      const selected = selection[stage.id] === choice.id;
-      const image = choice.image ? `style="background-image: url('${escapeHtml(choice.image)}')"` : "";
-      return `<button class="lab-choice${selected ? " is-selected" : ""}" type="button" role="option" aria-selected="${selected}" data-choice-id="${escapeHtml(choice.id)}"><span class="lab-choice-image${choice.image ? "" : " is-empty"}" ${image} aria-hidden="true"></span><span class="lab-choice-copy"><strong>${escapeHtml(choice.name)}</strong><small>${escapeHtml(choice.brand)} · ${escapeHtml(choice.meta)}</small></span><span class="lab-choice-price">${escapeHtml(formatMoney(choice.price))}</span></button>`;
-    }).join("");
-
-    previousButton.disabled = activeStage === 0;
-    previousButton.setAttribute("aria-disabled", String(activeStage === 0));
-    nextButton.innerHTML = activeStage === stages.length - 1 ? `Salvar configuração <span>✓</span>` : `Confirmar escolha <span>↗</span>`;
-    const saveStatus = document.querySelector("[data-save-status]");
-    if (saveStatus) saveStatus.textContent = saveMessage;
-    renderStageRail();
-    updateCallout();
-    updateSummary();
-  }
-
-  function updateInterface(progress) {
-    const interfaceProgress = clamp((progress - choiceProgressStart) / 0.08);
-    const nextStage = stageIndexForProgress(progress);
-    if (progress >= choiceProgressStart && nextStage !== activeStage) renderStage(nextStage);
-    labInterface.style.setProperty("--ui-opacity", interfaceProgress.toFixed(4));
-    choicePanel.style.setProperty("--panel-y", `${((1 - interfaceProgress) * 16).toFixed(2)}px`);
-    choicePanel.style.pointerEvents = interfaceProgress > 0.62 ? "auto" : "none";
-    labInterface.setAttribute("aria-hidden", String(interfaceProgress <= 0.62));
-  }
-
-  function updateContinuityGuard(progress) {
-    if (!videoLock) return;
-    const lockProgress = clamp((progress - 0.72) / 0.18);
-    const easedLock = lockProgress * lockProgress * (3 - 2 * lockProgress);
-    videoLock.style.setProperty("--lock-opacity", easedLock.toFixed(4));
-    videoLock.style.setProperty("--lock-scale", (1 + lockProgress * 0.018).toFixed(4));
-  }
-
-  function updateDebug(progress) {
-    if (!DEBUG || !debugPanel) return;
-    if (debug.section) debug.section.textContent = "RIFLE";
-    debug.progress.textContent = progress.toFixed(2);
-    debug.duration.textContent = duration ? `${duration.toFixed(2)}s` : "—";
-    debug.target.textContent = targetTime.toFixed(2);
-    debug.current.textContent = renderedTime.toFixed(2);
-    debug.fps.textContent = measuredFps ? `${measuredFps}` : "—";
-    if (debug.ready) debug.ready.textContent = `${video.readyState}/4`;
-  }
-
-  function scheduleScrub() {
-    if (!scrubFrame) scrubFrame = window.requestAnimationFrame(paintVideo);
-  }
-
-  function paintVideo() {
-    scrubFrame = 0;
-    if (!duration || video.readyState < 1) return;
-
-    if (reducedMotion) {
-      renderedTime = 0;
-      targetTime = 0;
-    } else {
-      const difference = targetTime - renderedTime;
-      const step = Math.min(Math.abs(difference) * 0.2, maxScrubStep);
-      renderedTime += Math.sign(difference) * step;
-      if (Math.abs(difference) < 0.012) renderedTime = targetTime;
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ selection, skipped: [...skipped], savedAt: new Date().toISOString() }));
+      refs.saveStatus.textContent = message;
+    } catch (_) {
+      refs.saveStatus.textContent = 'Não foi possível salvar neste dispositivo.';
     }
-
-    const nextTime = clamp(renderedTime, 0, Math.max(0, duration - 0.001));
-    const now = performance.now();
-    if (!reducedMotion && !seekInFlight && !video.seeking && now >= nextSeekAt && Math.abs(video.currentTime - nextTime) > 0.018) {
-      nextSeekAt = now + 80;
-      seekInFlight = true;
-      try {
-        video.currentTime = nextTime;
-        window.clearTimeout(seekGuardId);
-        seekGuardId = window.setTimeout(() => {
-          seekInFlight = false;
-          seekGuardId = 0;
-          scheduleScrub();
-        }, 180);
-      } catch {
-        seekInFlight = false;
-        nextSeekAt = now;
-      }
-    }
-
-    const delta = now - previousPaint;
-    if (delta > 0) measuredFps = Math.round(1000 / delta);
-    previousPaint = now;
-    updateDebug(getProgress());
-    if (!reducedMotion && (seekInFlight || Math.abs(targetTime - renderedTime) > 0.012)) scheduleScrub();
   }
 
-  function updateTarget() {
-    scrollFrame = 0;
-    initializeDuration();
-    applyProgress(getProgress());
+  function renderStageRail(activeIndex, isSummary = false) {
+    refs.stageRail.innerHTML = stages.map((stage, index) => {
+      const choice = selectedChoice(stage);
+      const state = choice ? 'is-selected' : skipped.has(stage.id) ? 'is-skipped' : '';
+      return `<button class="lab-stage-step ${state} ${!isSummary && index === activeIndex ? 'is-active' : ''}" type="button" data-stage-jump="${index}" aria-label="Abrir ${stage.label}">
+        <span class="lab-stage-step-number">${String(index + 1).padStart(2, '0')}</span>
+        <span class="lab-stage-step-copy"><strong>${stage.shortLabel}</strong><small>${choice ? 'Equipado' : skipped.has(stage.id) ? 'Em aberto' : 'Aguardando'}</small></span>
+      </button>`;
+    }).join('') + `<button class="lab-stage-step lab-stage-summary ${isSummary ? 'is-active' : ''}" type="button" data-stage-summary aria-label="Abrir resumo">
+      <span class="lab-stage-step-number">09</span><span class="lab-stage-step-copy"><strong>Resumo</strong><small>${isSummary ? 'Revisão' : 'Final'}</small></span>
+    </button>`;
+  }
+
+  function renderStage(stageIndex) {
+    const stage = stages[stageIndex];
+    if (!stage) return;
+    const choice = selectedChoice(stage);
+    refs.choicePanelTitle.textContent = stage.label;
+    refs.choicePanelIndex.textContent = `[ ${String(stageIndex + 1).padStart(2, '0')}/08 ]`;
+    refs.choicePanelHint.textContent = 'Escolha uma opção para equipar este ponto do operador.';
+    refs.choicePanelInstruction.textContent = stage.description;
+    refs.choicePanelState.textContent = choice ? 'EQUIPADO' : skipped.has(stage.id) ? 'EM ABERTO' : 'ESCANEANDO';
+    refs.choicePanelState.classList.toggle('is-complete', Boolean(choice));
+    refs.choicePanelState.classList.toggle('is-skipped', skipped.has(stage.id) && !choice);
+    refs.choiceList.innerHTML = stage.choices.map((item) => `
+      <button class="lab-choice ${selection[stage.id] === item.id ? 'is-selected' : ''}" type="button" data-choice-id="${item.id}" aria-pressed="${selection[stage.id] === item.id}">
+        <span class="lab-choice-mark" aria-hidden="true">${selection[stage.id] === item.id ? '✓' : '+'}</span>
+        <span class="lab-choice-copy"><strong>${item.name}</strong><small>${item.brand} · ${item.meta}</small></span>
+        <span class="lab-choice-price">${item.price ? formatMoney(item.price) : 'A definir'}</span>
+        <span class="lab-choice-badge">${item.badge}</span>
+      </button>`).join('');
+    refs.stageSkip.textContent = skipped.has(stage.id) ? 'Reabrir peça →' : 'Pular peça →';
+    refs.stageSkipStatus.textContent = skipped.has(stage.id) ? 'Esta etapa ficou em aberto.' : '';
+  }
+
+  function renderSummary() {
+    refs.summaryList.innerHTML = stages.map((stage, index) => {
+      const choice = selectedChoice(stage);
+      const label = choice ? choice.name : skipped.has(stage.id) ? 'Em aberto' : 'Não definido';
+      const value = choice?.price ? formatMoney(choice.price) : '—';
+      return `<button class="lab-summary-row ${choice ? 'is-selected' : ''}" type="button" data-stage-jump="${index}">
+        <span class="lab-summary-index">${String(index + 1).padStart(2, '0')}</span><span><strong>${stage.label}</strong><small>${label}</small></span><b>${value}</b><i aria-hidden="true">↗</i>
+      </button>`;
+    }).join('');
+    refs.summaryTotal.textContent = formatMoney(totalValue());
+  }
+
+  function updateStatus() {
+    const count = stages.filter((stage) => Boolean(selectedChoice(stage))).length;
+    refs.total.textContent = formatMoney(totalValue());
+    refs.summaryTotal.textContent = formatMoney(totalValue());
+    refs.selectionCount.textContent = `${count} ${count === 1 ? 'peça equipada' : 'peças equipadas'}`;
+  }
+
+  function setStage(stageIndex) {
+    if (currentStage === stageIndex) {
+      renderStageRail(stageIndex);
+      return;
+    }
+    currentStage = stageIndex;
+    renderStage(stageIndex);
+    renderStageRail(stageIndex);
+    refs.videoStage.classList.remove('is-scanning');
+    window.requestAnimationFrame(() => refs.videoStage.classList.add('is-scanning'));
+  }
+
+  function updateHud(stage, stageProgress) {
+    const points = stage.polygon.map(([x, y]) => `${x},${y}`).join(' ');
+    refs.hotspotPolygon.setAttribute('points', points);
+    refs.hotspotIndex.textContent = `[ ${String(stages.indexOf(stage) + 1).padStart(2, '0')}/08 ]`;
+    refs.hotspotName.textContent = stage.label.toUpperCase();
+    const locked = stageProgress > 0.23;
+    refs.hotspotState.textContent = locked ? 'PONTO IDENTIFICADO' : 'PEÇA ESCANEANDO...';
+    refs.hotspotState.classList.toggle('is-locked', locked);
+    refs.hotspotScan.setAttribute('x1', String(stage.polygon[0][0]));
+    refs.hotspotScan.setAttribute('x2', String(stage.polygon[1][0]));
+    refs.hotspotScan.setAttribute('y1', String(stage.polygon[0][1]));
+    refs.hotspotScan.setAttribute('y2', String(stage.polygon[1][1]));
+    refs.hotspotLabel.style.left = `${clamp(stage.focus[0], 12, 85)}%`;
+    refs.hotspotLabel.style.top = `${clamp(stage.focus[1], 10, 86)}%`;
+
+    const startX = stage.focus[0];
+    const startY = stage.focus[1];
+    const endX = 94;
+    const endY = 52;
+    const elbowX = Math.min(startX + 15, 82);
+    refs.calloutPath.setAttribute('d', `M ${startX} ${startY} L ${elbowX} ${startY} L ${elbowX} ${endY} L ${endX} ${endY}`);
+    refs.calloutTarget.setAttribute('cx', startX);
+    refs.calloutTarget.setAttribute('cy', startY);
+    refs.calloutEnd.setAttribute('cx', endX);
+    refs.calloutEnd.setAttribute('cy', endY);
+  }
+
+  function progressFromScroll() {
+    const maxScroll = Math.max(1, refs.story.offsetHeight - window.innerHeight);
+    return clamp((window.scrollY - refs.story.offsetTop) / maxScroll);
   }
 
   function applyProgress(progress) {
-    scrollProgress = clamp(progress);
-    const progressForVideo = mapRifleProgress(scrollProgress);
-    targetTime = reducedMotion ? 0 : progressForVideo * duration;
-    updateInterface(scrollProgress);
-    updateContinuityGuard(scrollProgress);
-    const copyExit = clamp(scrollProgress / 0.12);
-    copy.style.setProperty("--copy-opacity", (1 - copyExit).toFixed(4));
-    copy.style.setProperty("--copy-y", `${(-copyExit * 18).toFixed(2)}px`);
-    updateDebug(scrollProgress);
-    scheduleScrub();
-  }
+    currentProgress = clamp(progress);
+    const inSummary = currentProgress >= summaryStart;
+    refs.interface.style.setProperty('--ui-opacity', String(clamp((currentProgress - 0.02) / 0.12)));
+    refs.labCopy.style.setProperty('--copy-opacity', String(1 - clamp(currentProgress / 0.16)));
+    refs.videoLock.style.setProperty('--lock-opacity', String(clamp((currentProgress - 0.78) / 0.13)));
+    const activeNumber = Math.min(8, Math.floor(Math.max(0, (currentProgress - chapterStart) / ((chapterEnd - chapterStart) / 8))) + 1);
+    refs.statusLabel.textContent = inSummary ? 'LOADOUT FINAL / 08' : `LOADOUT ${String(activeNumber).padStart(2, '0')} / 08`;
 
-  function requestUpdate() {
-    if (!scrollFrame) scrollFrame = window.requestAnimationFrame(updateTarget);
-  }
-
-  function scrollToStage(index) {
-    const travel = Math.max(1, story.offsetHeight - sticky.clientHeight);
-    const segment = (choiceProgressEnd - choiceProgressStart) / stages.length;
-    const progress = clamp(choiceProgressStart + segment * (index + 0.5));
-    const top = story.offsetTop + travel * progress;
-    if (lenis) {
-      lenis.scrollTo(top, { duration: reducedMotion ? 0 : 0.85 });
+    if (inSummary) {
+      refs.missionKicker.textContent = 'LOADOUT LAB / FINAL';
+      refs.missionTitle.innerHTML = 'REVISE O<br /><em>LOADOUT.</em>';
+      refs.missionDescription.textContent = 'Confira as escolhas demonstrativas antes de conectar o laboratório ao catálogo real.';
+      refs.choicePanel.hidden = true;
+      refs.summaryPanel.hidden = false;
+      renderSummary();
+      renderStageRail(-1, true);
     } else {
-      window.scrollTo({ top, behavior: reducedMotion ? "auto" : "smooth" });
+      refs.choicePanel.hidden = false;
+      refs.summaryPanel.hidden = true;
+      const normalized = clamp((currentProgress - chapterStart) / (chapterEnd - chapterStart));
+      const rawIndex = normalized * stages.length;
+      const stageIndex = Math.min(stages.length - 1, Math.floor(rawIndex));
+      const stageProgress = clamp(rawIndex - stageIndex);
+      refs.missionKicker.textContent = stages[stageIndex].kicker;
+      refs.missionTitle.innerHTML = 'ESCANEIE O<br /><em>OPERADOR.</em>';
+      refs.missionDescription.textContent = stages[stageIndex].description;
+      setStage(stageIndex);
+      updateHud(stages[stageIndex], stageProgress);
+      refs.choicePanel.style.setProperty('--panel-progress', String(stageProgress));
+      refs.choicePanel.classList.toggle('is-ready', stageProgress > 0.14);
+    }
+
+    if (videoReady && !reducedMotion) {
+      const motionProgress = clamp(currentProgress / 0.94);
+      const target = videoDuration * motionProgress;
+      if (Number.isFinite(target) && Math.abs(refs.video.currentTime - target) > 0.035) refs.video.currentTime = target;
     }
   }
 
-  function saveLoadout() {
-    localStorage.setItem("fieldops-lab-loadout", JSON.stringify(selection));
-    saveMessage = "Configuração salva neste dispositivo.";
-    renderStage(activeStage);
-  }
-
-  function markReady() {
-    sticky.classList.add("is-video-ready");
-  }
-
-  function initializeDuration() {
-    if (duration || !Number.isFinite(video.duration) || video.duration <= 0) return false;
-    duration = video.duration;
-    video.currentTime = 0;
-    renderedTime = 0;
-    markReady();
-    return true;
-  }
-
-  function prepareVideo() {
-    if (!initializeDuration()) return;
-    applyProgress(getProgress());
-  }
-
-  function setupSmoothScroll() {
-    if (reducedMotion || !window.gsap || !window.ScrollTrigger) return false;
-    const { gsap, ScrollTrigger } = window;
-    gsap.registerPlugin(ScrollTrigger);
-
-    if (window.Lenis) {
-      lenis = new window.Lenis({
-        autoRaf: false,
-        lerp: 0.085,
-        smoothWheel: true,
-        syncTouch: false
-      });
-      lenis.on("scroll", () => ScrollTrigger.update());
-      gsap.ticker.add((time) => lenis.raf(time * 1000));
-      gsap.ticker.lagSmoothing(0);
-    }
-
-    scrollDriverReady = true;
-    if (labExperience) labExperience.classList.add("is-scrolltrigger");
-    scrollTriggerInstance = ScrollTrigger.create({
-      trigger: story,
-      start: "top top",
-      end: "bottom bottom",
-      pin: sticky,
-      pinSpacing: false,
-      scrub: 0.22,
-      anticipatePin: 1,
-      invalidateOnRefresh: true,
-      onUpdate: (self) => applyProgress(self.progress)
+  function requestProgressUpdate() {
+    if (framePending) return;
+    framePending = true;
+    window.requestAnimationFrame(() => {
+      framePending = false;
+      applyProgress(progressFromScroll());
     });
-    ScrollTrigger.refresh();
-    return true;
   }
 
-  function onSeeked() {
-    seekInFlight = false;
-    window.clearTimeout(seekGuardId);
-    seekGuardId = 0;
-    scheduleScrub();
+  function scrollToProgress(progress) {
+    const maxScroll = Math.max(1, refs.story.offsetHeight - window.innerHeight);
+    window.scrollTo({ top: refs.story.offsetTop + (maxScroll * clamp(progress)), behavior: 'auto' });
   }
 
-  function onFirstGesture() {
-    userReady = true;
-    primeVideo();
+  function handleChoice(choiceId) {
+    const stage = stages[currentStage];
+    if (!stage || !stage.choices.some((choice) => choice.id === choiceId)) return;
+    selection[stage.id] = choiceId;
+    skipped.delete(stage.id);
+    renderStage(stage === stages[currentStage] ? currentStage : 0);
+    renderStageRail(currentStage);
+    updateStatus();
+    saveLocalDraft('Escolha registrada neste dispositivo.');
+    if (navigator.vibrate) navigator.vibrate(10);
   }
 
-  choiceList.addEventListener("click", (event) => {
-    const choiceButton = event.target.closest("[data-choice-id]");
-    if (!choiceButton) return;
-    const stage = stages[activeStage];
-    selection[stage.id] = choiceButton.dataset.choiceId;
-    saveMessage = "";
-    renderStage(activeStage);
-  });
-
-  stageRailList?.addEventListener("click", (event) => {
-    const stageButton = event.target.closest("[data-stage-index]");
-    if (!stageButton) return;
-    const stageIndex = Number(stageButton.dataset.stageIndex);
-    if (!Number.isInteger(stageIndex)) return;
-    if (scrollProgress >= 0.88) renderStage(stageIndex);
-    else scrollToStage(stageIndex);
-  });
-
-  previousButton.addEventListener("click", () => {
-    if (activeStage > 0) scrollToStage(activeStage - 1);
-  });
-
-  nextButton.addEventListener("click", () => {
-    if (activeStage === stages.length - 1) {
-      saveLoadout();
-      return;
+  function handleSkip() {
+    const stage = stages[currentStage];
+    if (!stage) return;
+    if (skipped.has(stage.id)) skipped.delete(stage.id);
+    else {
+      skipped.add(stage.id);
+      delete selection[stage.id];
     }
-    scrollToStage(activeStage + 1);
-  });
+    renderStage(currentStage);
+    renderStageRail(currentStage);
+    updateStatus();
+    saveLocalDraft(skipped.has(stage.id) ? 'Etapa deixada em aberto.' : 'Etapa reaberta.');
+  }
 
-  renderStage(0);
-  if (DEBUG && debugPanel) debugPanel.hidden = false;
-  video.addEventListener("loadedmetadata", prepareVideo);
-  video.addEventListener("loadeddata", () => {
-    markReady();
-    prepareVideo();
-    primeVideo();
-  });
-  video.addEventListener("seeked", onSeeked);
-  video.addEventListener("error", () => sticky.classList.add("is-video-error"), { once: true });
-  const smoothDriver = setupSmoothScroll();
-  if (!smoothDriver) window.addEventListener("scroll", requestUpdate, { passive: true });
-  window.addEventListener("resize", () => {
-    if (scrollTriggerInstance && window.ScrollTrigger) window.ScrollTrigger.refresh();
-    updateCallout();
-    requestUpdate();
-  }, { passive: true });
-  window.addEventListener("pointerdown", onFirstGesture, { once: true, passive: true });
-  window.addEventListener("touchstart", onFirstGesture, { once: true, passive: true });
+  function setupEvents() {
+    refs.choiceList.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-choice-id]');
+      if (button) handleChoice(button.dataset.choiceId);
+    });
+    refs.stageSkip.addEventListener('click', handleSkip);
+    refs.stageRail.addEventListener('click', (event) => {
+      const summaryButton = event.target.closest('[data-stage-summary]');
+      if (summaryButton) return scrollToProgress(0.95);
+      const stageButton = event.target.closest('[data-stage-jump]');
+      if (!stageButton) return;
+      const index = Number(stageButton.dataset.stageJump);
+      scrollToProgress(chapterStart + ((chapterEnd - chapterStart) * ((index + 0.36) / stages.length)));
+    });
+    refs.summaryList.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-stage-jump]');
+      if (button) scrollToProgress(chapterStart + ((chapterEnd - chapterStart) * ((Number(button.dataset.stageJump) + 0.36) / stages.length)));
+    });
+    refs.saveLoadout.addEventListener('click', () => saveLocalDraft('Configuração salva localmente.'));
+    window.addEventListener('scroll', requestProgressUpdate, { passive: true });
+    window.addEventListener('resize', requestProgressUpdate);
+  }
 
-  loadSeekableVideo();
-  if (video.readyState >= 1 && sourceReady) prepareVideo();
-  requestUpdate();
+  function setupVideo() {
+    const source = refs.video.dataset.labVideoSrc;
+    if (!source || reducedMotion) return;
+    refs.video.src = source;
+    refs.video.addEventListener('loadedmetadata', () => {
+      videoDuration = refs.video.duration || 0;
+      videoReady = videoDuration > 0;
+      refs.poster.classList.add('is-loaded');
+      requestProgressUpdate();
+    }, { once: true });
+    refs.video.addEventListener('error', () => {
+      refs.videoStage.classList.add('has-video-error');
+    }, { once: true });
+    refs.video.load();
+  }
 
-  window.addEventListener("pagehide", () => {
-    window.clearTimeout(seekGuardId);
-    if (sourceObjectUrl) URL.revokeObjectURL(sourceObjectUrl);
-  }, { once: true });
+  function setupLenis() {
+    if (reducedMotion || typeof window.Lenis !== 'function') return;
+    lenis = new window.Lenis({ lerp: 0.08, smoothWheel: true, syncTouch: false });
+    lenis.on('scroll', requestProgressUpdate);
+    const raf = (time) => {
+      lenis.raf(time);
+      window.requestAnimationFrame(raf);
+    };
+    window.requestAnimationFrame(raf);
+  }
+
+  function init() {
+    loadLocalDraft();
+    renderStageRail(0);
+    renderStage(0);
+    renderSummary();
+    updateStatus();
+    setupEvents();
+    setupVideo();
+    refs.interface.setAttribute('aria-hidden', 'false');
+    applyProgress(progressFromScroll());
+  }
+
+  init();
 })();

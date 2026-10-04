@@ -2,108 +2,138 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#070908" />
-    <meta name="description" content="Loadout Lab — experiência de vídeo controlada pelo scroll da Suprimentos Oliveira." />
-    <title>LOADOUT LAB — SUPRIMENTOS OLIVEIRA</title>
-    <link rel="icon" type="image/webp" href="../../assets/suprimentos-oliveira-logo.webp" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#07100b" />
+    <title>Loadout Lab // Suprimentos Oliveira</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./loadout-lab.css?rev=scroll-68" />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./loadout-lab.css?rev=phase-1" />
   </head>
   <body>
     <main class="lab-experience">
-      <a class="lab-back" href="../../#loadout">Loadout atual <span>↗</span></a>
+      <a class="lab-back" href="../../#loadout"><span aria-hidden="true">←</span> Voltar ao catálogo</a>
 
-      <section class="lab-story" data-lab-story data-rifle-scene aria-labelledby="lab-title">
+      <section class="lab-story" data-lab-story data-rifle-scene aria-label="Laboratório de montagem de loadout">
         <div class="lab-story-sticky">
-          <div class="lab-video-stage">
-            <div class="lab-video-poster" aria-hidden="true"></div>
+          <div class="lab-video-stage" data-lab-video-stage>
+            <div class="lab-video-poster" data-lab-video-poster aria-hidden="true"></div>
             <video
               class="lab-video"
               data-lab-video
               muted
               playsinline
-              preload="none"
-              data-lab-video-src="./rifle-experience.mp4?rev=rifle-65"
-              data-lab-mobile-video-src=""
+              preload="metadata"
               poster="./rifle-poster.jpg?rev=rifle-65"
-              aria-label="Operador de airsoft avançando com seu equipamento"
-            >
-              <source src="./rifle-experience.mp4?rev=rifle-65" type="video/mp4" />
-            </video>
+              data-lab-video-src="./rifle-experience.mp4?rev=rifle-65"
+              aria-hidden="true"
+            ></video>
             <div class="lab-video-lock" data-lab-video-lock aria-hidden="true"></div>
             <div class="lab-video-wash" aria-hidden="true"></div>
+
+            <svg class="lab-hud" data-lab-hud viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon class="lab-hotspot-polygon" data-hotspot-polygon points="0,0 0,0 0,0" />
+              <line class="lab-hotspot-scan" data-hotspot-scan x1="0" y1="0" x2="100" y2="0" />
+              <path class="lab-callout-path" data-callout-path d="M 0 0 L 0 0 L 0 0" />
+              <circle class="lab-callout-target" data-callout-target cx="0" cy="0" r="0.65" />
+              <circle class="lab-callout-end" data-callout-end cx="0" cy="0" r="0.4" />
+            </svg>
+
+            <div class="lab-hotspot-label" data-hotspot-label>
+              <span data-hotspot-index>[ 01/08 ]</span>
+              <strong data-hotspot-name>CAPACETE</strong>
+              <small data-hotspot-state>PEÇA ESCANEANDO...</small>
+            </div>
+
+            <div class="lab-video-caption">
+              <span class="lab-video-sound"><i></i> Som desativado</span>
+              <span class="lab-video-note">Operador em campo // leitura visual</span>
+            </div>
           </div>
 
           <div class="lab-interface" data-lab-interface aria-hidden="true">
-            <svg class="lab-callout-lines" data-callout-lines viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <path class="lab-callout-path" data-callout-path d="M 0 0" />
-              <circle class="lab-callout-target" data-callout-target cx="0" cy="0" r="0.65" />
-              <circle class="lab-callout-end" data-callout-end cx="0" cy="0" r="0.42" />
-            </svg>
             <div class="lab-mission-copy">
-              <span class="lab-eyebrow" data-lab-stage-kicker>LOADOUT LAB / 01</span>
-              <h2 data-lab-stage-title>Escolha sua base.</h2>
-              <p data-lab-stage-description>A plataforma define o ritmo da sua operação.</p>
+              <span class="lab-kicker" data-lab-kicker>LOADOUT LAB / 01</span>
+              <h1 data-lab-title>ESCANEIE O<br /><em>OPERADOR.</em></h1>
+              <p data-lab-description>Role para avançar pelos pontos do equipamento. Selecione uma opção quando quiser montar sua configuração.</p>
             </div>
-
-            <nav class="lab-stage-rail" data-stage-rail aria-label="Etapas da configuração">
-              <div class="lab-rail-head">
-                <span class="lab-eyebrow">MAPA DO LOADOUT</span>
-                <span class="lab-rail-status" data-lab-rail-status>01 / 05</span>
-              </div>
-              <div class="lab-stage-track" data-stage-rail-list></div>
-            </nav>
 
             <div class="lab-loadout-status" aria-live="polite">
-              <span>CONFIGURAÇÃO EM CAMPO</span>
-              <strong data-lab-total>R$ 4.135</strong>
-              <small data-lab-selection-count>05 decisões registradas</small>
+              <div>
+                <span class="lab-status-label" data-lab-status-label>LOADOUT 00 / 08</span>
+                <strong data-lab-selection-count>0 peças equipadas</strong>
+              </div>
+              <div class="lab-status-total">
+                <span>Total demonstrativo</span>
+                <strong data-lab-total>R$ 0,00</strong>
+              </div>
+              <span class="lab-prototype-badge">FASE 1 · PROTÓTIPO</span>
             </div>
 
+            <nav class="lab-stage-rail" aria-label="Etapas do loadout">
+              <div class="lab-stage-track" data-stage-rail></div>
+            </nav>
+
             <section class="lab-choice-panel" data-choice-panel aria-labelledby="choice-panel-title">
-              <div class="lab-choice-head">
+              <div class="lab-choice-panel-heading">
                 <div>
-                  <span class="lab-eyebrow" data-lab-stage-index>01 / 05</span>
-                  <h3 id="choice-panel-title" data-lab-panel-title>Plataforma</h3>
+                  <span class="lab-kicker" data-lab-stage-index>[ 01/08 ]</span>
+                  <h2 id="choice-panel-title" data-choice-panel-title>Capacete</h2>
                 </div>
-                <span class="lab-choice-hint" data-lab-choice-hint>Escolha 1</span>
+                <span class="lab-panel-state" data-choice-panel-state>ESCANEANDO</span>
               </div>
-              <div class="lab-choice-list" data-choice-list role="listbox" aria-label="Escolhas do loadout"></div>
+              <p class="lab-choice-hint" data-choice-panel-hint>Escolha uma opção para equipar este ponto do operador.</p>
+              <p class="lab-choice-instruction" data-choice-panel-instruction>Os itens desta etapa são demonstrativos e não alteram seu carrinho.</p>
+              <div class="lab-choice-list" data-choice-list></div>
               <div class="lab-choice-footer">
-                <button class="lab-ghost-button" type="button" data-stage-prev>Voltar</button>
-                <button class="lab-primary-button" type="button" data-stage-next>Confirmar escolha <span>↗</span></button>
+                <button class="lab-skip-button" type="button" data-stage-skip>Pular peça <span aria-hidden="true">→</span></button>
+                <span class="lab-skip-status" data-stage-skip-status aria-live="polite"></span>
               </div>
-              <p class="lab-save-status" data-save-status role="status" aria-live="polite"></p>
+              <div class="lab-save-status" data-save-status aria-live="polite"></div>
+            </section>
+
+            <section class="lab-summary-panel" data-summary-panel aria-labelledby="summary-panel-title" hidden>
+              <div class="lab-choice-panel-heading">
+                <div>
+                  <span class="lab-kicker">[ FINAL / 08 ]</span>
+                  <h2 id="summary-panel-title">Seu loadout.</h2>
+                </div>
+                <span class="lab-panel-state">REVISÃO</span>
+              </div>
+              <p class="lab-choice-hint">Revise as escolhas antes de conectar esta configuração ao catálogo.</p>
+              <div class="lab-summary-list" data-summary-list></div>
+              <div class="lab-summary-total">
+                <span>Total demonstrativo</span>
+                <strong data-summary-total>R$ 0,00</strong>
+              </div>
+              <p class="lab-summary-note">Esta é uma prévia local da Fase 1. Produtos, estoque, preços reais e carrinho entram na próxima integração.</p>
+              <div class="lab-summary-actions">
+                <button class="lab-primary-button" type="button" data-save-loadout>Salvar configuração local <span aria-hidden="true">↗</span></button>
+                <a class="lab-secondary-button" href="../../#loadout">Voltar ao catálogo <span aria-hidden="true">→</span></a>
+              </div>
             </section>
           </div>
 
           <div class="lab-copy" data-lab-copy>
-            <h1 id="lab-title">Monte seu<br /><em>loadout.</em></h1>
-            <p>Role para explorar</p>
+            <h2>Monte seu<br /><em>loadout.</em></h2>
+            <p>Role para escanear o operador</p>
           </div>
 
-          <div class="lab-debug-panel" data-lab-debug hidden aria-live="polite">
-            <span>Section: <b data-debug-section>RIFLE</b></span>
-            <span>Scroll progress: <b data-debug-progress>0.00</b></span>
-            <span>Video duration: <b data-debug-duration>—</b></span>
-            <span>Target time: <b data-debug-target>0.00</b></span>
-            <span>Current time: <b data-debug-current>0.00</b></span>
-            <span>FPS: <b data-debug-fps>—</b></span>
-            <span>Ready state: <b data-debug-ready>—</b></span>
-          </div>
+          <div class="lab-debug" data-lab-debug hidden></div>
         </div>
       </section>
 
-      <section class="lab-after-scene" aria-label="Próxima etapa do Loadout Lab">
-        <a href="../../#loadout">Voltar para o Loadout atual <span>↗</span></a>
+      <section class="lab-after-scene" aria-label="Próximo passo">
+        <span class="lab-kicker">FASE 1 CONCLUÍDA</span>
+        <h2>Pronto para revisar<br /><em>o catálogo real?</em></h2>
+        <p>O laboratório foi organizado para receber produtos, preços, estoque e carrinho na próxima etapa.</p>
+        <a class="lab-primary-button" href="../../#loadout">Voltar ao catálogo <span aria-hidden="true">→</span></a>
       </section>
     </main>
-    <script src="./vendor/lenis.min.js" defer></script>
-    <script src="./vendor/gsap.min.js" defer></script>
-    <script src="./vendor/ScrollTrigger.min.js" defer></script>
-    <script src="./loadout-lab.js?rev=scroll-68" defer></script>
+
+    <script src="../../assets/vendor/lenis.min.js"></script>
+    <script src="../../assets/vendor/gsap.min.js"></script>
+    <script src="../../assets/vendor/ScrollTrigger.min.js"></script>
+    <script src="./loadout-lab.js?rev=phase-1"></script>
   </body>
 </html>
