@@ -3,4 +3,5 @@ backups/
 .sites-artifacts/
 node_modules/
 outputs/
+supabase/.temp/
 enrich-product-workbook.mjs

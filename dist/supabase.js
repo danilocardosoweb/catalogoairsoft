@@ -85,6 +85,36 @@
     return request(`${url}/rest/v1`, path, options);
   }
 
+  function publicStorageUrl(bucket, objectPath) {
+    const encodedPath = String(objectPath || "").split("/").map((part) => encodeURIComponent(part)).join("/");
+    return `${url}/storage/v1/object/public/${encodeURIComponent(bucket)}/${encodedPath}`;
+  }
+
+  async function uploadProductImages(files, productKey = "produto") {
+    await ensureValidSession();
+    if (!session?.access_token || !organizationId) throw new Error("Entre na conta da loja antes de subir imagens.");
+    const selected = Array.from(files || []).filter((file) => file && file.type?.startsWith("image/") && file.size <= 5 * 1024 * 1024).slice(0, 8);
+    if (!selected.length) return [];
+    const folder = slugify(productKey) || "produto";
+    const uploaded = [];
+    for (const file of selected) {
+      const extension = String(file.name || "jpg").split(".").pop().toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+      const randomPart = globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : Math.random().toString(36).slice(2);
+      const objectPath = `${organizationId}/${folder}/${Date.now()}-${randomPart}.${extension}`;
+      const response = await fetch(`${url}/storage/v1/object/product-media/${objectPath}`, {
+        method: "POST",
+        headers: { apikey: anonKey, Authorization: `Bearer ${session.access_token}`, "Content-Type": file.type || "application/octet-stream", "x-upsert": "false" },
+        body: file
+      });
+      const raw = await response.text();
+      let payload = null;
+      try { payload = raw ? JSON.parse(raw) : null; } catch {}
+      if (!response.ok) throw new Error(String(payload?.message || payload?.error || payload?.msg || "O armazenamento de imagens ainda não está disponível."));
+      uploaded.push(publicStorageUrl("product-media", objectPath));
+    }
+    return uploaded;
+  }
+
   async function signIn(email, password) {
     const next = await authRequest("/token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password }) });
     setSession(next);
@@ -275,16 +305,31 @@
       return { product_id: productId, available_quantity: Math.max(0, Math.round(Number(sourceProducts[index]?.stockCount || 0))), reserved_quantity: Number(previous?.reserved_quantity || 0), low_stock_threshold: Number(previous?.low_stock_threshold ?? 3) };
     }).filter((row) => row.product_id);
     const existingMedia = productIdList.length ? await dataRequest(`/product_media?product_id=in.(${productIdList.join(",")})&select=id,product_id,url,alt_text,is_primary,sort_order`) : [];
-    const mediaByProduct = new Map((existingMedia || []).map((row) => [row.product_id, row]));
-    const mediaTasks = productRows.map((row, index) => {
+    const mediaByProduct = new Map();
+    (existingMedia || []).forEach((row) => {
+      if (!mediaByProduct.has(row.product_id)) mediaByProduct.set(row.product_id, []);
+      mediaByProduct.get(row.product_id).push(row);
+    });
+    const mediaTasks = productRows.map(async (row, index) => {
       const productId = productIds.get(row.sku);
-      const image = String(sourceProducts[index]?.image || "").trim();
-      if (!productId || !image || image === "/assets/product-image-pending.svg") return null;
-      const current = mediaByProduct.get(productId);
-      const body = { product_id: productId, url: image, alt_text: sourceProducts[index]?.name || row.name, is_primary: true, sort_order: 0 };
-      if (current?.id) return dataRequest(`/product_media?id=eq.${encodeURIComponent(current.id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
-      return dataRequest("/product_media", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
-    }).filter(Boolean);
+      if (!productId) return;
+      const source = sourceProducts[index] || {};
+      const images = [...(Array.isArray(source.images) ? source.images : []), source.image].map((value) => String(value || "").trim()).filter((value, imageIndex, list) => value && value !== "/assets/product-image-pending.svg" && list.indexOf(value) === imageIndex).slice(0, 12);
+      const current = mediaByProduct.get(productId) || [];
+      const kept = new Set();
+      for (let sortOrder = 0; sortOrder < images.length; sortOrder += 1) {
+        const image = images[sortOrder];
+        const existing = current.find((item) => item.url === image) || current[sortOrder];
+        const body = { product_id: productId, url: image, alt_text: source.name || row.name, is_primary: sortOrder === 0, sort_order: sortOrder };
+        if (existing?.id) {
+          kept.add(existing.id);
+          await dataRequest(`/product_media?id=eq.${encodeURIComponent(existing.id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
+        } else {
+          await dataRequest("/product_media", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
+        }
+      }
+      await Promise.all(current.filter((item) => item.id && !kept.has(item.id)).map((item) => dataRequest(`/product_media?id=eq.${encodeURIComponent(item.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } })));
+    });
     await Promise.all([
       upsertRows("/product_prices", prices, "product_id,tier"),
       upsertRows("/inventory", inventory, "product_id"),
@@ -341,7 +386,8 @@
     try { supplierRows = await dataRequest(`/suppliers?organization_id=eq.${org.id}&is_active=eq.true&select=id,name,slug,contact_name,phone,whatsapp,email,website,notes,is_active&order=name.asc`); } catch {}
     const products = (productRows || []).map((row) => {
       const price = (row.product_prices || []).find((item) => item.tier === "retail" && item.is_active !== false);
-      const media = [...(row.product_media || [])].sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || Number(a.sort_order) - Number(b.sort_order))[0];
+      const media = [...(row.product_media || [])].sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || Number(a.sort_order) - Number(b.sort_order));
+      const images = media.map((item) => item.url).filter(Boolean);
       const inventory = row.inventory?.[0] || {};
       const brand = Array.isArray(row.brands) ? row.brands[0] : row.brands;
       const category = Array.isArray(row.categories) ? row.categories[0] : row.categories;
@@ -360,7 +406,8 @@
         stock: Number(inventory.available_quantity || 0) > 0 ? "Em estoque" : "Fora de estoque",
         category: category?.name || "Gear",
         system: row.system || row.product_type || "FIELD GEAR",
-        image: media?.url || "",
+        image: images[0] || "",
+        images,
         specs: row.specs || {},
         shipping: row.shipping || {},
         description: row.description || "Produto pronto para o campo.",
@@ -483,6 +530,7 @@
     updateAccessGrant,
     loadUserState,
     loadPublicCatalog,
+    uploadProductImages,
     loadOrganizationSettings,
     saveOrganizationSettings,
     loadOperationalData,

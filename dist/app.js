@@ -600,11 +600,53 @@ function safeProductImage(value) {
   if (!image || /[<>"']/.test(image)) return "/assets/product-image-pending.svg";
   try {
     const url = new URL(image, window.location.origin);
-    return ["http:", "https:", "data:"].includes(url.protocol) ? image : "/assets/product-image-pending.svg";
+    return ["http:", "https:", "data:", "blob:"].includes(url.protocol) ? image : "/assets/product-image-pending.svg";
   } catch {
     return "/assets/product-image-pending.svg";
   }
 }
+
+function productImageList(product) {
+  const raw = [
+    ...(Array.isArray(product?.images) ? product.images : []),
+    product?.image
+  ];
+  const seen = new Set();
+  return raw.map((value) => String(value || "").trim()).filter((value) => {
+    if (!value || seen.has(value) || /[<>"']/.test(value)) return false;
+    try {
+      const url = new URL(value, window.location.origin);
+      if (!["http:", "https:", "data:"].includes(url.protocol) && !value.startsWith("/")) return false;
+    } catch { return false; }
+    seen.add(value);
+    return true;
+  }).slice(0, 12);
+}
+
+function ensureProductImages(product) {
+  if (!product || typeof product !== "object") return product;
+  const images = productImageList(product);
+  product.images = images;
+  product.image = images[0] || "/assets/product-image-pending.svg";
+  return product;
+}
+
+function imageUrlLines(value) {
+  return String(value || "").split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean).slice(0, 11);
+}
+
+function imagePreviewMarkup(images) {
+  const list = images.length ? images : ["/assets/product-image-pending.svg"];
+  return `<div class="product-media-preview" data-product-media-preview>${list.map((image, index) => `<div class="product-media-preview-item"><img src="${escapeHtml(safeProductImage(image))}" alt="Prévia da imagem ${index + 1}" /><span>${index === 0 ? "Principal" : `Foto ${String(index + 1).padStart(2, "0")}`}</span></div>`).join("")}</div>`;
+}
+
+function productGalleryMarkup(product) {
+  const images = productImageList(product);
+  const primary = safeProductImage(images[0] || product.image);
+  return `<div class="detail-gallery-main"><img src="${escapeHtml(primary)}" alt="${escapeHtml(product.brand)} ${escapeHtml(product.name)}" data-product-gallery-main /><span class="gallery-index">PRODUCT // ${String(products.indexOf(product) + 231).padStart(5, "0")}</span></div>${images.length > 1 ? `<div class="detail-gallery-thumbs" aria-label="Fotos do produto">${images.map((image, index) => `<button type="button" class="detail-gallery-thumb ${index === 0 ? "is-active" : ""}" data-product-gallery-thumb="${escapeHtml(image)}" aria-label="Ver foto ${index + 1}"><img src="${escapeHtml(safeProductImage(image))}" alt="Foto ${index + 1}" /></button>`).join("")}</div>` : ""}`;
+}
+
+products.forEach(ensureProductImages);
 
 const findProduct = (id) => products.find((product) => product.id === id);
 const stockLabel = (product) => product.stockCount <= 0 ? "Indisponível" : product.stockCount <= state.settings.lowStock ? "Poucas unidades" : "Em estoque";
@@ -751,7 +793,7 @@ async function hydrateCloudState() {
     const catalog = await cloud.loadPublicCatalog();
     if (catalog?.products?.length) {
       products.splice(0, products.length, ...catalog.products);
-      products.forEach((product) => ensureProductShipping(product));
+      products.forEach((product) => { ensureProductShipping(product); ensureProductImages(product); });
       if (catalog.categories?.length) state.categories = catalog.categories.map((item, index) => ensureCategoryShape({ id: item.id, name: item.name, description: item.description, image: item.image_url, active: item.is_active, order: item.sort_order || index + 1 }, index));
       if (catalog.suppliers?.length) state.suppliers = catalog.suppliers.map((item, index) => ensureSupplierShape(item, index));
       if (catalog.banners?.length) state.banners = catalog.banners.map((item, index) => ensureBannerShape({ id: item.id, name: item.name, type: item.media_type, media: item.media_url, eyebrow: item.eyebrow, title: item.title, titleAccent: item.title_accent, subtitle: item.subtitle, ctaLabel: item.cta_label, ctaTarget: item.cta_target, active: item.is_active, order: item.sort_order || index + 1 }));
@@ -1175,7 +1217,7 @@ async function calculateProductShipping(productId) {
 }
 
 function productPage(product) {
-  return `<section class="page detail-page"><div class="container"><div class="breadcrumb"><a href="#catalog" data-route="catalog">Catálogo</a><span>/</span><a href="#catalog" data-route="catalog">${product.category}</a><span>/</span><b>${product.name}</b></div><div class="detail-grid"><div><div class="detail-gallery-main"><img src="${product.image}" alt="${product.brand} ${product.name}" /><span class="gallery-index">PRODUCT // ${String(products.indexOf(product) + 231).padStart(5, "0")}</span></div><div class="specs-panel"><div class="specs-title"><h2>Tech specs</h2><small>SYSTEM // ${product.system}</small></div><div class="specs-grid">${Object.entries(product.specs).map(([label, value]) => `<div class="spec-item"><span>${label}</span><strong>${value}</strong></div>`).join("")}</div><div class="accordion"><details open><summary>Descrição</summary><p>${product.description}</p></details><details><summary>Conteúdo da embalagem</summary><p>Produto principal, magazine compatível e manual de operação.</p></details><details><summary>Compatibilidade</summary><p>Consulte o time Suprimentos Oliveira para validar acessórios e peças para o seu loadout.</p></details></div></div></div><div class="detail-info"><span class="detail-brand">${product.brand}</span><h1>${product.name}</h1><span class="detail-type">${product.type} / ${product.meta}</span><div class="detail-price">${money(product.price)}</div><div class="detail-stock"><span class="stock ${product.stockCount <= 0 ? "stock-out" : ""}">${stockLabel(product)}</span></div><div class="quantity-row"><div class="quantity-control"><button data-quantity="-" aria-label="Diminuir quantidade">−</button><span data-quantity-value>1</span><button data-quantity="+" aria-label="Aumentar quantidade">+</button></div><button class="primary-wide" data-add-detail="${product.id}" ${product.stockCount <= 0 ? "disabled" : ""}>${product.stockCount <= 0 ? "Indisponível" : "Adicionar ao carrinho"}</button></div><div class="detail-note">Você pode solicitar orçamento pelo WhatsApp no próximo passo.</div>${productShippingMarkup(product)}</div></div><section class="related-section"><div class="section-label"><div><span class="eyebrow">COMPLETE SEU LOADOUT</span><h2>A próxima<br>peça.</h2></div><a class="text-link" href="#loadout" data-route="loadout">Montar loadout</a></div><div class="product-grid">${activeProducts().filter((item) => item.id !== product.id).slice(0, 4).map(productCard).join("")}</div></section></div></section>`;
+  return `<section class="page detail-page"><div class="container"><div class="breadcrumb"><a href="#catalog" data-route="catalog">Catálogo</a><span>/</span><a href="#catalog" data-route="catalog">${product.category}</a><span>/</span><b>${product.name}</b></div><div class="detail-grid"><div>${productGalleryMarkup(product)}<div class="specs-panel"><div class="specs-title"><h2>Tech specs</h2><small>SYSTEM // ${product.system}</small></div><div class="specs-grid">${Object.entries(product.specs).map(([label, value]) => `<div class="spec-item"><span>${label}</span><strong>${value}</strong></div>`).join("")}</div><div class="accordion"><details open><summary>Descrição</summary><p>${product.description}</p></details><details><summary>Conteúdo da embalagem</summary><p>Produto principal, magazine compatível e manual de operação.</p></details><details><summary>Compatibilidade</summary><p>Consulte o time Suprimentos Oliveira para validar acessórios e peças para o seu loadout.</p></details></div></div></div><div class="detail-info"><span class="detail-brand">${product.brand}</span><h1>${product.name}</h1><span class="detail-type">${product.type} / ${product.meta}</span><div class="detail-price">${money(product.price)}</div><div class="detail-stock"><span class="stock ${product.stockCount <= 0 ? "stock-out" : ""}">${stockLabel(product)}</span></div><div class="quantity-row"><div class="quantity-control"><button data-quantity="-" aria-label="Diminuir quantidade">−</button><span data-quantity-value>1</span><button data-quantity="+" aria-label="Aumentar quantidade">+</button></div><button class="primary-wide" data-add-detail="${product.id}" ${product.stockCount <= 0 ? "disabled" : ""}>${product.stockCount <= 0 ? "Indisponível" : "Adicionar ao carrinho"}</button></div><div class="detail-note">Você pode solicitar orçamento pelo WhatsApp no próximo passo.</div>${productShippingMarkup(product)}</div></div><section class="related-section"><div class="section-label"><div><span class="eyebrow">COMPLETE SEU LOADOUT</span><h2>A próxima<br>peça.</h2></div><a class="text-link" href="#loadout" data-route="loadout">Montar loadout</a></div><div class="product-grid">${activeProducts().filter((item) => item.id !== product.id).slice(0, 4).map(productCard).join("")}</div></section></div></section>`;
 }
 
 function loadoutPage() {
@@ -1259,7 +1301,8 @@ function safeBackupImage(value) {
 
 function restoreProductShape(raw, index) {
   if (!raw || typeof raw !== "object" || !String(raw.name || "").trim()) return null;
-  const product = { ...raw, id: String(raw.id || `restored-${Date.now()}-${index}`), brand: String(raw.brand || "IMPORTADO").trim().slice(0, 80), supplier: String(raw.supplier || raw.specs?.fornecedor || "").trim().slice(0, 100), name: String(raw.name).trim().slice(0, 120), type: String(raw.type || "FIELD GEAR").trim().slice(0, 100), meta: String(raw.meta || "FIELD READY").trim().slice(0, 100), price: Math.max(0, Number(raw.price) || 0), stockCount: Math.max(0, Math.round(Number(raw.stockCount ?? raw.stock ?? 0) || 0)), category: String(raw.category || "Equipamentos").trim().slice(0, 60), system: String(raw.system || "FIELD GEAR").trim().slice(0, 60), image: safeBackupImage(raw.image), specs: raw.specs && typeof raw.specs === "object" ? raw.specs : {}, description: String(raw.description || "").trim().slice(0, 600), tag: String(raw.tag || "").trim().slice(0, 40), sku: normalizeCatalogSku(raw.sku) || `REST-${String(index + 1).padStart(4, "0")}`, active: raw.active !== false };
+  const product = { ...raw, id: String(raw.id || `restored-${Date.now()}-${index}`), brand: String(raw.brand || "IMPORTADO").trim().slice(0, 80), supplier: String(raw.supplier || raw.specs?.fornecedor || "").trim().slice(0, 100), name: String(raw.name).trim().slice(0, 120), type: String(raw.type || "FIELD GEAR").trim().slice(0, 100), meta: String(raw.meta || "FIELD READY").trim().slice(0, 100), price: Math.max(0, Number(raw.price) || 0), stockCount: Math.max(0, Math.round(Number(raw.stockCount ?? raw.stock ?? 0) || 0)), category: String(raw.category || "Equipamentos").trim().slice(0, 60), system: String(raw.system || "FIELD GEAR").trim().slice(0, 60), image: safeBackupImage(raw.image), images: Array.isArray(raw.images) ? raw.images.map(safeBackupImage) : [], specs: raw.specs && typeof raw.specs === "object" ? raw.specs : {}, description: String(raw.description || "").trim().slice(0, 600), tag: String(raw.tag || "").trim().slice(0, 40), sku: normalizeCatalogSku(raw.sku) || `REST-${String(index + 1).padStart(4, "0")}`, active: raw.active !== false };
+  ensureProductImages(product);
   ensureProductShipping(product);
   return product;
 }
@@ -2575,14 +2618,33 @@ function compareModal() {
 function productModal(product = null) {
   const editing = Boolean(product);
   const originalProduct = product;
-  if (product) product.image = safeProductImage(product.image);
+  const existingImages = productImageList(product);
   const shipping = product?.shipping || productShippingDefaults(product || { category: "Gear" });
-  if (product) product = { ...product, brand: escapeHtml(product.brand || ""), name: escapeHtml(product.name || ""), sku: escapeHtml(product.sku || ""), system: escapeHtml(product.system || "AEG"), image: escapeHtml(product.image || ""), description: escapeHtml(product.description || ""), supplier: escapeHtml(product.supplier || ""), shipping: { ...shipping, recommendedPackage: escapeHtml(shipping.recommendedPackage || ""), logisticsNote: escapeHtml(shipping.logisticsNote || "") } };
+  if (product) product = { ...product, brand: escapeHtml(product.brand || ""), name: escapeHtml(product.name || ""), sku: escapeHtml(product.sku || ""), system: escapeHtml(product.system || "AEG"), image: escapeHtml(existingImages[0] || ""), description: escapeHtml(product.description || ""), supplier: escapeHtml(product.supplier || ""), shipping: { ...shipping, recommendedPackage: escapeHtml(shipping.recommendedPackage || ""), logisticsNote: escapeHtml(shipping.logisticsNote || "") } };
   openModal(`<span class="eyebrow">PRODUCT REGISTER / ${editing ? "EDIT" : "NEW"}</span><h2>${editing ? "Editar produto." : "Novo produto."}</h2><p>Atualize as informações essenciais para manter o catálogo pronto para o campo.</p><form class="form-grid" id="product-form"><div class="form-row"><label class="form-label">Marca<input name="brand" required value="${product?.brand || ""}" placeholder="ROSSI" /></label><label class="form-label">Nome<input name="name" required value="${product?.name || ""}" placeholder="NEPTUNE 10\"" /></label></div><div class="form-row"><label class="form-label">SKU<input name="sku" required value="${product?.sku || ""}" placeholder="FO-00231" /></label><label class="form-label">Sistema<input name="system" value="${product?.system || "AEG"}" placeholder="AEG" /></label></div><div class="form-row"><label class="form-label">Categoria<select name="category"><option ${product?.category === "Rifles" ? "selected" : ""}>Rifles</option><option ${product?.category === "Pistolas" ? "selected" : ""}>Pistolas</option><option ${product?.category === "Ópticas" ? "selected" : ""}>Ópticas</option><option ${product?.category === "Gear" ? "selected" : ""}>Gear</option><option ${product?.category === "Munição" ? "selected" : ""}>Munição</option><option ${product?.category === "Proteção" ? "selected" : ""}>Proteção</option></select></label><label class="form-label">Preço<input name="price" type="number" min="0" step="1" required value="${product?.price || ""}" placeholder="1899" /></label></div><label class="form-label">Estoque<input name="stockCount" type="number" min="0" step="1" required value="${product?.stockCount ?? 0}" placeholder="38" /></label><label class="form-label">Imagem<input name="image" value="${product?.image || "https://images.unsplash.com/photo-1728297756861-7af4647fada6?auto=format&fit=crop&w=1200&q=82"} /></label><label class="form-label">Descrição<textarea name="description" placeholder="Resumo do produto">${product?.description || ""}</textarea></label><fieldset class="shipping-fieldset"><legend>Dados de envio</legend><p class="form-help">Use centímetros para dimensões e quilogramas para peso. Esses dados alimentam o cálculo de frete.</p><div class="form-row"><label class="form-label">Peso (kg)<input name="weight" type="number" min="0" step="0.01" required value="${shipping.weight}" /></label><label class="form-label">Dimensões (C × L × A cm)<div class="form-row form-row-tight"><input name="length" type="number" min="0.1" step="0.1" required value="${shipping.length}" aria-label="Comprimento sem embalagem" /><input name="width" type="number" min="0.1" step="0.1" required value="${shipping.width}" aria-label="Largura sem embalagem" /><input name="height" type="number" min="0.1" step="0.1" required value="${shipping.height}" aria-label="Altura sem embalagem" /></div></label></div><div class="form-row"><label class="form-label">Peso com embalagem (kg)<input name="packagedWeight" type="number" min="0" step="0.01" required value="${shipping.packagedWeight}" /></label><label class="form-label">Dimensões com embalagem (C × L × A cm)<div class="form-row form-row-tight"><input name="packagedLength" type="number" min="0.1" step="0.1" required value="${shipping.packagedLength}" aria-label="Comprimento com embalagem" /><input name="packagedWidth" type="number" min="0.1" step="0.1" required value="${shipping.packagedWidth}" aria-label="Largura com embalagem" /><input name="packagedHeight" type="number" min="0.1" step="0.1" required value="${shipping.packagedHeight}" aria-label="Altura com embalagem" /></div></label></div><div class="form-row"><label class="form-label">Frágil<select name="fragile"><option value="false" ${!shipping.fragile ? "selected" : ""}>Não</option><option value="true" ${shipping.fragile ? "selected" : ""}>Sim</option></select></label><label class="form-label">Pode combinar<select name="canCombine"><option value="true" ${shipping.canCombine ? "selected" : ""}>Sim</option><option value="false" ${!shipping.canCombine ? "selected" : ""}>Não</option></select></label></div><div class="form-row"><label class="form-label">Enviar separado<select name="separate"><option value="false" ${!shipping.separate ? "selected" : ""}>Não</option><option value="true" ${shipping.separate ? "selected" : ""}>Sim</option></select></label><label class="form-label">Empilhável<select name="stackable"><option value="true" ${shipping.stackable ? "selected" : ""}>Sim</option><option value="false" ${!shipping.stackable ? "selected" : ""}>Não</option></select></label></div><label class="form-label">Embalagem recomendada<input name="recommendedPackage" value="${shipping.recommendedPackage || ""}" placeholder="Caixa Acessórios M" /></label><label class="form-label">Observações logísticas<textarea name="logisticsNote" placeholder="Cuidados para separação e embalagem">${shipping.logisticsNote || ""}</textarea></label></fieldset><button class="modal-submit" type="submit">${editing ? "Salvar alterações" : "Cadastrar produto"}</button></form>`);
+  let selectedImageFiles = [];
+  const legacyImageLabel = document.querySelector("#product-form input[name=image]")?.closest(".form-label");
+  if (legacyImageLabel) {
+    legacyImageLabel.outerHTML = `<fieldset class="product-media-fieldset"><legend>Imagens do produto</legend><p class="form-help">Você pode informar URLs ou subir várias fotos. A primeira imagem será a capa do produto.</p><label class="form-label">Adicionar URLs <span class="form-help">uma por linha</span><textarea name="imageUrls" rows="4" placeholder="https://.../produto-01.jpg\nhttps://.../produto-02.jpg">${escapeHtml(existingImages.join("\n"))}</textarea></label><label class="product-upload-dropzone"><input id="product-image-upload" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple /><span class="dropzone-mark">↥</span><strong>Subir fotos do produto</strong><small>JPG, PNG, WEBP ou GIF · até 5 MB por imagem · várias fotos permitidas</small><span class="outline-cta">Escolher imagens</span></label>${imagePreviewMarkup(existingImages)}</fieldset>`;
+  }
+  const imageUrlsField = document.querySelector("#product-form textarea[name=imageUrls]");
+  const uploadInput = document.querySelector("#product-image-upload");
+  const refreshMediaPreview = () => {
+    const urls = imageUrlLines(imageUrlsField?.value).filter((url) => safeProductImage(url) !== "/assets/product-image-pending.svg");
+    const previews = [...urls, ...selectedImageFiles.map((file) => URL.createObjectURL(file))].slice(0, 12);
+    const current = document.querySelector("[data-product-media-preview]");
+    if (current) current.outerHTML = imagePreviewMarkup(previews);
+  };
+  imageUrlsField?.addEventListener("input", refreshMediaPreview);
+  uploadInput?.addEventListener("change", () => {
+    const files = Array.from(uploadInput.files || []);
+    const invalid = files.find((file) => !file.type.startsWith("image/") || file.size > 5 * 1024 * 1024);
+    if (invalid) { uploadInput.value = ""; selectedImageFiles = []; showToast("Escolha somente imagens de até 5 MB cada."); return; }
+    selectedImageFiles = files.slice(0, 8);
+    refreshMediaPreview();
+  });
   const priceField = document.querySelector("#product-form input[name=price]");
   if (priceField) { priceField.type = "text"; priceField.inputMode = "decimal"; priceField.removeAttribute("step"); priceField.value = formatPriceInput(product?.price); priceField.placeholder = "1.400,00"; }
-  const imageField = document.querySelector("#product-form input[name=image]");
-  if (imageField) { imageField.value = product?.image === "/assets/product-image-pending.svg" ? "" : product?.image || ""; imageField.placeholder = "https://..."; }
   const productNameField = document.querySelector("#product-form input[name=name]")?.closest(".form-label");
   if (productNameField && !document.querySelector("#product-form [name=supplier]")) productNameField.insertAdjacentHTML("afterend", `<label class="form-label">Fornecedor<select name="supplier"><option value="">Sem fornecedor informado</option>${state.suppliers.filter((supplier) => supplier.active || supplier.name === product?.supplier).map((supplier) => `<option value="${escapeHtml(supplier.name)}" ${supplier.name === product?.supplier ? "selected" : ""}>${escapeHtml(supplier.name)}</option>`).join("")}</select><small class="form-help">Cadastre novos fornecedores em Configurações → Fornecedores.</small></label>`);
   const categorySelect = document.querySelector("#product-form select[name=category]");
@@ -2593,7 +2655,7 @@ function productModal(product = null) {
     const selected = state.suppliers.find((supplier) => supplier.name === event.target.value);
     originalProduct.supplierId = selected?.id || "";
   });
-  document.querySelector("#product-form").addEventListener("submit", (event) => {
+  document.querySelector("#product-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const shippingData = { weight: Number(form.get("weight")), length: Number(form.get("length")), width: Number(form.get("width")), height: Number(form.get("height")), packagedWeight: Number(form.get("packagedWeight")), packagedLength: Number(form.get("packagedLength")), packagedWidth: Number(form.get("packagedWidth")), packagedHeight: Number(form.get("packagedHeight")), fragile: form.get("fragile") === "true", stackable: form.get("stackable") === "true", canCombine: form.get("canCombine") === "true", separate: form.get("separate") === "true", originalPackaging: Boolean(originalProduct?.shipping?.originalPackaging), recommendedPackage: form.get("recommendedPackage")?.toString().trim() || "", logisticsNote: form.get("logisticsNote")?.toString().trim() || "", verified: true, source: "seller" };
@@ -2601,7 +2663,24 @@ function productModal(product = null) {
     const parsedPrice = importNumber(form.get("price"));
     if (!Number.isFinite(parsedPrice) || parsedPrice < 0) { showToast("Informe um preço válido, por exemplo: 1.400,00."); return; }
     const parsedStock = Math.max(0, Math.round(importNumber(form.get("stockCount"))));
-    const data = { brand: form.get("brand").toString().toUpperCase(), name: form.get("name").toString().toUpperCase(), supplier: form.get("supplier")?.toString().trim() || (editing ? originalProduct.supplier || "" : ""), sku: form.get("sku").toString().trim().toUpperCase(), category: form.get("category"), system: form.get("system").toString().toUpperCase(), price: parsedPrice, stockCount: parsedStock, image: safeProductImage(form.get("image")), description: String(form.get("description") || "").trim() || (editing ? originalProduct.description || "" : "Equipamento pronto para completar seu próximo loadout."), type: `${form.get("system")} · FIELD GEAR`, meta: "FIELD READY", stock: stockLabel({ stockCount: parsedStock }), specs: editing ? { ...(originalProduct.specs || {}), Sistema: form.get("system") } : { FPS: "—", Gearbox: "—", Peso: "—", Sistema: form.get("system"), "Hop-Up": "—", Material: "—" }, shipping: shippingData, tag: editing ? originalProduct.tag : "Novo", active: true };
+    const typedImages = imageUrlLines(form.get("imageUrls")).filter((url) => safeProductImage(url) !== "/assets/product-image-pending.svg");
+    let uploadedImages = [];
+    const submit = event.currentTarget.querySelector("button[type=submit]");
+    if (submit) { submit.disabled = true; submit.textContent = "Salvando…"; }
+    try {
+      if (selectedImageFiles.length) {
+        const cloud = window.FieldOpsSupabase;
+        if (!cloud?.session || !cloud.uploadProductImages) throw new Error("Entre na conta da loja para subir imagens no catálogo.");
+        uploadedImages = await cloud.uploadProductImages(selectedImageFiles, form.get("sku").toString().trim());
+      }
+    } catch (error) {
+      if (submit) { submit.disabled = false; submit.textContent = editing ? "Salvar alterações" : "Cadastrar produto"; }
+      showToast(`Não foi possível subir as imagens: ${error.message}`);
+      return;
+    }
+    const images = [...new Set([...uploadedImages, ...typedImages])].slice(0, 12);
+    const data = { brand: form.get("brand").toString().toUpperCase(), name: form.get("name").toString().toUpperCase(), supplier: form.get("supplier")?.toString().trim() || (editing ? originalProduct.supplier || "" : ""), sku: form.get("sku").toString().trim().toUpperCase(), category: form.get("category"), system: form.get("system").toString().toUpperCase(), price: parsedPrice, stockCount: parsedStock, images, image: images[0] || "/assets/product-image-pending.svg", description: String(form.get("description") || "").trim() || (editing ? originalProduct.description || "" : "Equipamento pronto para completar seu próximo loadout."), type: `${form.get("system")} · FIELD GEAR`, meta: "FIELD READY", stock: stockLabel({ stockCount: parsedStock }), specs: editing ? { ...(originalProduct.specs || {}), Sistema: form.get("system") } : { FPS: "—", Gearbox: "—", Peso: "—", Sistema: form.get("system"), "Hop-Up": "—", Material: "—" }, shipping: shippingData, tag: editing ? originalProduct.tag : "Novo", active: true };
+    ensureProductImages(data);
     const before = editing ? JSON.parse(JSON.stringify(originalProduct)) : null;
     if (editing) Object.assign(originalProduct, data);
     else products.unshift(ensureProductShipping({ id: `${data.brand.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`, ...data }));
@@ -4196,6 +4275,11 @@ function bindViewEvents() {
   document.querySelectorAll("[data-product]").forEach((el) => el.addEventListener("click", (event) => { if (!el.matches("button") && event.target.closest("button")) return; const product = findProduct(el.dataset.product); if (product) go("product", product); }));
   document.querySelectorAll("[data-add]").forEach((el) => el.addEventListener("click", () => addToCart(el.dataset.add)));
   document.querySelectorAll("[data-add-detail]").forEach((el) => el.addEventListener("click", () => addToCart(el.dataset.addDetail, state.quantity)));
+  document.querySelectorAll("[data-product-gallery-thumb]").forEach((el) => el.addEventListener("click", () => {
+    const main = document.querySelector("[data-product-gallery-main]");
+    if (main) main.src = safeProductImage(el.dataset.productGalleryThumb);
+    document.querySelectorAll("[data-product-gallery-thumb]").forEach((thumb) => thumb.classList.toggle("is-active", thumb === el));
+  }));
   document.querySelectorAll("[data-favorite]").forEach((el) => el.addEventListener("click", (event) => { event.stopPropagation(); toggleFavorite(el.dataset.favorite); }));
   document.querySelectorAll("[data-compare]").forEach((el) => el.addEventListener("click", (event) => { event.stopPropagation(); toggleCompare(el.dataset.compare); }));
   document.querySelectorAll("[data-category]").forEach((el) => el.addEventListener("click", () => { state.category = el.dataset.category === state.category ? "" : el.dataset.category; state.search = ""; go("catalog"); }));
