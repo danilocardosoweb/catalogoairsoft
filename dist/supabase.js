@@ -382,9 +382,20 @@
     const org = orgs?.[0];
     if (!org) return null;
     organizationId = org.id;
+    const productSelect = "id,sku,barcode,name,description,system,product_type,supplier_id,specs,shipping,is_active,brands(name),categories(name),product_prices(amount,tier,is_active),product_media(url,alt_text,is_primary,sort_order),inventory(available_quantity)";
+    const productSelectBeforeSuppliersMigration = "id,sku,barcode,name,description,system,product_type,specs,shipping,is_active,brands(name),categories(name),product_prices(amount,tier,is_active),product_media(url,alt_text,is_primary,sort_order),inventory(available_quantity)";
+    const loadProducts = async () => {
+      try {
+        return await dataRequest(`/products?organization_id=eq.${org.id}&is_active=eq.true&select=${productSelect}&limit=1000`);
+      } catch (error) {
+        if (!/supplier_id|column .* does not exist/i.test(String(error?.message || ""))) throw error;
+        console.warn("Field Ops: usando o formato de catálogo anterior até a migração de fornecedores ser aplicada.");
+        return dataRequest(`/products?organization_id=eq.${org.id}&is_active=eq.true&select=${productSelectBeforeSuppliersMigration}&limit=1000`);
+      }
+    };
     const [categoryRows, productRows, bannerRows, radarRows, airdropRows] = await Promise.all([
       dataRequest(`/categories?organization_id=eq.${org.id}&is_active=eq.true&select=id,name,description,image_url,is_active,sort_order&order=sort_order.asc`),
-      dataRequest(`/products?organization_id=eq.${org.id}&is_active=eq.true&select=id,sku,barcode,name,description,system,product_type,supplier_id,specs,shipping,is_active,brands(name),categories(name),product_prices(amount,tier,is_active),product_media(url,alt_text,is_primary,sort_order),inventory(available_quantity)&limit=1000`),
+      loadProducts(),
       dataRequest(`/banners?organization_id=eq.${org.id}&is_active=eq.true&select=id,name,media_type,media_url,eyebrow,title,title_accent,subtitle,cta_label,cta_target,is_active,sort_order&order=sort_order.asc`),
       dataRequest(`/radar_content?organization_id=eq.${org.id}&status=eq.published&select=*`),
       dataRequest(`/airdrops?organization_id=eq.${org.id}&is_active=eq.true&select=*`)
