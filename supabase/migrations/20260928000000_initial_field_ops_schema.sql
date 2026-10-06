@@ -403,6 +403,69 @@ begin
   end loop;
 end $$;
 
+-- Re-running this migration is safe: remove only the policies declared below.
+-- This does not remove tables, rows, functions or policies from later migrations.
+do $$
+declare
+  policy_row record;
+begin
+  for policy_row in
+    select schemaname, tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+      and policyname = any (array[
+        'public can read active organizations',
+        'members can read their organization',
+        'public can read active brands',
+        'public can read active categories',
+        'public can read active products',
+        'public can read product media',
+        'public can read retail prices',
+        'public can read active banners',
+        'public can read published radar content',
+        'public can read active airdrops',
+        'users can read their profile',
+        'users can update their profile',
+        'users can read their memberships',
+        'organization admins can manage memberships',
+        'members can read brands',
+        'store operators manage brands',
+        'members can read categories',
+        'store operators manage categories',
+        'members can read products',
+        'store operators manage products',
+        'members can read product media',
+        'store operators manage product media',
+        'members can read prices',
+        'store operators manage prices',
+        'members can read inventory',
+        'store operators manage inventory',
+        'customers can read their own record',
+        'store staff manage customers',
+        'customers can create their own quote',
+        'customers can read their own quotes',
+        'store staff manage quotes',
+        'quote owners can read quote items',
+        'store staff manage quote items',
+        'customers can read their own orders',
+        'store staff manage orders',
+        'order owners can read order items',
+        'store staff manage order items',
+        'customers can read their shipments',
+        'store staff manage shipments',
+        'store staff manage banners',
+        'store staff manage radar sources',
+        'store staff manage radar content',
+        'store staff manage airdrops',
+        'users can read their redemptions',
+        'store staff manage redemptions',
+        'store staff can read audit events'
+      ])
+  loop
+    execute format('drop policy if exists %I on public.%I', policy_row.policyname, policy_row.tablename);
+  end loop;
+end $$;
+
 -- Public catalog and published content are readable; all writes remain authenticated.
 create policy "public can read active organizations"
   on public.organizations for select to anon, authenticated
