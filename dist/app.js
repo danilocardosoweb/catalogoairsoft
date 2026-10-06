@@ -697,15 +697,17 @@ function cloudSnapshot() {
     favorites: state.favorites,
     compare: state.compare,
     loadout: state.loadout,
-    account: state.account,
     profile: state.profile,
     recentSearches: state.recentSearches,
     recentProducts: state.recentProducts,
     theme: state.theme,
     cartShipping: state.cartShipping,
     appliedAirdropCode: state.appliedAirdropCode || "",
-    suppliers: state.suppliers,
-    auditEvents: state.auditEvents
+    importHistory: state.importHistory,
+    metricsFilters: state.metricsFilters,
+    radar: state.radar,
+    radarFollowing: state.radarFollowing,
+    radarAssist: state.radarAssist
   };
   return JSON.parse(JSON.stringify(payload));
 }
@@ -721,12 +723,12 @@ function catalogSnapshot() {
 
 function applyCloudSnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== "object") return false;
-  const stateKeys = ["cart", "favorites", "compare", "loadout", "account", "profile", "recentSearches", "recentProducts", "theme", "cartShipping", "appliedAirdropCode", "suppliers", "auditEvents"];
+  const stateKeys = ["cart", "favorites", "compare", "loadout", "profile", "recentSearches", "recentProducts", "theme", "cartShipping", "appliedAirdropCode", "importHistory", "metricsFilters", "radar", "radarFollowing", "radarAssist"];
   stateKeys.forEach((key) => {
     if (snapshot[key] !== undefined && snapshot[key] !== null) state[key] = snapshot[key];
   });
-  state.suppliers = Array.isArray(state.suppliers) ? state.suppliers.map(ensureSupplierShape) : [];
-  state.auditEvents = Array.isArray(state.auditEvents) ? state.auditEvents : [];
+  state.importHistory = Array.isArray(state.importHistory) ? state.importHistory : [];
+  state.metricsFilters = { ...state.metricsFilters, ...(snapshot.metricsFilters || {}) };
   // Preserve local history created before the relational operational tables were
   // enabled. New records are written to the shared tables and replace this
   // fallback after the next hydration.
@@ -750,7 +752,7 @@ function legacyBrowserValue(key, fallback = null) {
   }
 }
 
-function restoreLegacyBrowserState() {
+function restoreLegacyBrowserState({ includeCatalog = false } = {}) {
   const legacyProducts = legacyBrowserValue("fieldops-products", null);
   if (!Array.isArray(legacyProducts) || !legacyProducts.length) return false;
   const snapshot = {
@@ -780,8 +782,13 @@ function restoreLegacyBrowserState() {
     airdrops: legacyBrowserValue("fieldops-airdrops", seedAirdrops),
     appliedAirdropCode: window.localStorage.getItem("fieldops-airdrop-code") || ""
   };
+  if (includeCatalog) {
+    products.splice(0, products.length, ...legacyProducts);
+    products.forEach((product) => { ensureProductShipping(product); ensureProductImages(product); });
+    state.categories = Array.isArray(snapshot.categories) ? snapshot.categories : state.categories;
+    state.banners = Array.isArray(snapshot.banners) ? snapshot.banners : state.banners;
+  }
   applyCloudSnapshot(snapshot);
-  state.account = null;
   return true;
 }
 
@@ -801,14 +808,23 @@ async function hydrateCloudState() {
       if (catalog.airdrops?.length) state.airdrops = catalog.airdrops;
     }
     const snapshot = await cloud.loadUserState();
+    let restoredLegacy = false;
     if (snapshot) applyCloudSnapshot(snapshot);
-    else if (!catalog?.products?.length && restoreLegacyBrowserState()) {
-      window.setTimeout(() => showToast("Dados anteriores recuperados. Entre na conta para sincronizar no Supabase."), 250);
+    else {
+      restoredLegacy = restoreLegacyBrowserState({ includeCatalog: !catalog?.products?.length });
+      if (restoredLegacy && !cloud.session) window.setTimeout(() => showToast("Dados anteriores recuperados nesta sessão. Entre na conta para sincronizar no Supabase."), 250);
     }
     state.cart = state.cart.filter((item) => findProduct(item.id));
     state.favorites = state.favorites.filter((id) => findProduct(id));
     state.compare = state.compare.filter((id) => findProduct(id));
     if (cloud.session) {
+      const accountMeta = await cloud.bootstrapAccount({ fullName: cloud.session.user?.user_metadata?.full_name || "", phone: cloud.session.user?.user_metadata?.phone || "", role: "consumer" });
+      const assignedRole = accountMeta?.role || "consumer";
+      const assignedProfile = accessProfiles[normalizeAccessRole(assignedRole)] || accessProfiles.consumer;
+      const email = String(cloud.session.user?.email || "").trim().toLowerCase();
+      const resolvedName = accountMeta?.full_name || cloud.session.user?.user_metadata?.full_name || email.split("@")[0] || "Usuário";
+      state.account = { ...(state.account || {}), name: resolvedName, email, phone: accountMeta?.phone || cloud.session.user?.user_metadata?.phone || "", role: assignedRole, permissions: accountMeta?.permissions || [], segment: assignedProfile.label, userId: cloud.session.user?.id || "" };
+      state.profile = { ...(state.profile || {}), name: resolvedName, email, phone: accountMeta?.phone || cloud.session.user?.user_metadata?.phone || "", role: assignedRole };
       const organizationSettings = await cloud.loadOrganizationSettings().catch(() => null);
       if (organizationSettings) {
         if (organizationSettings.public) state.settings = { ...defaultSettings, ...organizationSettings.public };
@@ -820,6 +836,10 @@ async function hydrateCloudState() {
         state.orders = (operational.orders || []).map(ensureOrderShape);
       }
       state.auditEvents = await cloud.loadAuditEvents().catch(() => state.auditEvents || []);
+      if (restoredLegacy && !catalog?.products?.length && ["retailer", "operator", "admin"].includes(assignedRole)) {
+        await cloud.syncCatalog({ account: state.account, catalog: catalogSnapshot() });
+      }
+      if (restoredLegacy) persist();
     }
     applyTheme(state.theme);
     render();
@@ -837,7 +857,7 @@ function persist(options = {}) {
 }
 
 function saveStatusLabel(status = state.cloudSaveStatus) {
-  return { saving: "Salvando…", saved: "Salvo na base oficial", failed: "Falha ao salvar", local: "Salvo localmente" }[status] || "Pronto para salvar";
+  return { saving: "Salvando…", saved: "Salvo na base oficial", failed: "Falha ao salvar", local: "Aguardando login" }[status] || "Pronto para salvar";
 }
 
 function addAuditEvent(entityType, entityId, action, beforeData = null, afterData = null, note = "") {
@@ -2590,10 +2610,15 @@ function accountModal(mode = "login") {
       const assignedRole = accountMeta?.role || "consumer";
       const assignedProfile = accessProfiles[normalizeAccessRole(assignedRole)] || accessProfiles.consumer;
       const previousState = await cloud.loadUserState();
+      const restoredLegacy = !previousState && restoreLegacyBrowserState({ includeCatalog: false });
       if (previousState) applyCloudSnapshot(previousState);
       const resolvedName = accountMeta?.full_name || state.account?.name || state.profile?.name || name || email.split("@")[0];
       state.account = { ...(state.account || {}), name: resolvedName, email, phone: accountMeta?.phone || phone || state.account?.phone || "", role: assignedRole, permissions: accountMeta?.permissions || state.account?.permissions || [], segment: assignedProfile.label, userId: cloud.session?.user?.id || "" };
       state.profile = { ...(state.profile || {}), name: resolvedName, email, phone: accountMeta?.phone || phone || state.profile?.phone || "", role: assignedRole };
+      if (restoredLegacy && ["retailer", "operator", "admin"].includes(assignedRole)) {
+        const remoteCatalog = await cloud.loadPublicCatalog();
+        if (!remoteCatalog?.products?.length) await cloud.syncCatalog({ account: state.account, catalog: catalogSnapshot() });
+      }
       persist();
       closeModal();
       go(roleHomeRoute());

@@ -338,6 +338,12 @@
     ]);
   }
 
+  async function syncCatalog(snapshot) {
+    if (!session?.user?.id || !organizationId) throw new Error("A sessão da loja ainda não está pronta para migrar o catálogo.");
+    await syncRelationalCatalog(snapshot);
+    return { synced: true };
+  }
+
   function queueSave(snapshot, options = {}) {
     pendingSnapshot = snapshot;
     pendingCatalogSync = pendingCatalogSync || options.syncCatalog === true;
@@ -347,6 +353,7 @@
       const next = pendingSnapshot;
       pendingSnapshot = null;
       if (!next || !session?.user?.id) {
+        pendingCatalogSync = false;
         window.dispatchEvent(new CustomEvent("fieldops:save-state", { detail: { status: "local" } }));
         return;
       }
@@ -531,6 +538,7 @@
     loadUserState,
     loadPublicCatalog,
     uploadProductImages,
+    syncCatalog,
     loadOrganizationSettings,
     saveOrganizationSettings,
     loadOperationalData,

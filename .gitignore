@@ -5,3 +5,5 @@ node_modules/
 outputs/
 supabase/.temp/
 enrich-product-workbook.mjs
+.analysis-files/
+.sites-remote/

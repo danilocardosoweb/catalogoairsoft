@@ -54,7 +54,7 @@ O projeto informado (`wkvhglnfugbcgirhfbgt`) não está autorizado na conexão S
 2. Criar o usuário administrativo e seu vínculo em `organization_members`.
 3. Migrar produtos, categorias e preços do backup JSON/planilha para o catálogo relacional.
 4. Migrar orçamentos e pedidos locais com os snapshots dos itens.
-5. O frontend já não lê nem grava `localStorage`; o estado autenticado é sincronizado no `user_app_state` pela Data API do Supabase, usando a chave publicável e RLS.
+5. O frontend não grava mais o estado operacional em `localStorage`; a sessão e o estado autenticado são sincronizados no `user_app_state` pela Data API do Supabase, usando a chave publicável e RLS. Existe apenas uma leitura de compatibilidade dos dados antigos do navegador para permitir a migração inicial, sem usá-los como fonte oficial depois da entrada na conta.
 6. Mover criação de pedidos, reserva de estoque, Airdrops e integrações externas para Edge Functions autenticadas.
 7. Validar RLS com consumidor, lojista, distribuidor e administrador antes da publicação.
 
