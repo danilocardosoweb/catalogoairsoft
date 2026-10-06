@@ -150,7 +150,7 @@ html[data-theme="light"] .theme-toggle-marker { transform: translateX(12px); bac
 .text-link::after { content: "↗"; color: var(--accent); font-size: 16px; }
 .text-link:hover { color: var(--accent); }
 
-.home-hero { position: relative; min-height: 590px; padding: clamp(44px, 7vw, 104px) clamp(24px, 7vw, 110px); display: flex; align-items: center; overflow: hidden; isolation: isolate; background: #0b0e0c; border-bottom: 1px solid var(--line); }
+.home-hero { position: relative; min-height: 590px; padding: clamp(44px, 7vw, 104px) clamp(24px, 7vw, 110px); display: flex; align-items: center; overflow: hidden; isolation: isolate; background: #0b0e0c; border-bottom: 1px solid var(--line); touch-action: pan-y; }
 .home-hero.is-video-fallback { background: linear-gradient(135deg, #0b0e0c, #182119 72%, #0e140f); }
 .hero-video { --hero-operator-shift: 0px; position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; opacity: 1; filter: saturate(.92) contrast(1.04); pointer-events: none; user-select: none; }
 .hero-video-shade { display: none; position: absolute; z-index: 1; inset: 0; pointer-events: none; background: transparent; }
