@@ -347,6 +347,19 @@ function currentAccessRole() {
   return normalizeAccessRole(state.account?.role || state.account?.segment || state.profile?.role);
 }
 
+function catalogWriteAccessReady() {
+  const cloud = window.FieldOpsSupabase;
+  const role = String(state.account?.role || "").trim().toLowerCase();
+  return Boolean(cloud?.configured?.() && cloud?.session?.user?.id && state.account?.userId && ["retailer", "operator", "admin"].includes(role));
+}
+
+function catalogWriteAccessMessage() {
+  const cloud = window.FieldOpsSupabase;
+  if (!cloud?.configured?.()) return "O Supabase ainda não está configurado para publicar o catálogo.";
+  if (!cloud?.session?.user?.id) return "Entre com uma conta autorizada antes de publicar a planilha. O arquivo foi apenas analisado.";
+  return "Sua conta não tem permissão para publicar produtos no catálogo oficial.";
+}
+
 function currentAccessProfile() {
   return accessProfiles[currentAccessRole()];
 }
@@ -2008,7 +2021,7 @@ async function toggleAccessGrant(id, status) {
 function adminProductsPage() {
   const query = state.adminProductSearch.trim().toLowerCase();
   const list = activeProducts().filter((product) => [product.name, product.brand, product.category, product.sku, product.barcode, product.supplier, product.type, product.system].filter(Boolean).join(" ").toLowerCase().includes(query));
-  return adminShell("admin-products", "02 / CATALOG", "Produtos.", `<div class="admin-toolbar"><div class="admin-search"><span class="icon icon-search"></span><input id="admin-product-search" value="${escapeHtml(state.adminProductSearch)}" placeholder="Buscar por produto, SKU, código de barras, marca ou fornecedor" /></div><button class="hero-cta" data-action="product-new">Novo produto</button></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">PRODUCT REGISTER</span><h2>${list.length} produtos ativos</h2></div><span class="admin-sync"><i class="status-dot"></i> Salvo neste dispositivo</span></div><div class="admin-table-wrap"><table class="admin-table products-table"><thead><tr><th>Produto</th><th>SKU</th><th>Categoria</th><th>Estoque</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead><tbody>${list.length ? list.map((product) => `<tr><td><div class="admin-product-cell"><img src="${escapeHtml(product.image)}" alt="" /><div><strong>${escapeHtml(product.name)}</strong><small>${escapeHtml(product.brand)} · ${escapeHtml(product.type)}</small></div></div></td><td>${escapeHtml(product.sku)}</td><td>${escapeHtml(product.category)}</td><td><strong>${product.stockCount}</strong><small>unidades</small></td><td><strong>${money(product.price)}</strong></td><td><span class="admin-status ${product.active === false ? "status-low" : "status-live"}">${product.active === false ? "Desativado" : "Publicado"}</span></td><td><div class="admin-row-actions"><button data-edit-product="${escapeHtml(product.id)}" aria-label="Editar ${escapeHtml(product.name)}">Editar</button><button data-duplicate-product="${escapeHtml(product.id)}" aria-label="Duplicar ${escapeHtml(product.name)}">Duplicar</button><button data-delete-product="${escapeHtml(product.id)}" aria-label="Excluir ${escapeHtml(product.name)}">Excluir</button></div></td></tr>`).join("") : `<tr><td colspan="7"><div class="admin-inline-empty">Nenhum produto corresponde à busca.</div></td></tr>`}</tbody></table></div></section>`);
+  return adminShell("admin-products", "02 / CATALOG", "Produtos.", `<div class="admin-toolbar"><div class="admin-search"><span class="icon icon-search"></span><input id="admin-product-search" value="${escapeHtml(state.adminProductSearch)}" placeholder="Buscar por produto, SKU, código de barras, marca ou fornecedor" /></div><button class="hero-cta" data-action="product-new">Novo produto</button></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">PRODUCT REGISTER</span><h2>${list.length} produtos ativos</h2></div><span class="admin-sync save-state-${state.cloudSaveStatus}" data-cloud-save-status><i class="status-dot"></i>${saveStatusLabel()}</span></div><div class="admin-table-wrap"><table class="admin-table products-table"><thead><tr><th>Produto</th><th>SKU</th><th>Categoria</th><th>Estoque</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead><tbody>${list.length ? list.map((product) => `<tr><td><div class="admin-product-cell"><img src="${escapeHtml(product.image)}" alt="" /><div><strong>${escapeHtml(product.name)}</strong><small>${escapeHtml(product.brand)} · ${escapeHtml(product.type)}</small></div></div></td><td>${escapeHtml(product.sku)}</td><td>${escapeHtml(product.category)}</td><td><strong>${product.stockCount}</strong><small>unidades</small></td><td><strong>${money(product.price)}</strong></td><td><span class="admin-status ${product.active === false ? "status-low" : "status-live"}">${product.active === false ? "Desativado" : "Publicado"}</span></td><td><div class="admin-row-actions"><button data-edit-product="${escapeHtml(product.id)}" aria-label="Editar ${escapeHtml(product.name)}">Editar</button><button data-duplicate-product="${escapeHtml(product.id)}" aria-label="Duplicar ${escapeHtml(product.name)}">Duplicar</button><button data-delete-product="${escapeHtml(product.id)}" aria-label="Excluir ${escapeHtml(product.name)}">Excluir</button></div></td></tr>`).join("") : `<tr><td colspan="7"><div class="admin-inline-empty">Nenhum produto corresponde à busca.</div></td></tr>`}</tbody></table></div></section>`);
 }
 
 function adminQuotesPage() {
@@ -2021,7 +2034,9 @@ function adminImportPage() {
   const summary = preview ? summarizeImportRows(preview.validRows) : null;
   const lastImport = state.importHistory[0];
   const historyBlock = !preview && lastImport ? `<div class="import-file-banner"><span class="dropzone-mark">↶</span><div><strong>Última carga: ${lastImport.fileName}</strong><small>${lastImport.added} novos · ${lastImport.updated} atualizados · ${new Date(lastImport.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></div><button class="outline-cta" data-action="import-rollback" data-import-id="${lastImport.id}">Desfazer carga</button></div>` : "";
-  const body = preview ? `<div class="import-file-banner"><span class="dropzone-mark">✓</span><div><strong>${preview.fileName}</strong><small>${preview.validCount} registros válidos · ${preview.errorCount} erros de linha</small></div><button class="outline-cta" data-action="import-reset">Escolher outro</button></div><div class="import-preview"><div><span>Encontrados</span><strong>${preview.rows.length}</strong></div><div><span>Novos</span><strong>${summary.added}</strong></div><div><span>Atualizações</span><strong>${summary.updated}</strong></div><div><span>Erros</span><strong class="import-error-count">${preview.errorCount}</strong></div></div><div class="admin-table-wrap import-table"><table class="admin-table"><thead><tr>${preview.headers.slice(0, 6).map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${preview.rows.slice(0, 6).map((row) => `<tr>${preview.headers.slice(0, 6).map((header) => `<td>${escapeHtml(importCellValue(row, header, preview.headerKeys))}</td>`).join("")}</tr>`).join("")}</tbody></table></div><div class="import-actions"><button class="outline-cta" data-action="import-reset">Cancelar</button><button class="hero-cta" data-action="commit-import" ${preview.validCount ? "" : "disabled"}>Aplicar ${preview.validCount} registros</button></div>` : `<label class="dropzone"><input id="import-file" type="file" accept=".csv,.xlsx,.xls" /><span class="dropzone-mark">↑</span><strong>Solte sua planilha aqui</strong><small>CSV ou Excel até 10 MB</small><span class="outline-cta">Escolher arquivo</span></label><div class="import-preview"><div><span>Última análise</span><strong>—</strong></div><div><span>Novos</span><strong>—</strong></div><div><span>Atualizações</span><strong>—</strong></div><div><span>Erros</span><strong>—</strong></div></div><p class="import-help">Aceita as colunas da sua planilha: Produto, Quant, Cód.Barra, FORNECEDOR e Valor de Venda. Também reconhece nomes equivalentes em português ou inglês.</p>${historyBlock}`;
+  const canPublish = catalogWriteAccessReady();
+  const accessWarning = preview && !canPublish ? `<div class="shipping-feedback is-error" role="alert"><strong>Publicação bloqueada.</strong><br>${escapeHtml(catalogWriteAccessMessage())}</div>` : "";
+  const body = preview ? `<div class="import-file-banner"><span class="dropzone-mark">✓</span><div><strong>${preview.fileName}</strong><small>${preview.validCount} registros válidos · ${preview.errorCount} erros de linha</small></div><button class="outline-cta" data-action="import-reset">Escolher outro</button></div><div class="import-preview"><div><span>Encontrados</span><strong>${preview.rows.length}</strong></div><div><span>Novos</span><strong>${summary.added}</strong></div><div><span>Atualizações</span><strong>${summary.updated}</strong></div><div><span>Erros</span><strong class="import-error-count">${preview.errorCount}</strong></div></div><div class="admin-table-wrap import-table"><table class="admin-table"><thead><tr>${preview.headers.slice(0, 6).map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${preview.rows.slice(0, 6).map((row) => `<tr>${preview.headers.slice(0, 6).map((header) => `<td>${escapeHtml(importCellValue(row, header, preview.headerKeys))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>${accessWarning}<div class="import-actions"><button class="outline-cta" data-action="import-reset">Cancelar</button><button class="hero-cta" data-action="commit-import" ${preview.validCount && canPublish ? "" : "disabled"}>${canPublish ? `Aplicar ${preview.validCount} registros` : "Entrar para publicar"}</button></div>` : `<label class="dropzone"><input id="import-file" type="file" accept=".csv,.xlsx,.xls" /><span class="dropzone-mark">↑</span><strong>Solte sua planilha aqui</strong><small>CSV ou Excel até 10 MB</small><span class="outline-cta">Escolher arquivo</span></label><div class="import-preview"><div><span>Última análise</span><strong>—</strong></div><div><span>Novos</span><strong>—</strong></div><div><span>Atualizações</span><strong>—</strong></div><div><span>Erros</span><strong>—</strong></div></div><p class="import-help">Aceita as colunas da sua planilha: Produto, Quant, Cód.Barra, FORNECEDOR e Valor de Venda. Também reconhece nomes equivalentes em português ou inglês.</p>${historyBlock}`;
   return adminShell("admin-import", "05 / DATA INTAKE", "Importar.", `<div class="import-steps"><div class="import-step ${preview ? "done" : "active"}"><span>01</span><strong>Upload</strong><small>Enviar arquivo</small></div><div class="import-step ${preview ? "active" : ""}"><span>02</span><strong>Analisar</strong><small>Detectar colunas</small></div><div class="import-step"><span>03</span><strong>Validar</strong><small>Revisar erros</small></div><div class="import-step"><span>04</span><strong>Importar</strong><small>Publicar registros</small></div></div><section class="admin-panel import-panel"><div class="admin-panel-head"><div><span class="eyebrow">EXCEL / CSV</span><h2>${preview ? "Revise sua carga." : "Traga seu inventário."}</h2></div><span class="admin-sync">SKU é usado para atualizar itens existentes</span></div>${body}</section>`);
 }
 
@@ -3117,12 +3132,15 @@ function summarizeImportRows(rows) {
   }, { added: 0, updated: 0 });
 }
 
-function commitImport() {
+async function commitImport() {
   if (!state.importData?.validRows?.length) return;
+  if (!catalogWriteAccessReady()) { showToast(catalogWriteAccessMessage()); return; }
+  const cloud = window.FieldOpsSupabase;
+  const importData = state.importData;
   const batchId = String(Date.now());
   const snapshot = JSON.parse(JSON.stringify(products));
   const summary = { added: 0, updated: 0 };
-  state.importData.validRows.forEach((row, index) => {
+  importData.validRows.forEach((row, index) => {
     const data = importedProductData(row, index, batchId);
     data.supplier = importValue(row, ["fornecedor", "supplier", "distribuidor", "distributor"], "");
     data.type = importValue(row, ["tipo", "type", "product_type"], "Produto para Airsoft");
@@ -3144,10 +3162,24 @@ function commitImport() {
       summary.added += 1;
     }
   });
-  state.importHistory.unshift({ id: `import-${batchId}`, at: new Date().toISOString(), fileName: state.importData.fileName, added: summary.added, updated: summary.updated, snapshot });
-  state.importHistory = state.importHistory.slice(0, 10);
-  state.importData = null;
-  persist({ syncCatalog: true }); render(); showToast(`Carga aplicada: ${summary.added} novos · ${summary.updated} atualizados.`);
+  const historyEntry = { id: `import-${batchId}`, at: new Date().toISOString(), fileName: importData.fileName, added: summary.added, updated: summary.updated, snapshot };
+  state.cloudSaveStatus = "saving";
+  render();
+  try {
+    await cloud.syncCatalog({ account: state.account, catalog: catalogSnapshot() });
+    state.importHistory.unshift(historyEntry);
+    state.importHistory = state.importHistory.slice(0, 10);
+    state.importData = null;
+    state.cloudSaveStatus = "saved";
+    persist();
+    render();
+    showToast(`Carga publicada na base oficial: ${summary.added} novos · ${summary.updated} atualizados.`);
+  } catch (error) {
+    products.splice(0, products.length, ...snapshot);
+    state.cloudSaveStatus = "failed";
+    render();
+    showToast(`A carga não foi publicada: ${error.message}. O arquivo continua disponível para tentar novamente.`);
+  }
 }
 
 async function rollbackImport(id) {
@@ -4599,7 +4631,7 @@ document.addEventListener("click", (event) => {
   if (action === "admin-preview") { closeModal(); go(roleHomeRoute()); }
   if (action === "account-logout") { window.FieldOpsSupabase?.signOut(); state.account = null; const { name, email, phone, role, ...briefing } = state.profile || {}; state.profile = briefing; accountModal(); }
   if (action === "simulate-import") { const button = event.target.closest(".import-submit"); if (button) { button.textContent = "Arquivo analisado ✓"; button.disabled = true; showToast("Análise concluída: 15 registros precisam de revisão."); } }
-  if (action === "commit-import") commitImport();
+  if (action === "commit-import") void commitImport();
   if (action === "import-reset") { state.importData = null; render(); }
   if (action === "import-rollback") rollbackImport(event.target.closest("[data-import-id]")?.dataset.importId);
   if (action === "reset-local-data") resetLocalData();
