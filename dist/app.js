@@ -4233,7 +4233,9 @@ function bindHeroVideo() {
       if (!touchActive) return;
       const dragProgress = (event.clientX - touchStartX) / bounds.width;
       const nextProgress = clampProgress(touchStartProgress + dragProgress * 0.92);
-      touchMoved = touchMoved || Math.abs(event.clientX - touchStartX) > 8;
+      const dragDistance = Math.abs(event.clientX - touchStartX);
+      if (dragDistance > 8 && !touchMoved) hero.classList.add("is-operator-moving");
+      touchMoved = touchMoved || dragDistance > 8;
       hasPointer = true;
       if (Math.abs(nextProgress - targetProgress) < 0.003) return;
       targetProgress = nextProgress;
@@ -4263,6 +4265,7 @@ function bindHeroVideo() {
     if (event.pointerType !== "touch" || !touchActive) return;
     const bounds = hero.getBoundingClientRect();
     touchActive = false;
+    hero.classList.remove("is-operator-moving");
     try { hero.releasePointerCapture?.(event.pointerId); } catch {}
     if (!touchMoved && bounds.width) targetProgress = clampProgress((event.clientX - bounds.left) / bounds.width);
     startFrameLoop();
@@ -4388,6 +4391,7 @@ function bindHeroVideo() {
     hero.removeEventListener("pointercancel", finishTouch);
     hero.removeEventListener("pointerleave", onPointerLeave);
     window.removeEventListener("deviceorientation", onOrientation);
+    hero.classList.remove("is-operator-moving");
     if (heroSensorActivate === enableHeroSensor) heroSensorActivate = null;
     reducedMotionQuery?.removeEventListener?.("change", onMotionPreferenceChange);
     if (reducedMotionQuery && !reducedMotionQuery.removeEventListener) reducedMotionQuery.removeListener(onMotionPreferenceChange);
