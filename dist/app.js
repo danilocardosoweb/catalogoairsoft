@@ -97,9 +97,10 @@ const seedProducts = [
   }
 ];
 
-// Catalog data is hydrated from Supabase after the first render. The seed is only
-// a safe visual fallback while the store has not yet published its first records.
-const products = seedProducts;
+// Production mode: the interface must never invent catalog, commercial or content
+// records while the official Supabase data is loading or unavailable.
+const DEMO_DATA_ENABLED = false;
+const products = DEMO_DATA_ENABLED ? seedProducts : [];
 const shippingStatuses = ["Aguardando separação", "Em separação", "Separado", "Aguardando embalagem", "Embalado", "Etiqueta gerada", "Aguardando postagem", "Postado", "Em transporte", "Saiu para entrega", "Entregue", "Problema na entrega"];
 const defaultShippingPackages = [
   { id: "box-rifle-p", code: "RIFLE-P", name: "Caixa Rifle P", inner: { length: 105, width: 28, height: 14 }, outer: { length: 108, width: 31, height: 17 }, packagingWeight: 0.65, maxWeight: 8, type: "Caixa", cost: 8, active: true },
@@ -109,7 +110,7 @@ const defaultShippingPackages = [
   { id: "box-accessories-m", code: "ACESS-M", name: "Caixa Acessórios M", inner: { length: 45, width: 32, height: 20 }, outer: { length: 48, width: 35, height: 23 }, packagingWeight: 0.45, maxWeight: 8, type: "Caixa", cost: 7, active: true },
   { id: "box-accessories-g", code: "ACESS-G", name: "Caixa Acessórios G", inner: { length: 65, width: 45, height: 30 }, outer: { length: 68, width: 48, height: 33 }, packagingWeight: 0.7, maxWeight: 12, type: "Caixa", cost: 10, active: true }
 ];
-const defaultShippingSettings = { originZip: "", originAddress: "", originCity: "São Paulo", originState: "SP", cubingFactor: 5000, quoteValidityHours: 24, freeShippingMin: 499, flatSp: 19.9, pickupAddress: "Av. Paulista, 1000 · São Paulo / SP", pickupHours: "Seg a sex · 9h às 18h", pickupInstructions: "Apresente o número do pedido e um documento com foto." };
+const defaultShippingSettings = { originZip: "", originAddress: "", originCity: "São Paulo", originState: "SP", cubingFactor: 5000, quoteValidityHours: 24, freeShippingMin: 499, flatSp: 19.9, pickupAddress: "", pickupHours: "", pickupInstructions: "" };
 const storedShipping = null;
 
 function productShippingDefaults(product) {
@@ -199,7 +200,7 @@ function categoryImageUrl(value) {
   }
 }
 
-const defaultSettings = { whatsapp: "5511999999999", storeName: "Suprimentos Oliveira", city: "São Paulo", lowStock: 10, address: "", email: "", socials: { instagram: "", facebook: "", youtube: "", tiktok: "", x: "" } };
+const defaultSettings = { whatsapp: "", storeName: "Suprimentos Oliveira", city: "São Paulo", lowStock: 10, address: "", email: "", socials: { instagram: "", facebook: "", youtube: "", tiktok: "", x: "" } };
 const storedSettings = null;
 const bannerTypes = { video: "Vídeo", image: "Imagem" };
 const bannerTargets = { catalog: "Explorar catálogo", loadout: "Montar loadout", radar: "Abrir Radar", cart: "Abrir Airdrop" };
@@ -254,11 +255,14 @@ const state = {
   compare: [],
   quotes: [],
   orders: [],
-  loadout: { Rifle: "neptune-10" },
+  loadout: {},
   importData: null,
   pendingBackupRestore: null,
   importHistory: [],
   adminProductSearch: "",
+  inventorySearch: "",
+  inventoryAvailability: "all",
+  inventoryCategory: "all",
   accessGrants: [],
   suppliers: [],
   auditEvents: [],
@@ -270,7 +274,7 @@ const state = {
   recentSearches: [],
   recentProducts: [],
   settings: { ...defaultSettings, ...(storedSettings || {}) },
-  banners: Array.isArray(storedBanners) ? storedBanners : seedBanners,
+  banners: Array.isArray(storedBanners) ? storedBanners : (DEMO_DATA_ENABLED ? seedBanners : []),
   bannerIndex: 0,
   theme: "dark",
   quoteSearch: "",
@@ -284,10 +288,10 @@ const state = {
   quantity: 1,
   radar: { location: { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual" }, scope: "nearby", type: "all", radius: 100, sort: "relevance", view: "feed" },
   radarFollowing: [],
-  radarContents: seedRadarContent,
-  radarSources: Array.isArray(storedRadarSources) ? storedRadarSources : seedRadarSources,
+  radarContents: DEMO_DATA_ENABLED ? seedRadarContent : [],
+  radarSources: Array.isArray(storedRadarSources) ? storedRadarSources : (DEMO_DATA_ENABLED ? seedRadarSources : []),
   radarAssist: { ...defaultRadarAssist, ...(storedRadarAssist || {}) },
-  airdrops: seedAirdrops,
+  airdrops: DEMO_DATA_ENABLED ? seedAirdrops : [],
   appliedAirdropCode: ""
 };
 
@@ -451,7 +455,8 @@ function bannerMediaUrl(value, fallback) {
 
 function homeBanners() {
   const list = state.banners.filter((banner) => banner.active).sort((a, b) => a.order - b.order);
-  return (list.length ? list : seedBanners).map(ensureBannerShape);
+  const emptyCatalogBanner = { id: "catalog-empty", name: "Catálogo oficial", type: "video", media: storeBrandVideo, eyebrow: "SUPRIMENTOS OLIVEIRA", title: "SEU CATÁLOGO", titleAccent: "EM CAMPO.", subtitle: "Os banners publicados pela loja aparecerão aqui.", ctaLabel: "Ver catálogo", ctaTarget: "catalog", active: true, order: 1 };
+  return (list.length ? list : (DEMO_DATA_ENABLED ? seedBanners : [emptyCatalogBanner])).map(ensureBannerShape);
 }
 
 function ensureRadarContentShape(content) {
@@ -482,14 +487,14 @@ suppliersFromProducts.forEach((name) => {
 state.auditEvents = Array.isArray(state.auditEvents) ? state.auditEvents : [];
 state.metricsFilters = { period: "30", seller: "all", channel: "all", region: "all", product: "all", lossReason: "all", ...(state.metricsFilters || {}) };
 state.radar.location = { city: defaultSettings.city, state: "SP", country: "Brasil", mode: "manual", ...(state.radar.location || {}) };
-state.radarContents = (Array.isArray(state.radarContents) ? state.radarContents : seedRadarContent).map(ensureRadarContentShape).map((content) => content.country !== "Brasil" ? { ...content, state: "" } : content);
+state.radarContents = (Array.isArray(state.radarContents) ? state.radarContents : (DEMO_DATA_ENABLED ? seedRadarContent : [])).map(ensureRadarContentShape).map((content) => content.country !== "Brasil" ? { ...content, state: "" } : content);
 state.radarFollowing = Array.isArray(state.radarFollowing) ? state.radarFollowing : [];
-state.radarSources = (Array.isArray(state.radarSources) ? state.radarSources : seedRadarSources).map(ensureRadarSourceShape);
+state.radarSources = (Array.isArray(state.radarSources) ? state.radarSources : (DEMO_DATA_ENABLED ? seedRadarSources : [])).map(ensureRadarSourceShape);
 const existingRadarSourceIds = new Set(state.radarSources.map((source) => source.id));
-state.radarSources.push(...seedRadarSources.filter((source) => !existingRadarSourceIds.has(source.id)).map(ensureRadarSourceShape));
-state.banners = (Array.isArray(state.banners) ? state.banners : seedBanners).map(ensureBannerShape);
+if (DEMO_DATA_ENABLED) state.radarSources.push(...seedRadarSources.filter((source) => !existingRadarSourceIds.has(source.id)).map(ensureRadarSourceShape));
+state.banners = (Array.isArray(state.banners) ? state.banners : (DEMO_DATA_ENABLED ? seedBanners : [])).map(ensureBannerShape);
 state.radarAssist = { ...defaultRadarAssist, ...(state.radarAssist || {}), score: Math.max(0, Math.round(Number(state.radarAssist?.score) || 0)), assists: Math.max(0, Math.round(Number(state.radarAssist?.assists) || 0)), neutralizations: Math.max(0, Math.round(Number(state.radarAssist?.neutralizations) || 0)) };
-state.airdrops = (Array.isArray(state.airdrops) ? state.airdrops : seedAirdrops).map((campaign) => ({
+state.airdrops = (Array.isArray(state.airdrops) ? state.airdrops : (DEMO_DATA_ENABLED ? seedAirdrops : [])).map((campaign) => ({
   id: campaign.id || `airdrop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
   name: campaign.name || "AIRDROP FIELD OPS",
   code: String(campaign.code || "DROP").trim().toUpperCase(),
@@ -571,8 +576,17 @@ function ensureOrderShape(order) {
   return { ...order, status: orderStatuses.includes(order.status) ? order.status : "Novo pedido", items: (order.items || []).map((item) => ({ ...item, picked: Boolean(item.picked), location: item.location || "A definir" })), history: Array.isArray(order.history) && order.history.length ? order.history : [{ at: order.createdAt || new Date().toISOString(), actor: "Sistema", from: null, to: order.status || "Novo pedido", note: "Pedido criado" }], shipping: { carrier: "", service: "", method: "", deadline: "", volumes: 1, tracking: "", officialTracking: false, internalReference: "", zip: order.zip || "", address: "", weight: "", cubedWeight: "", status: "Aguardando separação", packages: [], ...order.shipping } };
 }
 
-state.quotes = state.quotes.map(ensureQuoteShape);
-state.orders = state.orders.map(ensureOrderShape);
+function isDemoOperationalRecord(record) {
+  const text = JSON.stringify(record || {}).toLowerCase();
+  return /exemplo de cliente|operação demo|operacao demo|orc-00012[678]/i.test(text);
+}
+
+function productionRecords(records) {
+  return (Array.isArray(records) ? records : []).filter((record) => !isDemoOperationalRecord(record));
+}
+
+state.quotes = productionRecords(state.quotes.map(ensureQuoteShape));
+state.orders = productionRecords(state.orders.map(ensureOrderShape));
 
 const app = document.querySelector("#app");
 const drawer = document.querySelector(".cart-drawer");
@@ -732,8 +746,8 @@ function applyCloudSnapshot(snapshot) {
   // Preserve local history created before the relational operational tables were
   // enabled. New records are written to the shared tables and replace this
   // fallback after the next hydration.
-  if (!state.quotes.length && Array.isArray(snapshot.quotes)) state.quotes = snapshot.quotes;
-  if (!state.orders.length && Array.isArray(snapshot.orders)) state.orders = snapshot.orders;
+  if (!state.quotes.length && Array.isArray(snapshot.quotes)) state.quotes = productionRecords(snapshot.quotes.map(ensureQuoteShape));
+  if (!state.orders.length && Array.isArray(snapshot.orders)) state.orders = productionRecords(snapshot.orders.map(ensureOrderShape));
   if (!state.importHistory.length && Array.isArray(snapshot.importHistory)) state.importHistory = snapshot.importHistory;
   state.cart = Array.isArray(state.cart) ? state.cart.filter((item) => findProduct(item.id)) : [];
   if (state.cartShipping?.providerMode === "local-simulator" || !state.cartShipping?.source) state.cartShipping = null;
@@ -811,7 +825,7 @@ async function hydrateCloudState() {
     let restoredLegacy = false;
     if (snapshot) applyCloudSnapshot(snapshot);
     else {
-      restoredLegacy = restoreLegacyBrowserState({ includeCatalog: !catalog?.products?.length });
+    restoredLegacy = DEMO_DATA_ENABLED ? restoreLegacyBrowserState({ includeCatalog: !catalog?.products?.length }) : false;
       if (restoredLegacy && !cloud.session) window.setTimeout(() => showToast("Dados anteriores recuperados nesta sessão. Entre na conta para sincronizar no Supabase."), 250);
     }
     state.cart = state.cart.filter((item) => findProduct(item.id));
@@ -832,8 +846,8 @@ async function hydrateCloudState() {
       }
       const operational = await cloud.loadOperationalData().catch(() => null);
       if (operational) {
-        state.quotes = (operational.quotes || []).map(ensureQuoteShape);
-        state.orders = (operational.orders || []).map(ensureOrderShape);
+        state.quotes = productionRecords((operational.quotes || []).map(ensureQuoteShape));
+        state.orders = productionRecords((operational.orders || []).map(ensureOrderShape));
       }
       state.auditEvents = await cloud.loadAuditEvents().catch(() => state.auditEvents || []);
       if (restoredLegacy && !catalog?.products?.length && ["retailer", "operator", "admin"].includes(assignedRole)) {
@@ -846,7 +860,7 @@ async function hydrateCloudState() {
     renderDrawer();
   } catch (error) {
     cloud.emitStatus("error", error.message);
-    console.warn("Field Ops: catálogo Supabase indisponível, mantendo modo de demonstração.", error);
+    console.warn("Field Ops: catálogo Supabase indisponível; nenhum dado de demonstração será exibido.", error);
   }
 }
 
@@ -1632,7 +1646,7 @@ function partnerDashboardPage() {
   ] : [
     ["01", "Produtos", `${activeProducts().length}`, "Itens disponíveis no catálogo", "admin-products"],
     ["02", "Estoque", `${activeProducts().reduce((sum, product) => sum + product.stockCount, 0)}`, "Unidades monitoradas", "admin-stock"],
-    ["03", "Pedidos", `${state.orders.length || 1}`, "Reposições em acompanhamento", "admin-orders"]
+    ["03", "Pedidos", `${state.orders.length}`, "Reposições em acompanhamento", "admin-orders"]
   ];
   const actions = isRetailer ? [
     ["Criar orçamento", "admin-quotes", "Abra uma nova solicitação comercial."],
@@ -1649,13 +1663,53 @@ function partnerDashboardPage() {
 
 function adminDashboardPage() {
   const lowStock = activeProducts().filter((product) => product.stockCount <= state.settings.lowStock).length;
-  const quoteCount = state.quotes.length + 2;
+  const quoteCount = state.quotes.length;
   return adminShell("admin", "01 / OVERVIEW", "Operational overview.", `<div class="admin-kpi-grid"><div class="admin-kpi"><span>Produtos ativos</span><strong>${activeProducts().length}</strong><small class="trend-up">Catálogo local</small></div><div class="admin-kpi"><span>Orçamentos novos</span><strong>${quoteCount}</strong><small class="trend-up">salvos neste dispositivo</small></div><div class="admin-kpi"><span>Estoque baixo</span><strong>${String(lowStock).padStart(2, "0")}</strong><small class="trend-warn">Revisar agora</small></div><div class="admin-kpi"><span>Sem estoque</span><strong>${activeProducts().filter((product) => product.stockCount <= 0).length}</strong><small>Disponibilidade atual</small></div></div><div class="admin-content-grid"><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">QUOTE INBOX</span><h2>Orçamentos recentes</h2></div><a href="#admin-quotes" data-route="admin-quotes" class="text-link">Ver todos</a></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Itens</th><th>Status</th></tr></thead><tbody>${(state.quotes.length ? state.quotes : [{ id: "ORC-000128", customer: "Exemplo de cliente", items: [{ quantity: 2 }], status: "Novo", total: 2328, createdAt: new Date().toISOString() }]).slice(0, 3).map((quote) => `<tr><td><strong>#${quote.id}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td>${quote.customer}</td><td>${quote.items.reduce((sum, item) => sum + item.quantity, 0)} itens</td><td><span class="admin-status ${quote.status === "Novo" ? "status-new" : quote.status === "Respondido" ? "status-done" : "status-progress"}">${quote.status}</span></td></tr>`).join("")}</tbody></table></div></section><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">STOCK WATCH</span><h2>Atenção no estoque</h2></div><a href="#admin-stock" data-route="admin-stock" class="text-link">Abrir estoque</a></div><div class="stock-watch">${activeProducts().filter((product) => product.stockCount <= state.settings.lowStock).slice(0, 3).map((product) => `<div><span class="stock-watch-bar" style="--bar:${Math.max(10, Math.min(100, product.stockCount * 7))}%"></span><strong>${product.name}</strong><small>${product.stockCount} unidades disponíveis</small><b>Baixo</b></div>`).join("") || `<p class="import-help">Nenhum item em nível crítico.</p>`}</div></section></div><section class="admin-panel quick-actions"><div class="admin-panel-head"><div><span class="eyebrow">FAST ACTIONS</span><h2>Próximo movimento</h2></div></div><div class="quick-action-grid"><button data-route="admin-products"><span>01</span><strong>Revisar produtos</strong><small>Editar dados, preço e status.</small></button><button data-route="admin-import"><span>02</span><strong>Importar planilha</strong><small>Mapear e validar novos itens.</small></button><button data-route="admin-prices"><span>03</span><strong>Atualizar preços</strong><small>Revisar varejo e grupos.</small></button></div></section>`);
 }
 
 function adminStockPage() {
   const physical = activeProducts().reduce((sum, product) => sum + product.stockCount, 0);
   return adminShell("admin-stock", "03 / INVENTORY", "Estoque.", `<div class="admin-kpi-grid"><div class="admin-kpi"><span>Estoque físico</span><strong>${physical}</strong><small>unidades catalogadas</small></div><div class="admin-kpi"><span>Reservado</span><strong>${state.quotes.length}</strong><small>em orçamentos ativos</small></div><div class="admin-kpi"><span>Disponível</span><strong>${Math.max(0, physical - state.quotes.length)}</strong><small class="trend-up">cálculo local</small></div></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">INVENTORY CONTROL</span><h2>Itens para revisão</h2></div><button class="outline-cta" data-route="admin-import">Atualizar por planilha</button></div><div class="inventory-list">${activeProducts().map((product) => `<div class="inventory-row"><img src="${product.image}" alt="" /><div><strong>${product.name}</strong><small>${product.brand} · SKU ${product.sku}</small></div><div class="inventory-value"><strong>${product.stockCount}</strong><small>disponíveis</small></div><span class="admin-status ${product.stockCount <= state.settings.lowStock ? "status-low" : "status-live"}">${product.stockCount <= state.settings.lowStock ? "Revisar" : "Estável"}</span><button class="status-action" data-stock-edit="${product.id}">Ajustar</button></div>`).join("")}</div></section>`);
+}
+
+function adminDashboardPage() {
+  const inventory = activeProducts();
+  const lowStock = inventory.filter((product) => product.stockCount <= state.settings.lowStock).length;
+  const outOfStock = inventory.filter((product) => product.stockCount <= 0).length;
+  const quoteRows = state.quotes.slice(0, 3).map((quote) => `<tr><td><strong>#${escapeHtml(quote.id)}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td>${escapeHtml(quote.customer || "Cliente não identificado")}</td><td>${(quote.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)} itens</td><td><span class="admin-status ${quoteStatusClass(quote.status)}">${escapeHtml(quote.status)}</span></td></tr>`).join("");
+  return adminShell("admin", "01 / VISÃO GERAL", "Operação.", `<div class="admin-kpi-grid"><div class="admin-kpi"><span>Produtos ativos</span><strong>${inventory.length}</strong><small class="trend-up">Base oficial</small></div><div class="admin-kpi"><span>Orçamentos registrados</span><strong>${state.quotes.length}</strong><small class="trend-up">Base oficial</small></div><div class="admin-kpi"><span>Estoque baixo</span><strong>${String(lowStock).padStart(2, "0")}</strong><small class="trend-warn">Revisar agora</small></div><div class="admin-kpi"><span>Sem estoque</span><strong>${outOfStock}</strong><small>Disponibilidade atual</small></div></div><div class="admin-content-grid"><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">QUOTE INBOX</span><h2>Orçamentos recentes</h2></div><a href="#admin-quotes" data-route="admin-quotes" class="text-link">Ver todos</a></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Itens</th><th>Status</th></tr></thead><tbody>${quoteRows || `<tr><td colspan="4"><div class="admin-inline-empty">Nenhum orçamento real registrado ainda.</div></td></tr>`}</tbody></table></div></section><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">STOCK WATCH</span><h2>Atenção no estoque</h2></div><a href="#admin-stock" data-route="admin-stock" class="text-link">Abrir estoque</a></div><div class="stock-watch">${inventory.filter((product) => product.stockCount <= state.settings.lowStock).slice(0, 3).map((product) => `<div><span class="stock-watch-bar" style="--bar:${Math.max(10, Math.min(100, product.stockCount * 7))}%"></span><strong>${escapeHtml(product.name)}</strong><small>${product.stockCount} unidades disponíveis</small><b>Baixo</b></div>`).join("") || `<p class="import-help">Nenhum item em nível crítico.</p>`}</div></section></div><section class="admin-panel quick-actions"><div class="admin-panel-head"><div><span class="eyebrow">PRÓXIMAS AÇÕES</span><h2>Escolha o próximo movimento.</h2></div></div><div class="quick-action-grid"><button data-route="admin-products"><span>01</span><strong>Revisar catálogo</strong><small>Editar dados, preço e status.</small></button><button data-route="admin-import"><span>02</span><strong>Importar produtos</strong><small>Atualizar estoque pela planilha.</small></button><button data-route="admin-prices"><span>03</span><strong>Atualizar preços</strong><small>Revisar valores publicados.</small></button></div></section>`);
+}
+
+function inventoryProducts() {
+  const query = state.inventorySearch.trim().toLowerCase();
+  const availability = state.inventoryAvailability;
+  const category = state.inventoryCategory;
+  return activeProducts().filter((product) => {
+    const haystack = [product.name, product.brand, product.sku, product.barcode, product.supplier, product.category].filter(Boolean).join(" ").toLowerCase();
+    const matchesQuery = !query || haystack.includes(query);
+    const matchesCategory = category === "all" || product.category === category;
+    const matchesAvailability = availability === "all" || (availability === "available" && product.stockCount > state.settings.lowStock) || (availability === "low" && product.stockCount > 0 && product.stockCount <= state.settings.lowStock) || (availability === "out" && product.stockCount <= 0);
+    return matchesQuery && matchesCategory && matchesAvailability;
+  }).sort((a, b) => a.stockCount - b.stockCount || a.name.localeCompare(b.name, "pt-BR"));
+}
+
+function adminStockPage() {
+  const productsInView = inventoryProducts();
+  const totalProducts = activeProducts().length;
+  const categoriesInUse = [...new Set(activeProducts().map((product) => product.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const physical = activeProducts().reduce((sum, product) => sum + product.stockCount, 0);
+  return adminShell("admin-stock", "03 / ESTOQUE", "Estoque.", `<div class="admin-kpi-grid"><div class="admin-kpi"><span>Estoque físico</span><strong>${physical}</strong><small>unidades catalogadas</small></div><div class="admin-kpi"><span>Reservado</span><strong>${state.quotes.length}</strong><small>em orçamentos ativos</small></div><div class="admin-kpi"><span>Disponível</span><strong>${Math.max(0, physical - state.quotes.length)}</strong><small class="trend-up">cálculo da base oficial</small></div></div><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">CONSULTA DE INVENTÁRIO</span><h2>${productsInView.length} de ${totalProducts} itens</h2></div><button class="outline-cta" data-route="admin-import">Atualizar por planilha</button></div><div class="inventory-filters"><label class="admin-search"><span class="icon icon-search"></span><input id="inventory-search" value="${escapeHtml(state.inventorySearch)}" placeholder="Buscar por produto, SKU, marca ou fornecedor" /></label><select class="inventory-filter" id="inventory-availability" aria-label="Filtrar disponibilidade"><option value="all" ${state.inventoryAvailability === "all" ? "selected" : ""}>Todas as disponibilidades</option><option value="available" ${state.inventoryAvailability === "available" ? "selected" : ""}>Em estoque</option><option value="low" ${state.inventoryAvailability === "low" ? "selected" : ""}>Estoque baixo</option><option value="out" ${state.inventoryAvailability === "out" ? "selected" : ""}>Sem estoque</option></select><select class="inventory-filter" id="inventory-category" aria-label="Filtrar categoria"><option value="all" ${state.inventoryCategory === "all" ? "selected" : ""}>Todas as categorias</option>${categoriesInUse.map((category) => `<option value="${escapeHtml(category)}" ${state.inventoryCategory === category ? "selected" : ""}>${escapeHtml(category)}</option>`).join("")}</select><button class="outline-cta" data-action="inventory-clear">Limpar filtros</button></div><div class="inventory-list">${productsInView.length ? productsInView.map((product) => `<div class="inventory-row"><img src="${escapeHtml(product.image || "/assets/product-image-pending.svg")}" alt="" /><div><strong>${escapeHtml(product.name)}</strong><small>${escapeHtml(product.brand)} · SKU ${escapeHtml(product.sku || "Não informado")}</small></div><div class="inventory-value"><strong>${product.stockCount}</strong><small>disponíveis</small></div><span class="admin-status ${product.stockCount <= state.settings.lowStock ? "status-low" : "status-live"}">${product.stockCount <= state.settings.lowStock ? "Revisar" : "Estável"}</span><button class="status-action" data-stock-edit="${escapeHtml(product.id)}">Ajustar</button></div>`).join("") : `<div class="admin-inline-empty">Nenhum produto corresponde aos filtros atuais.</div>`}</div></section>`);
+}
+
+// Production dashboard override: do not render placeholders when the official
+// base has no real quotes yet.
+function adminDashboardPage() {
+  const inventory = activeProducts();
+  const lowStock = inventory.filter((product) => product.stockCount <= state.settings.lowStock).length;
+  const outOfStock = inventory.filter((product) => product.stockCount <= 0).length;
+  const quoteRows = state.quotes.slice(0, 3).map((quote) => `<tr><td><strong>#${escapeHtml(quote.id)}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td>${escapeHtml(quote.customer || "Cliente não identificado")}</td><td>${(quote.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)} itens</td><td><span class="admin-status ${quoteStatusClass(quote.status)}">${escapeHtml(quote.status)}</span></td></tr>`).join("");
+  const stockRows = inventory.filter((product) => product.stockCount <= state.settings.lowStock).slice(0, 3).map((product) => `<div><span class="stock-watch-bar" style="--bar:${Math.max(10, Math.min(100, product.stockCount * 7))}%"></span><strong>${escapeHtml(product.name)}</strong><small>${product.stockCount} unidades disponíveis</small><b>Baixo</b></div>`).join("");
+  return adminShell("admin", "01 / VISÃO GERAL", "Operação.", `<div class="admin-kpi-grid"><div class="admin-kpi"><span>Produtos ativos</span><strong>${inventory.length}</strong><small class="trend-up">Base oficial</small></div><div class="admin-kpi"><span>Orçamentos registrados</span><strong>${state.quotes.length}</strong><small>Base oficial</small></div><div class="admin-kpi"><span>Estoque baixo</span><strong>${String(lowStock).padStart(2, "0")}</strong><small class="trend-warn">Revisar agora</small></div><div class="admin-kpi"><span>Sem estoque</span><strong>${outOfStock}</strong><small>Disponibilidade atual</small></div></div><div class="admin-content-grid"><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">ORÇAMENTOS RECENTES</span><h2>Registros reais</h2></div><a href="#admin-quotes" data-route="admin-quotes" class="text-link">Ver todos</a></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Itens</th><th>Status</th></tr></thead><tbody>${quoteRows || `<tr><td colspan="4"><div class="admin-inline-empty">Nenhum orçamento real registrado ainda.</div></td></tr>`}</tbody></table></div></section><section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">ATENÇÃO NO ESTOQUE</span><h2>Itens para revisar</h2></div><a href="#admin-stock" data-route="admin-stock" class="text-link">Abrir estoque</a></div><div class="stock-watch">${stockRows || `<p class="import-help">Nenhum item em nível crítico.</p>`}</div></section></div><section class="admin-panel quick-actions"><div class="admin-panel-head"><div><span class="eyebrow">PRÓXIMAS AÇÕES</span><h2>Escolha o próximo movimento.</h2></div></div><div class="quick-action-grid"><button data-route="admin-products"><span>01</span><strong>Revisar catálogo</strong><small>Editar dados, preço e status.</small></button><button data-route="admin-import"><span>02</span><strong>Importar produtos</strong><small>Atualizar estoque pela planilha.</small></button><button data-route="admin-prices"><span>03</span><strong>Atualizar preços</strong><small>Revisar valores publicados.</small></button></div></section>`);
 }
 
 function adminPricesPage() {
@@ -1665,6 +1719,11 @@ function adminPricesPage() {
 function adminCustomersPage() {
   const customers = state.quotes.map((quote) => ({ name: quote.customer, phone: quote.phone || "Não informado", type: "Consumidor", quotes: 1 }));
   return adminShell("admin-customers", "06 / RELATIONSHIP", "Clientes.", `<section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">CUSTOMER REGISTER</span><h2>${customers.length || 1} clientes identificados</h2></div><span class="admin-sync">Dados locais do MVP</span></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Cliente</th><th>WhatsApp</th><th>Tipo</th><th>Orçamentos</th></tr></thead><tbody>${customers.length ? customers.map((customer) => `<tr><td><strong>${customer.name}</strong><small>Perfil Field Ops</small></td><td>${customer.phone}</td><td>${customer.type}</td><td>${customer.quotes}</td></tr>`).join("") : `<tr><td colspan="4"><div class="admin-inline-empty">Os clientes aparecerão aqui após o primeiro orçamento.</div></td></tr>`}</tbody></table></div></section>`);
+}
+
+function adminCustomersPage() {
+  const customers = state.quotes.map((quote) => ({ name: quote.customer, phone: quote.phone || "Não informado", type: "Consumidor", quotes: 1 }));
+  return adminShell("admin-customers", "06 / RELACIONAMENTO", "Clientes.", `<section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">CADASTRO DE CLIENTES</span><h2>${customers.length} clientes identificados</h2></div><span class="admin-sync">Base oficial</span></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Cliente</th><th>WhatsApp</th><th>Tipo</th><th>Orçamentos</th></tr></thead><tbody>${customers.length ? customers.map((customer) => `<tr><td><strong>${escapeHtml(customer.name || "Não informado")}</strong></td><td>${escapeHtml(customer.phone)}</td><td>${escapeHtml(customer.type)}</td><td>${customer.quotes}</td></tr>`).join("") : `<tr><td colspan="4"><div class="admin-inline-empty">Os clientes aparecerão aqui após o primeiro orçamento real.</div></td></tr>`}</tbody></table></div></section>`);
 }
 
 function airdropDatetimeLocal(value) {
@@ -1953,8 +2012,7 @@ function adminProductsPage() {
 }
 
 function adminQuotesPage() {
-  const demo = [{ id: "ORC-000128", customer: "Lucas Mendes", total: 2328, status: "Novo", createdAt: new Date().toISOString(), items: [{ quantity: 3 }] }, { id: "ORC-000127", customer: "Bruno Azevedo", total: 999, status: "Em análise", createdAt: new Date(Date.now() - 3600000).toISOString(), items: [{ quantity: 1 }] }];
-  const quotes = [...state.quotes, ...demo];
+  const quotes = [...state.quotes];
   return adminShell("admin-quotes", "04 / COMMERCIAL", "Orçamentos.", `<section class="admin-panel"><div class="admin-panel-head"><div><span class="eyebrow">QUOTE PIPELINE</span><h2>${quotes.length} conversas abertas</h2></div><span class="admin-sync"><i class="status-dot"></i> WhatsApp preparado</span></div><div class="admin-quote-cards"><div><span>NOVOS</span><strong>${quotes.filter((quote) => quote.status === "Novo").length}</strong><small>aguardando primeiro contato</small></div><div><span>EM ANÁLISE</span><strong>${quotes.filter((quote) => quote.status === "Em análise").length}</strong><small>time comercial em atendimento</small></div><div><span>RESPONDIDOS</span><strong>${quotes.filter((quote) => quote.status === "Respondido").length}</strong><small>últimas 24 horas</small></div></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Orçamento</th><th>Cliente</th><th>Total estimado</th><th>Itens</th><th>Status</th><th>Ação</th></tr></thead><tbody>${quotes.map((quote) => `<tr><td><strong>#${quote.id.replace("ORC-", "ORC-")}</strong><small>${new Date(quote.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></td><td>${quote.customer}</td><td>${money(quote.total)}</td><td>${quote.items.reduce((sum, item) => sum + item.quantity, 0)} itens</td><td><span class="admin-status ${quote.status === "Novo" ? "status-new" : quote.status === "Respondido" ? "status-done" : "status-progress"}">${quote.status}</span></td><td>${state.quotes.some((saved) => saved.id === quote.id) ? `<button class="status-action" data-quote-status="${quote.id}">Avançar</button>` : `<span class="admin-table-muted">Demo</span>`}</td></tr>`).join("")}</tbody></table></div></section>`);
 }
 
@@ -1968,12 +2026,11 @@ function adminImportPage() {
 }
 
 function quoteDemoData() {
-  return [{ id: "ORC-000128", customer: "Lucas Mendes", phone: "", city: "São Paulo / SP", subtotal: 2328, discount: 0, freight: 0, total: 2328, status: "Novo", origin: "Catálogo", seller: "Operação demo", createdAt: new Date().toISOString(), items: [{ id: "neptune-10", quantity: 1 }, { id: "red-dot-rd1", quantity: 1 }] }, { id: "ORC-000127", customer: "Bruno Azevedo", phone: "", city: "Campinas / SP", subtotal: 999, discount: 0, freight: 0, total: 999, status: "Em análise", origin: "WhatsApp", seller: "Operação demo", createdAt: new Date(Date.now() - 3600000).toISOString(), items: [{ id: "hi-capa-5-1", quantity: 1 }] }];
+  return [];
 }
 
 function quoteCollection() {
-  const useDemoFallback = !window.FieldOpsSupabase?.configured?.();
-  return [...state.quotes, ...(useDemoFallback ? quoteDemoData() : [])];
+  return [...state.quotes];
 }
 
 function quoteStatusClass(status) {
@@ -4333,6 +4390,12 @@ function bindViewEvents() {
   document.querySelectorAll("[data-delete-product]").forEach((el) => el.addEventListener("click", () => deleteProduct(el.dataset.deleteProduct)));
   const adminSearch = document.querySelector("#admin-product-search");
   if (adminSearch) adminSearch.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.adminProductSearch = adminSearch.value; render(); } });
+  const inventorySearch = document.querySelector("#inventory-search");
+  if (inventorySearch) inventorySearch.addEventListener("input", () => { state.inventorySearch = inventorySearch.value; const caret = inventorySearch.selectionStart; render(); window.requestAnimationFrame(() => { const next = document.querySelector("#inventory-search"); if (next) { next.focus(); next.setSelectionRange(caret, caret); } }); });
+  const inventoryAvailability = document.querySelector("#inventory-availability");
+  if (inventoryAvailability) inventoryAvailability.addEventListener("change", () => { state.inventoryAvailability = inventoryAvailability.value; render(); });
+  const inventoryCategory = document.querySelector("#inventory-category");
+  if (inventoryCategory) inventoryCategory.addEventListener("change", () => { state.inventoryCategory = inventoryCategory.value; render(); });
   const quoteSearch = document.querySelector("#quote-search");
   if (quoteSearch) quoteSearch.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.quoteSearch = quoteSearch.value; render(); } });
   const quoteStatusFilter = document.querySelector("#quote-status-filter");
@@ -4548,6 +4611,7 @@ document.addEventListener("click", (event) => {
   if (event.target.closest("[data-clear-availability]")) { state.filters.availability = "all"; render(); }
   if (event.target.closest("[data-clear-price]")) { state.filters.maxPrice = catalogPriceMax(); render(); }
   if (event.target.closest("[data-clear-filters]")) { state.category = ""; state.search = ""; state.filters = { systems: [], availability: "all", maxPrice: catalogPriceMax() }; render(); }
+  if (action === "inventory-clear") { state.inventorySearch = ""; state.inventoryAvailability = "all"; state.inventoryCategory = "all"; render(); }
   const quoteStatusId = event.target.closest("[data-quote-status]")?.dataset.quoteStatus;
   if (quoteStatusId) advanceQuoteStatus(quoteStatusId);
   if (action === "quote-new") quoteCreateModalV2();

@@ -647,6 +647,11 @@ html[data-theme="light"] .social-link::after { border-color: rgba(70,105,20,.24)
 .inventory-value strong { font: 600 23px var(--display); }
 .inventory-value small { text-transform: uppercase; }
 .inventory-row .status-action { justify-self: end; }
+.inventory-filters { display: grid; grid-template-columns: minmax(260px, 1fr) 190px 190px auto; gap: 10px; align-items: center; margin: 0 0 18px; padding: 12px; border: 1px solid var(--line); background: var(--bg-elevated); }
+.inventory-filters .admin-search { min-height: 42px; margin: 0; }
+.inventory-filter { min-height: 42px; padding: 0 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); font: 700 11px var(--body); }
+@media (max-width: 820px) { .inventory-filters { grid-template-columns: 1fr 1fr; } .inventory-filters .admin-search { grid-column: 1 / -1; } .inventory-filters .outline-cta { width: 100%; } }
+@media (max-width: 520px) { .inventory-filters { grid-template-columns: 1fr; } .inventory-filters .admin-search { grid-column: auto; } }
 .settings-panel { max-width: 860px; }
 .settings-intro { max-width: 560px; color: var(--muted); font-size: 12px; line-height: 1.7; }
 .settings-form { display: grid; gap: 18px; margin-top: 23px; }
