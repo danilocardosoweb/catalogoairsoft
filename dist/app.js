@@ -468,8 +468,8 @@ function bannerMediaUrl(value, fallback) {
 
 function homeBanners() {
   const list = state.banners.filter((banner) => banner.active).sort((a, b) => a.order - b.order);
-  const emptyCatalogBanner = { id: "catalog-empty", name: "Catálogo oficial", type: "video", media: storeBrandVideo, eyebrow: "SUPRIMENTOS OLIVEIRA", title: "SEU CATÁLOGO", titleAccent: "EM CAMPO.", subtitle: "Os banners publicados pela loja aparecerão aqui.", ctaLabel: "Ver catálogo", ctaTarget: "catalog", active: true, order: 1 };
-  return (list.length ? list : (DEMO_DATA_ENABLED ? seedBanners : [emptyCatalogBanner])).map(ensureBannerShape);
+  const originalHeroBanner = { id: "hero-original", name: "Operação principal", type: "video", media: "videos/operator-airsoft.mp4?v=motion-smooth-21", eyebrow: "TACTICAL STORE / 01", title: "DOMINE", titleAccent: "O JOGO", subtitle: "Equipamentos, precisão e adrenalina para quem vive Airsoft.", ctaLabel: "Explorar catálogo", ctaTarget: "catalog", active: true, order: 1 };
+  return (list.length ? list : (DEMO_DATA_ENABLED ? seedBanners : [originalHeroBanner])).map(ensureBannerShape);
 }
 
 function ensureRadarContentShape(content) {
