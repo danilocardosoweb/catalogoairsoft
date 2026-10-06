@@ -95,7 +95,7 @@ html[data-theme="light"] .hero-video-shade { background: linear-gradient(90deg, 
 .brand-emblem { display: grid; place-items: center; width: 88px; height: 88px; overflow: hidden; flex: 0 0 auto; border: 1px solid rgba(227,173,54,.72); border-radius: 50%; background: var(--brand-black); box-shadow: 0 0 0 2px rgba(227,173,54,.12), 0 7px 20px rgba(0,0,0,.28); }
 .brand-emblem img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .brand-store .brand-copy strong { font-size: clamp(15px, 1.15vw, 20px); letter-spacing: .065em; white-space: nowrap; }
-.brand-store .brand-copy strong span { color: var(--brand-gold-soft); }
+.brand-store .brand-copy strong span { color: #caff3f; }
 .brand-store .brand-copy small { margin-top: 5px; font-size: 7px; letter-spacing: .12em; }
 .main-nav { display: flex; align-items: center; gap: clamp(17px, 3vw, 40px); height: 100%; }
 .nav-link { position: relative; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .03em; transition: color .2s ease; }
@@ -392,7 +392,7 @@ html[data-theme="light"] .site-footer { background: linear-gradient(180deg, #edf
 .footer-brand-emblem { display: grid; place-items: center; width: 66px; height: 66px; overflow: hidden; flex: 0 0 auto; border: 1px solid rgba(227,173,54,.85); border-radius: 50%; background: var(--brand-black); box-shadow: 0 0 0 4px rgba(227,173,54,.08), 0 10px 28px rgba(0,0,0,.26); }
 .footer-brand-emblem img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .footer-brand strong { display: block; color: var(--ink); font: 800 19px/1 var(--display); letter-spacing: .065em; }
-.footer-brand strong em { color: var(--brand-gold-soft); font-style: normal; }
+.footer-brand strong em { color: #caff3f; font-style: normal; }
 .footer-brand small { display: block; margin-top: 6px; color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: .14em; }
 .footer-brand-block > p { max-width: 280px; margin: 25px 0 22px; color: var(--ink-soft); font-size: 14px; line-height: 1.7; }
 .footer-status { display: inline-flex; align-items: center; padding: 8px 11px; border: 1px solid var(--line); background: rgba(255,255,255,.025); color: var(--muted); font-size: 9px; font-weight: 900; letter-spacing: .14em; }
