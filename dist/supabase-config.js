@@ -1,6 +1,2 @@
-/* Public browser configuration. Database policies remain the security boundary. */
-window.FIELD_OPS_SUPABASE_CONFIG = {
-  url: "https://wkvhglnfugbcgirhfbgt.supabase.co",
-  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrdmhnbG5mdWdiY2dpcmhmYmd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzMjcyNjAsImV4cCI6MjEwNTkwMzI2MH0.2KvNUZoYNK4HtUkcS_T8-mlRRn-l79V2o12-kR6HwhM",
-  organizationSlug: "suprimentos-oliveira"
-};
+/* Gerado no build da Vercel. A chave anon é pública e protegida por RLS. */
+window.FIELD_OPS_SUPABASE_CONFIG = {"url":"https://wkvhglnfugbcgirhfbgt.supabase.co","anonKey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrdmhnbG5mdWdiY2dpcmhmYmd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzMjcyNjAsImV4cCI6MjEwNTkwMzI2MH0.2KvNUZoYNK4HtUkcS_T8-mlRRn-l79V2o12-kR6HwhM","organizationSlug":"suprimentos-oliveira"};
